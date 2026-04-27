@@ -54,7 +54,7 @@ export const TodayView: React.FC = () => {
         summary[menuId].notes.push({
            note: schedule.notes,
            qty: schedule.quantity,
-           memberName: schedule.members?.full_name || 'ลูกค้า'
+           memberName: (Array.isArray(schedule.members) ? schedule.members[0]?.full_name : schedule.members?.full_name) || 'ลูกค้า'
         });
       }
     });

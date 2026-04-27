@@ -188,7 +188,7 @@ export const fetchMemberSchedules = async (startDate: string, endDate: string, p
       id, package_id, member_id, delivery_date, meal_type, menu_item_id, quantity, box_size, delivery_time, kitchen_status, notes,
       menu_items (id, name, category, protein, calories, image_url, tags),
       pinto_packages (id, package_name, meals_remaining),
-      members (id, full_name, phone)
+      members!erp_member_meal_schedules_member_id_fkey (id, full_name, phone)
     `)
     .gte('delivery_date', startDate)
     .lte('delivery_date', endDate);

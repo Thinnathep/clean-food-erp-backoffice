@@ -243,7 +243,9 @@ export const MemberPlanner: React.FC = () => {
                 }`}
               >
                 <div className="flex justify-between items-start">
-                  <p className="text-sm font-black text-slate-800 truncate">{pkg.members?.full_name || 'ไม่ทราบชื่อ'}</p>
+                  <p className="text-sm font-black text-slate-800 truncate">
+                    {Array.isArray(pkg.members) ? pkg.members[0]?.full_name : pkg.members?.full_name || 'ไม่ทราบชื่อ'}
+                  </p>
                 </div>
                 <div className="flex justify-between items-end mt-2">
                   <p className="text-[10px] font-bold text-slate-500 truncate max-w-[120px]">{pkg.package_name}</p>
@@ -274,7 +276,9 @@ export const MemberPlanner: React.FC = () => {
                    </div>
                    <div className="min-w-0 flex-1">
                        <div className="flex items-center gap-2">
-                          <h3 onClick={handleOpenProfile} className="text-base md:text-lg font-black text-slate-900 truncate cursor-pointer hover:text-emerald-600 transition-colors">{selectedPackage.members?.full_name}</h3>
+                           <h3 onClick={handleOpenProfile} className="text-base md:text-lg font-black text-slate-900 truncate cursor-pointer hover:text-emerald-600 transition-colors">
+                             {Array.isArray(selectedPackage.members) ? selectedPackage.members[0]?.full_name : selectedPackage.members?.full_name}
+                           </h3>
                           <button 
                             onClick={handleOpenProfile} 
                             className="flex items-center gap-1.5 px-2 py-1 bg-slate-100 hover:bg-emerald-500 hover:text-white text-slate-500 rounded-lg text-[10px] font-black transition-all border border-slate-200 hover:border-emerald-500 shadow-sm"
@@ -595,7 +599,9 @@ export const MemberPlanner: React.FC = () => {
                         <User size={20} />
                       </div>
                       <div>
-                        <h4 className="font-black text-slate-800">{selectedPackage?.members?.full_name}</h4>
+                        <h4 className="font-black text-slate-800">
+                          {Array.isArray(selectedPackage?.members) ? selectedPackage.members[0]?.full_name : selectedPackage?.members?.full_name}
+                        </h4>
                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">ข้อมูลสมาชิกและโปรโมชั่น</p>
                       </div>
                     </div>
