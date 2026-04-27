@@ -100,7 +100,6 @@ const MenuFormModal = memo(({
   editingMenuId, 
   initialData, 
   onSave, 
-  onUploadImage 
 }: { 
   isOpen: boolean, 
   onClose: () => void, 

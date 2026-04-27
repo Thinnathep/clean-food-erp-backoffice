@@ -80,7 +80,7 @@ export default function MenuPanel({ onSelect }: Props) {
               <div>
                 <div style={{ fontSize: '11px', color: 'var(--accent-green)', fontWeight: 600, letterSpacing: '1px' }}>เลือกเมนู</div>
                 <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                  มื้อที่ {selectedSlot} — วัน{['จันทร์','อังคาร','พุธ','พฤหัส','ศุกร์','เสาร์','อาทิตย์'][selectedDay!]}
+                  มื้อที่ {selectedSlot} — วัน{['จันทร์','อังคาร','พุธ','พฤหัส','ศุกร์','เสาร์','อาทิตย์'][Number(selectedDay)]}
                 </div>
               </div>
               <button onClick={clearSelection} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '4px' }}>
