@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { MainLayout } from './components/layout/MainLayout';
 import { KdsDashboard } from './features/kds/components/KdsDashboard';
+import { WeeklyPlanner } from './features/kds/components/WeeklyPlanner';
 import { MemberManagement } from './features/members/components/MemberManagement';
 import { Login } from './features/auth/Login';
 import { useAuthStore } from './store/authStore';
@@ -78,6 +79,7 @@ function App() {
         
         {/* Protected ERP Routes */}
         <Route path="/kds" element={<ProtectedRoute><MainLayout><KdsDashboard /></MainLayout></ProtectedRoute>} />
+        <Route path="/planner" element={<ProtectedRoute><MainLayout><WeeklyPlanner /></MainLayout></ProtectedRoute>} />
         <Route path="/members" element={<ProtectedRoute><MainLayout><MemberManagement /></MainLayout></ProtectedRoute>} />
         <Route path="/inventory" element={<ProtectedRoute><MainLayout><PlaceholderPage title="ระบบคลังวัตถุดิบ & สูตรอาหาร" /></MainLayout></ProtectedRoute>} />
         <Route path="/finance" element={<ProtectedRoute><MainLayout><PlaceholderPage title="ระบบบัญชีและการเงิน" /></MainLayout></ProtectedRoute>} />

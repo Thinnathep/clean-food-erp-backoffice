@@ -452,3 +452,59 @@ export const useKdsStore = create<KdsState>()(
     selectedPackageId: state.selectedPackageId
   }),
 }));
+
+// ── KDS Weekly Planner Store (Added) ──
+
+interface PlannerStore {
+  currentWeekStart: string;
+  selectedDate: string | null;    // YYYY-MM-DD
+  selectedMealType: string | null;  // meal_1 | meal_2
+  menuSearch: string;
+  categoryFilter: string;
+  isPanelOpen: boolean;
+
+  setWeek: (weekStart: string) => void;
+  prevWeek: () => void;
+  nextWeek: () => void;
+  goToToday: () => void;
+  selectSlot: (date: string, mealType: string) => void;
+  clearSelection: () => void;
+  setMenuSearch: (q: string) => void;
+  setCategoryFilter: (c: string) => void;
+}
+
+import { getWeekStart, toISO, dayjs } from '../lib/dateUtils';
+
+export const usePlannerStore = create<PlannerStore>((set, get) => ({
+  currentWeekStart: toISO(getWeekStart()),
+  selectedDate: null,
+  selectedMealType: null,
+  menuSearch: '',
+  categoryFilter: '',
+  isPanelOpen: false,
+
+  setWeek: (w) => set({ currentWeekStart: w, selectedDate: null, selectedMealType: null, isPanelOpen: false }),
+  prevWeek: () => set(s => ({
+    currentWeekStart: toISO(dayjs(s.currentWeekStart).subtract(1, 'week')),
+    selectedDate: null, selectedMealType: null, isPanelOpen: false
+  })),
+  nextWeek: () => set(s => ({
+    currentWeekStart: toISO(dayjs(s.currentWeekStart).add(1, 'week')),
+    selectedDate: null, selectedMealType: null, isPanelOpen: false
+  })),
+  goToToday: () => set({
+    currentWeekStart: toISO(getWeekStart()),
+    selectedDate: null, selectedMealType: null, isPanelOpen: false
+  }),
+  selectSlot: (date, mealType) => {
+    const s = get();
+    if (s.selectedDate === date && s.selectedMealType === mealType) {
+      set({ selectedDate: null, selectedMealType: null, isPanelOpen: false });
+    } else {
+      set({ selectedDate: date, selectedMealType: mealType, isPanelOpen: true });
+    }
+  },
+  clearSelection: () => set({ selectedDate: null, selectedMealType: null, isPanelOpen: false }),
+  setMenuSearch: (menuSearch) => set({ menuSearch }),
+  setCategoryFilter: (categoryFilter) => set({ categoryFilter }),
+}));

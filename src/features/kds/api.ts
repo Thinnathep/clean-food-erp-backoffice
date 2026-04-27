@@ -1,5 +1,6 @@
 import { supabase } from '../../config/supabase';
-import type { KdsTask, MenuItem, PintoPackage, GlobalPlanSlot, MemberMealSchedule, Member } from '../../types';
+import { dayjs, toISO } from '../../lib/dateUtils';
+import type { KdsTask, MenuItem, PintoPackage, GlobalPlanSlot, MemberMealSchedule, Member, MealType, WeeklyPlan, PintoMealPlan } from '../../types';
 
 // --- Legacy KDS Live Orders (Unchanged for now) ---
 export const fetchActiveKdsTasks = async (): Promise<KdsTask[]> => {
@@ -23,22 +24,17 @@ export const finishKdsTask = async (orderUuid: string): Promise<void> => {
   if (error) throw new Error(error.message);
 };
 
-// --- Master Menu ---
+// --- Master Menu (Updated for Planner) ---
 export const fetchMenuItems = async (): Promise<MenuItem[]> => {
   const { data, error } = await supabase
     .from('menu_items')
-    .select('id, name, category, menu_group, protein, calories, image_url, tags, is_available')
+    .select('id, name, category, description, image_url, calories, protein, carbs, fat, base_price, is_available, tags, menu_group, prep_time_minutes')
     .eq('is_available', true)
-    .not('category', 'in', '("package","bundle")')
+    .is('deleted_at', null)
     .order('category', { ascending: true })
     .order('name', { ascending: true });
 
-  if (error) {
-    console.error("fetchMenuItems Error:", error.message);
-    throw new Error(error.message);
-  }
-  
-  console.log("fetchMenuItems Data Count:", data?.length || 0);
+  if (error) throw new Error(error.message);
   return data as MenuItem[];
 };
 
@@ -292,3 +288,155 @@ export const createPintoPackage = async (pkg: Omit<PintoPackage, 'id'>): Promise
   if (error) throw new Error(error.message);
   return data as PintoPackage;
 };
+
+// ── KDS Weekly Planner API (Added) ──
+
+export async function fetchWeeklyPlan(weekStart: string): Promise<WeeklyPlan | null> {
+  const { data, error } = await supabase
+    .from('weekly_plans')
+    .select('*')
+    .eq('week_start', weekStart)
+    .maybeSingle();
+  if (error) throw error;
+  return data as WeeklyPlan | null;
+}
+
+export async function upsertWeeklyPlan(weekStart: string, notes?: string): Promise<WeeklyPlan> {
+  const { data, error } = await supabase
+    .from('weekly_plans')
+    .upsert(
+      { week_start: weekStart, notes: notes ?? null, updated_at: new Date().toISOString() },
+      { onConflict: 'week_start' }
+    )
+    .select()
+    .single();
+  if (error) throw error;
+  return data as WeeklyPlan;
+}
+
+export async function fetchMealPlanForWeek(weekStart: string): Promise<PintoMealPlan[]> {
+  const weekEnd = toISO(dayjs(weekStart).add(6, 'day'));
+  const { data, error } = await supabase
+    .from('pinto_meal_plan')
+    .select('*, menu_item:menu_items(id, name, category, calories, protein, carbs, fat, base_price, tags, prep_time_minutes, menu_group)')
+    .gte('delivery_date', weekStart)
+    .lte('delivery_date', weekEnd)
+    .order('delivery_date')
+    .order('meal_type');
+  if (error) throw error;
+  return data as unknown as PintoMealPlan[];
+}
+
+export async function upsertMealSlot(payload: {
+  delivery_date: string;
+  meal_type: MealType;
+  menu_item_id: string;
+  menu_name: string;
+  calories?: number;
+  protein?: number;
+  carbs?: number;
+  fat?: number;
+  price?: number;
+  week_plan_id?: string | null;
+  prep_notes?: string | null;
+}): Promise<PintoMealPlan> {
+  const { data: existing } = await supabase
+    .from('pinto_meal_plan')
+    .select('id')
+    .eq('delivery_date', payload.delivery_date)
+    .eq('meal_type', payload.meal_type)
+    .maybeSingle();
+
+  if (existing?.id) {
+    const { data, error } = await supabase
+      .from('pinto_meal_plan')
+      .update({
+        menu_item_id: payload.menu_item_id,
+        menu_name: payload.menu_name,
+        calories: payload.calories ?? 0,
+        protein: payload.protein ?? 0,
+        carbs: payload.carbs ?? 0,
+        fat: payload.fat ?? 0,
+        price: payload.price ?? 0,
+        week_plan_id: payload.week_plan_id ?? null,
+        prep_notes: payload.prep_notes ?? null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', existing.id)
+      .select('*, menu_item:menu_items(id, name, category, calories, protein, carbs, fat, base_price, tags, prep_time_minutes, menu_group)')
+      .single();
+    if (error) throw error;
+    return data as unknown as PintoMealPlan;
+  } else {
+    const { data, error } = await supabase
+      .from('pinto_meal_plan')
+      .insert({
+        delivery_date: payload.delivery_date,
+        meal_type: payload.meal_type,
+        menu_item_id: payload.menu_item_id,
+        menu_name: payload.menu_name,
+        calories: payload.calories ?? 0,
+        protein: payload.protein ?? 0,
+        carbs: payload.carbs ?? 0,
+        fat: payload.fat ?? 0,
+        price: payload.price ?? 0,
+        week_plan_id: payload.week_plan_id ?? null,
+        prep_notes: payload.prep_notes ?? null,
+        is_published: false,
+      })
+      .select('*, menu_item:menu_items(id, name, category, calories, protein, carbs, fat, base_price, tags, prep_time_minutes, menu_group)')
+      .single();
+    if (error) throw error;
+    return data as unknown as PintoMealPlan;
+  }
+}
+
+export async function clearMealSlot(deliveryDate: string, mealType: MealType): Promise<void> {
+  const { error } = await supabase
+    .from('pinto_meal_plan')
+    .delete()
+    .eq('delivery_date', deliveryDate)
+    .eq('meal_type', mealType);
+  if (error) throw error;
+}
+
+export async function publishWeekMeals(weekStart: string, weekPlanId: string): Promise<void> {
+  const weekEnd = toISO(dayjs(weekStart).add(6, 'day'));
+  const { error: mealError } = await supabase
+    .from('pinto_meal_plan')
+    .update({ is_published: true, updated_at: new Date().toISOString() })
+    .gte('delivery_date', weekStart)
+    .lte('delivery_date', weekEnd)
+    .not('menu_item_id', 'is', null);
+  if (mealError) throw mealError;
+
+  const { error: planError } = await supabase
+    .from('weekly_plans')
+    .update({ status: 'published', updated_at: new Date().toISOString() })
+    .eq('id', weekPlanId);
+  if (planError) throw planError;
+}
+
+export async function unpublishWeekMeals(weekStart: string, weekPlanId: string): Promise<void> {
+  const weekEnd = toISO(dayjs(weekStart).add(6, 'day'));
+  await supabase
+    .from('pinto_meal_plan')
+    .update({ is_published: false, updated_at: new Date().toISOString() })
+    .gte('delivery_date', weekStart)
+    .lte('delivery_date', weekEnd);
+  await supabase
+    .from('weekly_plans')
+    .update({ status: 'draft', updated_at: new Date().toISOString() })
+    .eq('id', weekPlanId);
+}
+
+export async function fetchTodayMeals(): Promise<PintoMealPlan[]> {
+  const today = toISO(dayjs());
+  const { data, error } = await supabase
+    .from('pinto_meal_plan')
+    .select('*, menu_item:menu_items(id, name, category, calories, protein, carbs, fat, prep_time_minutes)')
+    .eq('delivery_date', today)
+    .order('meal_type');
+  if (error) throw error;
+  return data as unknown as PintoMealPlan[];
+}

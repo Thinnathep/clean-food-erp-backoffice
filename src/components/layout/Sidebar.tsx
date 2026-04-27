@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { ChefHat, Users, Package, Wallet, Truck, Settings, LogOut, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { ChefHat, Calendar, Users, Package, Wallet, Truck, Settings, LogOut, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 
 const navItems = [
   { path: '/kds', icon: ChefHat, label: 'งานห้องครัว (KDS)' },
+  { path: '/planner', icon: Calendar, label: 'วางแผนรายสัปดาห์' },
   { path: '/members', icon: Users, label: 'สมาชิก & ปิ่นโต' },
   { path: '/inventory', icon: Package, label: 'สต็อกวัตถุดิบ' },
   { path: '/finance', icon: Wallet, label: 'บัญชี' },

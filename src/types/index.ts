@@ -15,13 +15,17 @@ export interface MenuItem {
   id: string;
   name: string;
   category: string;
-  menu_group: 'pinto' | 'standard' | 'special';
+  menu_group: string;
   protein: number;
   calories: number;
+  carbs: number;
+  fat: number;
+  base_price: number;
+  description?: string | null;
   image_url: string;
-  // We map protein_type locally for UI if needed, but in DB it's inferred or tags
   tags: string[]; 
   is_available: boolean;
+  prep_time_minutes: number;
 }
 
 export interface Member {
@@ -110,3 +114,53 @@ export interface MemberMealSchedule {
   pinto_packages?: PintoPackage;
   members?: Member;
 }
+
+// ── KDS Weekly Planner Types (Added) ──
+
+export type MealType = 'meal_1' | 'meal_2';
+export type PlanStatus = 'draft' | 'published';
+
+export interface WeeklyPlan {
+  id: string;
+  week_start: string;       // YYYY-MM-DD (Monday)
+  notes: string | null;
+  status: PlanStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PintoMealPlan {
+  id: string;
+  delivery_date: string;    // YYYY-MM-DD
+  meal_type: MealType;      // meal_1 | meal_2
+  menu_name: string;
+  menu_item_id: string | null;
+  is_published: boolean;
+  week_plan_id: string | null;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  price: number;
+  max_orders: number | null;
+  current_orders: number;
+  prep_notes: string | null;
+  description: string | null;
+  menu_item?: MenuItem;
+}
+
+export const DAY_LABELS = ['จันทร์','อังคาร','พุธ','พฤหัส','ศุกร์','เสาร์','อาทิตย์'];
+export const MEAL_TYPE_LABELS: Record<MealType, string> = {
+  meal_1: 'มื้อที่ 1',
+  meal_2: 'มื้อที่ 2',
+};
+export const MEAL_TYPES: MealType[] = ['meal_1', 'meal_2'];
+
+export const CATEGORY_COLORS: Record<string, string> = {
+  'main':       '#4ade80',
+  'protein':    '#a78bfa',
+  'noodle':     '#60a5fa',
+  'curry':      '#f59e0b',
+  'dessert':    '#f87171',
+  'supplement': '#34d399',
+};

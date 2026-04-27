@@ -1,18 +1,29 @@
-import React, { useMemo, useEffect } from 'react';
-import { ChefHat, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
+import React, { useMemo, useEffect, useState } from 'react';
+import { ChefHat, CheckCircle2, Clock, AlertTriangle, CalendarDays } from 'lucide-react';
 import dayjs from 'dayjs';
 import { useKdsStore } from '../../../store/kdsStore';
+import { fetchTodayMeals } from '../api';
+import { type PintoMealPlan, MEAL_TYPE_LABELS, CATEGORY_COLORS } from '../../../types';
 
 export const TodayView: React.FC = () => {
   const memberSchedules = useKdsStore(state => state.memberSchedules);
   const loadMemberPlanner = useKdsStore(state => state.loadMemberPlanner);
   const tasks = useKdsStore(state => state.tasks);
   const fetchTasks = useKdsStore(state => state.fetchTasks);
+  
+  const [plannedMeals, setPlannedMeals] = useState<PintoMealPlan[]>([]);
+  const [isLoadingPlanned, setIsLoadingPlanned] = useState(false);
 
   useEffect(() => {
     const todayStr = dayjs().format('YYYY-MM-DD');
     loadMemberPlanner(todayStr, todayStr);
-    fetchTasks(); // Fetch live orders as well
+    fetchTasks(); 
+    
+    // Fetch planned meals from the new system
+    setIsLoadingPlanned(true);
+    fetchTodayMeals()
+      .then(setPlannedMeals)
+      .finally(() => setIsLoadingPlanned(false));
   }, [loadMemberPlanner, fetchTasks]);
 
   // Aggregate today's production from Member Schedules
@@ -53,6 +64,48 @@ export const TodayView: React.FC = () => {
 
   return (
     <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-[#F8FAFC]">
+      
+      {/* Planned Menu Section (New System) */}
+      <div className="mb-10">
+        <h3 className="text-lg font-black text-slate-800 mb-4 flex items-center gap-2">
+          <CalendarDays className="text-emerald-500" size={20} /> เมนูที่วางแผนไว้สำหรับวันนี้ (Global Plan)
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {isLoadingPlanned ? (
+            <div className="col-span-full h-20 bg-white rounded-xl border border-dashed border-slate-300 flex items-center justify-center text-slate-400 font-bold">
+              กำลังโหลดแผนอาหาร...
+            </div>
+          ) : plannedMeals.length === 0 ? (
+            <div className="col-span-full p-6 bg-slate-100 rounded-xl text-center text-slate-500 font-bold border border-slate-200">
+              ยังไม่มีการวางแผนเมนูสำหรับวันนี้
+            </div>
+          ) : (
+            plannedMeals.map((meal) => {
+              const color = meal.menu_item ? (CATEGORY_COLORS[meal.menu_item.category] || '#10b981') : '#10b981';
+              return (
+                <div key={meal.id} className="bg-white p-4 rounded-xl border border-slate-200 flex items-center gap-4 shadow-sm">
+                  <div className="w-12 h-12 rounded-lg flex items-center justify-center text-xl" style={{ backgroundColor: `${color}15` }}>
+                    {meal.meal_type === 'meal_1' ? '☀️' : '🌙'}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-[10px] font-black uppercase tracking-widest" style={{ color }}>{MEAL_TYPE_LABELS[meal.meal_type]}</span>
+                      {meal.is_published && <span className="text-[10px] bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full font-black">เผยแพร่แล้ว</span>}
+                    </div>
+                    <h4 className="font-black text-slate-800">{meal.menu_name}</h4>
+                    {meal.menu_item && (
+                      <p className="text-[10px] font-bold text-slate-500 mt-1">
+                        {meal.menu_item.calories} kcal · Protein {meal.menu_item.protein}g
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
         <div>
           <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
@@ -92,19 +145,19 @@ export const TodayView: React.FC = () => {
               </div>
               <div className="p-5 flex-1 bg-white">
                 {item.notes.length > 0 ? (
-                  <div>
-                    <h4 className="text-[10px] font-black uppercase tracking-widest text-orange-500 mb-3 flex items-center gap-1">
-                      <AlertTriangle size={12} /> รีเควสพิเศษ ({item.notes.length} กล่อง)
-                    </h4>
-                    <div className="space-y-2">
-                      {item.notes.map((note, nIdx) => (
-                        <div key={nIdx} className="bg-orange-50 border border-orange-100 p-2.5 rounded-lg">
-                           <p className="text-xs font-black text-orange-800 mb-1 leading-tight">"{note.note}"</p>
-                           <p className="text-[10px] font-bold text-orange-600/70">{note.memberName} (x{note.qty})</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                   <div>
+                     <h4 className="text-[10px] font-black uppercase tracking-widest text-orange-500 mb-3 flex items-center gap-1">
+                       <AlertTriangle size={12} /> รีเควสพิเศษ ({item.notes.length} กล่อง)
+                     </h4>
+                     <div className="space-y-2">
+                       {item.notes.map((note, nIdx) => (
+                         <div key={nIdx} className="bg-orange-50 border border-orange-100 p-2.5 rounded-lg">
+                            <p className="text-xs font-black text-orange-800 mb-1 leading-tight">"{note.note}"</p>
+                            <p className="text-[10px] font-bold text-orange-600/70">{note.memberName} (x{note.qty})</p>
+                         </div>
+                       ))}
+                     </div>
+                   </div>
                 ) : (
                   <div className="h-full flex items-center justify-center">
                      <p className="text-xs font-bold text-slate-400">สูตรปกติทั้งหมด</p>
