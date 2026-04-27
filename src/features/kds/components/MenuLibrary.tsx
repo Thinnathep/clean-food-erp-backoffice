@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect, memo } from 'react';
-import { Search, AlertTriangle, X, Plus, Upload, ImageIcon, Edit2, Trash2 } from 'lucide-react';
+import { Search, X, Plus, Upload, ImageIcon, Edit2, Trash2 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { useKdsStore } from '../../../store/kdsStore';
 import type { MenuItem } from '../../../types';
@@ -106,8 +106,7 @@ const MenuFormModal = memo(({
   onClose: () => void, 
   editingMenuId: string | null,
   initialData: any,
-  onSave: (data: any, file: File | null) => Promise<void>,
-  onUploadImage: (file: File) => Promise<string>
+  onSave: (data: any, file: File | null) => Promise<void>
 }) => {
   const [formState, setFormState] = useState(initialData);
   const [imagePreview, setImagePreview] = useState<string | null>(initialData.image_url);
@@ -404,7 +403,7 @@ export const MenuLibrary: React.FC<{ onClose?: () => void }> = ({ onClose }) => 
       )}
 
       <MenuFormModal 
-        isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} editingMenuId={editingMenuId} initialData={initialFormData} onSave={handleSave} onUploadImage={uploadImage}
+        isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} editingMenuId={editingMenuId} initialData={initialFormData} onSave={handleSave}
       />
     </div>
   );

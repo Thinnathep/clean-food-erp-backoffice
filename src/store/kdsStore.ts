@@ -30,6 +30,7 @@ interface KdsState {
   groupFilter: string;
   selectedMenuId: string | null;
   selectedPackageId: string | null;
+  isMenuPanelOpen: boolean;
 
   // Actions
   setSearchTerm: (term: string) => void;
@@ -37,6 +38,7 @@ interface KdsState {
   setGroupFilter: (group: string) => void;
   setSelectedMenuId: (id: string | null) => void;
   setSelectedPackageId: (id: string | null) => void;
+  setIsMenuPanelOpen: (isOpen: boolean) => void;
   
   // Fetchers
   fetchTasks: () => Promise<void>;
@@ -63,6 +65,8 @@ interface KdsState {
   ) => Promise<void>;
   updateMemberNote: (scheduleId: string, note: string) => Promise<void>;
   removeMemberSlot: (scheduleId: string) => Promise<void>;
+  addMenuItem: (menuItem: Omit<MenuItem, 'id'>) => Promise<void>;
+  updateMenuItem: (id: string, updates: Partial<MenuItem>) => Promise<void>;
   deleteMenuItem: (id: string) => Promise<void>;
   uploadImage: (file: File) => Promise<string>;
   
@@ -103,12 +107,14 @@ export const useKdsStore = create<KdsState>()(
   groupFilter: 'All',
   selectedMenuId: null,
   selectedPackageId: null,
+  isMenuPanelOpen: false,
 
   setSearchTerm: (term) => set({ searchTerm: term }),
   setCategoryFilter: (cat) => set({ categoryFilter: cat }),
   setGroupFilter: (group) => set({ groupFilter: group }),
   setSelectedMenuId: (id) => set({ selectedMenuId: id }),
   setSelectedPackageId: (id) => set({ selectedPackageId: id }),
+  setIsMenuPanelOpen: (isOpen) => set({ isMenuPanelOpen: isOpen }),
 
   fetchTasks: async () => {
     try {

@@ -50,7 +50,13 @@ export default function MenuPanel({ onSelect }: Props) {
     return g
   }, [filtered])
 
-  const isOpen = isMenuPanelOpen && selectedDay !== null && selectedSlot !== null
+  const isOpen = isMenuPanelOpen && selectedDay !== null;
+
+  const clearSelection = () => {
+    setSelectedMenuId(null);
+  };
+
+  const selectedSlot = selectedDay !== null ? "มื้ออาหาร" : "";
 
   return (
     <div style={{
@@ -157,7 +163,7 @@ export default function MenuPanel({ onSelect }: Props) {
               <div key={cat} style={{ marginBottom: '12px' }}>
                 <div style={{
                   fontSize: '10px', fontWeight: 700, letterSpacing: '1px',
-                  color: CATEGORY_COLORS[cat as MenuCategory] || 'var(--text-muted)',
+                  color: CATEGORY_COLORS[cat] || 'var(--text-muted)',
                   padding: '4px 8px', marginBottom: '4px',
                 }}>
                   {cat} ({items.length})
@@ -177,9 +183,9 @@ export default function MenuPanel({ onSelect }: Props) {
                     onMouseLeave={e => (e.currentTarget.style.background = 'var(--bg-card)')}
                   >
                     <div>
-                      <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{menu.name_th}</div>
-                      {menu.protein_type && (
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '1px' }}>🥩 {menu.protein_type}</div>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{menu.name}</div>
+                      {menu.tags && menu.tags.length > 0 && (
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '1px' }}>🏷️ {menu.tags.join(', ')}</div>
                       )}
                     </div>
                     <ChevronRight size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />

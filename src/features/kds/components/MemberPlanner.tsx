@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  ChevronLeft, ChevronRight, MessageSquare, Plus, User, AlertCircle, X, Clock, Save, 
+  ChevronLeft, ChevronRight, MessageSquare, Plus, User, X, Clock, Save, 
   UtensilsCrossed, Copy, Clipboard, Search, FileText 
 } from 'lucide-react';
 import dayjs from 'dayjs';
@@ -551,7 +551,7 @@ export const MemberPlanner: React.FC = () => {
                        <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest border-b border-slate-700 pb-2">สถิติและคาดการณ์</h4>
                        <div className="flex justify-between items-center">
                           <span className="text-xs text-slate-400">มื้ออาหารคงเหลือ:</span>
-                          <span className="text-lg font-black text-emerald-400">{selectedPackage.meals_remaining} มื้อ</span>
+                          <span className="text-lg font-black text-emerald-400">{selectedPackage?.meals_remaining} มื้อ</span>
                        </div>
                        <div className="flex justify-between items-center">
                           <span className="text-xs text-slate-400">คาดว่าจะหมดในวันที่:</span>

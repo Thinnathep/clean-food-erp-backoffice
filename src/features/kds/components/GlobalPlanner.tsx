@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Copy, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import dayjs from 'dayjs';
 import { useKdsStore } from '../../../store/kdsStore';
 import { getWeekDays, formatDisplayDate } from '../../../lib/dateUtils';
@@ -23,7 +23,6 @@ export const GlobalPlanner: React.FC = () => {
 
   const handlePrevWeek = () => setCurrentWeekStart(dayjs(currentWeekStart).subtract(1, 'week').toDate());
   const handleNextWeek = () => setCurrentWeekStart(dayjs(currentWeekStart).add(1, 'week').toDate());
-  const handleTodayWeek = () => setCurrentWeekStart(dayjs().startOf('isoWeek').toDate());
 
   const getSlot = (date: string, meal: 'meal_1' | 'meal_2') => {
     return globalPlanSlots.find(s => s.delivery_date === date && s.meal_type === meal);

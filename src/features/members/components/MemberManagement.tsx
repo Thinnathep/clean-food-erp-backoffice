@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Users, Search, Plus, User, Phone, MapPin, 
-  Calendar, CreditCard, ChevronRight, ChevronLeft, Edit3, 
-  Trash2, X, Save, Clock, Package, Heart, 
-  CheckCircle2, AlertCircle, TrendingUp
+  Calendar, ChevronRight, ChevronLeft, Edit3, 
+  X, Save, Clock, Package, 
+  CheckCircle2, AlertCircle
 } from 'lucide-react';
 import { useKdsStore } from '../../../store/kdsStore';
 import dayjs from 'dayjs';
 import { formatDisplayDate } from '../../../lib/dateUtils';
-import type { Member, PintoPackage } from '../../../types';
+import type { Member } from '../../../types';
 
 export const MemberManagement: React.FC = () => {
   const { 

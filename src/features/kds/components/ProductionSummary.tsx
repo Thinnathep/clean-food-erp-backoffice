@@ -1,10 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useKdsStore } from '../../../store/kdsStore';
-import { UtensilsCrossed, Clock, ChevronLeft, ChevronRight, Package, Users, FileText } from 'lucide-react';
+import { UtensilsCrossed, Clock, ChevronLeft, ChevronRight, Package, FileText } from 'lucide-react';
 import dayjs from 'dayjs';
 
 export const ProductionSummary: React.FC = () => {
-  const { memberSchedules, globalPlanSlots, isLoadingData, loadMemberPlanner, loadGlobalPlanner } = useKdsStore();
+  const { memberSchedules, globalPlanSlots, loadMemberPlanner, loadGlobalPlanner } = useKdsStore();
   const [selectedDate, setSelectedDate] = useState(dayjs().add(1, 'day').format('YYYY-MM-DD'));
 
   useEffect(() => {
