@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { MainLayout } from './components/layout/MainLayout';
 import { KdsDashboard } from './features/kds/components/KdsDashboard';
 import { MemberManagement } from './features/members/components/MemberManagement';
 import { Login } from './features/auth/Login';
 import { useAuthStore } from './store/authStore';
+import { supabase } from './config/supabase';
 
 // Placeholder Pages
 const PlaceholderPage: React.FC<{ title: string }> = ({ title }) => (
@@ -23,7 +24,50 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 };
 
 function App() {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, isInitializing, setUser } = useAuthStore();
+
+  useEffect(() => {
+    // Check active sessions and sets the user
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser({
+          id: session.user.id,
+          email: session.user.email || '',
+          name: session.user.user_metadata?.full_name || 'Admin User',
+          role: session.user.user_metadata?.role || 'ADMIN'
+        });
+      } else {
+        setUser(null);
+      }
+    });
+
+    // Listen for changes on auth state (logged in, signed out, etc.)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUser({
+          id: session.user.id,
+          email: session.user.email || '',
+          name: session.user.user_metadata?.full_name || 'Admin User',
+          role: session.user.user_metadata?.role || 'ADMIN'
+        });
+      } else {
+        setUser(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [setUser]);
+
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
+          <p className="text-slate-500 font-bold animate-pulse">กำลังตรวจสอบสิทธิ์...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <BrowserRouter>
