@@ -215,7 +215,14 @@ export const TodayView: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-stretch gap-4">
+            <button 
+              onClick={() => setSelectedDate(dayjs().format('YYYY-MM-DD'))}
+              className="px-5 bg-white border border-slate-100 rounded-2xl text-xs font-bold text-indigo-500 hover:text-indigo-600 hover:bg-slate-50 transition-all shadow-sm flex items-center justify-center active:scale-95"
+            >
+              วันนี้
+            </button>
+
             {/* Date Switcher UI */}
             <div className="bg-white border border-slate-100 rounded-2xl p-1.5 flex items-center shadow-sm">
                 <button 
@@ -299,7 +306,7 @@ export const TodayView: React.FC = () => {
                 <div className="bg-white rounded-3xl p-20 text-center border border-dashed border-slate-200 shadow-sm flex flex-col items-center">
                     <ChefHat size={60} className="text-slate-100 mb-6" />
                     <h3 className="text-xl font-bold text-slate-900 mb-2 italic">ไม่มีรายการผลิตในวันที่เลือก</h3>
-                    <p className="text-slate-400 max-w-sm font-semibold">ระบบไม่พบแผนการจัดส่งในวันที่ {dayjs(selectedDate).locale('th').format('DD MMMM YYYY')} ครับ</p>
+                    <p className="text-slate-400 max-w-sm font-semibold">ระบบไม่พบแผนการจัดส่งในวันที่ {dayjs(selectedDate).locale('th').format('DD MMMM YYYY')}</p>
                 </div>
             ) : (
                 Object.entries(todayProduction.groups)

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'; 
 import { ChefHat, CalendarDays, UtensilsCrossed, Calendar, MenuSquare, Package } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useKdsStore } from '../../../store/kdsStore';
 import { MenuLibrary } from './MenuLibrary';
 import { GlobalPlanner } from './GlobalPlanner';
@@ -13,34 +14,47 @@ export const KdsDashboard: React.FC = () => {
   const loadMasterData = useKdsStore(state => state.loadMasterData);
   const isLoadingData = useKdsStore(state => state.isLoadingData);
   const error = useKdsStore(state => state.error);
-  const [activeTab, setActiveTab] = useState<Tab>('today');
+  const [activeTab, setActiveTab] = useState<Tab>(() => {
+    const saved = localStorage.getItem('kds_active_tab');
+    return (saved as Tab) || 'today';
+  });
   const [isMenuDrawerOpen, setIsMenuDrawerOpen] = useState(false);
 
   useEffect(() => {
     loadMasterData();
   }, [loadMasterData]);
 
-  if (isLoadingData) {
+  useEffect(() => {
+    localStorage.setItem('kds_active_tab', activeTab);
+  }, [activeTab]);
+
+  // If Error, show error screen
+  if (error) {
     return (
-      <div className="flex h-full items-center justify-center bg-[#F8FAFC]">
-         <div className="animate-pulse flex flex-col items-center">
-            <div className="w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
-            <p className="mt-4 text-emerald-600 font-normal tracking-widest uppercase">Loading Master Data...</p>
+      <div className="flex h-full items-center justify-center bg-[#F8FAFC] p-4">
+         <div className="bg-red-50 text-red-500 p-6 rounded-2xl w-full max-w-lg shadow-sm border border-red-100">
+            <h3 className="text-lg font-normal mb-2">เกิดข้อผิดพลาดในการโหลดข้อมูล</h3>
+            <p className="text-sm font-normal opacity-80">{error}</p>
          </div>
       </div>
     );
   }
 
-  if (error) {
-    return (
-      <div className="flex h-full items-center justify-center bg-[#F8FAFC] p-4">
-         <div className="bg-red-50 text-red-500 p-6 rounded-2xl w-full max-w-lg shadow-sm border border-red-100">
-           <h3 className="text-lg font-normal mb-2">เกิดข้อผิดพลาดในการโหลดข้อมูล</h3>
-           <p className="text-sm font-normal opacity-80">{error}</p>
-         </div>
+  // Skeleton UI for content
+  const ContentSkeleton = () => (
+    <div className="flex-1 p-6 space-y-6 overflow-hidden">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map(i => (
+          <div key={i} className="h-24 bg-white rounded-2xl border border-slate-100 animate-pulse" />
+        ))}
       </div>
-    );
-  }
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <div className="lg:col-span-3 h-80 bg-white rounded-2xl border border-slate-100 animate-pulse" />
+        <div className="lg:col-span-2 h-80 bg-white rounded-2xl border border-slate-100 animate-pulse" />
+      </div>
+      <div className="h-64 bg-white rounded-2xl border border-slate-100 animate-pulse" />
+    </div>
+  );
 
   return (
     <div className="flex h-full w-full overflow-hidden bg-slate-50 relative">
@@ -80,48 +94,46 @@ export const KdsDashboard: React.FC = () => {
             </button>
           </div>
           
-          <div className="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200 overflow-x-auto scrollbar-hide">
-            <button
-              onClick={() => setActiveTab('global')}
-              className={`flex items-center gap-2 px-4 md:px-5 py-2 md:py-2.5 rounded-lg text-xs md:text-sm font-normal whitespace-nowrap transition-all ${
-                activeTab === 'global' ? 'bg-white text-slate-800 shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
-              }`}
-            >
-              <CalendarDays size={16} /> แผนร้าน
-            </button>
-            <button
-              onClick={() => setActiveTab('member')}
-              className={`flex items-center gap-2 px-4 md:px-5 py-2 md:py-2.5 rounded-lg text-xs md:text-sm font-normal whitespace-nowrap transition-all ${
-                activeTab === 'member' ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
-              }`}
-            >
-              <Calendar size={16} /> แผนลูกค้า
-            </button>
-            <button
-              onClick={() => setActiveTab('today')}
-              className={`flex items-center gap-2 px-4 md:px-5 py-2 md:py-2.5 rounded-lg text-xs md:text-sm font-normal whitespace-nowrap transition-all ${
-                activeTab === 'today' ? 'bg-blue-500 text-white shadow-md shadow-blue-500/20' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
-              }`}
-            >
-              <ChefHat size={16} /> ทำอาหารวันนี้
-            </button>
-            <button
-              onClick={() => setActiveTab('summary')}
-              className={`flex items-center gap-2 px-4 md:px-5 py-2 md:py-2.5 rounded-lg text-xs md:text-sm font-normal whitespace-nowrap transition-all ${
-                activeTab === 'summary' ? 'bg-purple-500 text-white shadow-md shadow-purple-500/20' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
-              }`}
-            >
-              <Package size={16} /> สรุปยอด
-            </button>
+          <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 overflow-x-auto scrollbar-hide relative">
+            {[
+              { id: 'global', label: 'แผนร้าน', icon: CalendarDays, activeColor: 'bg-slate-900 text-white' },
+              { id: 'member', label: 'แผนลูกค้า', icon: Calendar, activeColor: 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' },
+              { id: 'today', label: 'ทำอาหารวันนี้', icon: ChefHat, activeColor: 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' },
+              { id: 'summary', label: 'สรุปยอด', icon: Package, activeColor: 'bg-purple-600 text-white shadow-lg shadow-purple-500/20' },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as Tab)}
+                className={`flex items-center gap-2.5 px-6 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all duration-300 relative ${
+                  activeTab === tab.id ? tab.activeColor : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'
+                }`}
+              >
+                {activeTab === tab.id && (
+                  <motion.div
+                    layoutId="active-nav-pill"
+                    className={`absolute inset-0 rounded-xl -z-0 ${tab.activeColor.split(' ')[0]}`}
+                    transition={{ type: 'spring', bounce: 0.15, duration: 0.5 }}
+                  />
+                )}
+                <tab.icon size={18} className="relative z-10" />
+                <span className="relative z-10">{tab.label}</span>
+              </button>
+            ))}
           </div>
         </div>
 
         {/* Tab Content */}
         <div className="flex-1 flex overflow-hidden bg-slate-50 relative">
-          {activeTab === 'global' && <GlobalPlanner />}
-          {activeTab === 'member' && <MemberPlanner />}
-          {activeTab === 'today' && <TodayView />}
-          {activeTab === 'summary' && <ProductionSummary />}
+          {isLoadingData ? (
+            <ContentSkeleton />
+          ) : (
+            <>
+              {activeTab === 'global' && <GlobalPlanner />}
+              {activeTab === 'member' && <MemberPlanner />}
+              {activeTab === 'today' && <TodayView />}
+              {activeTab === 'summary' && <ProductionSummary />}
+            </>
+          )}
         </div>
         
       </div>
