@@ -144,14 +144,13 @@ const MenuFormModal = memo(({
   };
 
   const categories = [
-    { value: 'soup', label: 'ซุป/ต้ม' },
-    { value: 'salad', label: 'สลัด' },
-    { value: 'dessert', label: 'ของหวาน/ว่าง' },
-    { value: 'ผัดแห้ง', label: 'ผัดแห้ง' },
-    { value: 'เส้น', label: 'เมนูเส้น' },
-    { value: 'แกง/ต้ม', label: 'แกง/ต้ม' },
+    { value: 'ของหวาน', label: 'ของหวาน' },
+    { value: 'สลัด', label: 'สลัด' },
     { value: 'ซูวี', label: 'ซูวี (Sous-vide)' },
-    { value: 'ของหวาน', label: 'ของหวาน' }
+    { value: 'ซุป/แกง', label: 'ซุป/แกง' },
+    { value: 'ผัด', label: 'ผัด' },
+    { value: 'เส้น', label: 'เส้น' },
+    { value: 'เมนูหลัก', label: 'เมนูหลัก' }
   ];
 
   const groups = [
@@ -385,7 +384,13 @@ export const MenuLibrary: React.FC<{ onClose?: () => void }> = ({ onClose }) => 
             </select>
             <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="flex-1 bg-slate-50 text-slate-600 text-[10px] font-normal uppercase tracking-widest rounded-xl px-3 py-3 outline-none focus:bg-white focus:border-emerald-500 transition-all">
               <option value="All">ทุกหมวดหมู่</option>
-              <option value="soup">ซุป/ต้ม</option><option value="salad">สลัด</option><option value="dessert">ของหวาน/ว่าง</option><option value="ผัดแห้ง">ผัดแห้ง</option><option value="เส้น">เมนูเส้น</option><option value="แกง/ต้ม">แกง/ต้ม</option><option value="ซูวี">ซูวี</option><option value="ของหวาน">ของหวาน</option>
+              <option value="ของหวาน">ของหวาน</option>
+              <option value="สลัด">สลัด</option>
+              <option value="ซูวี">ซูวี</option>
+              <option value="ซุป/แกง">ซุป/แกง</option>
+              <option value="ผัด">ผัด</option>
+              <option value="เส้น">เส้น</option>
+              <option value="เมนูหลัก">เมนูหลัก</option>
             </select>
           </div>
         </div>

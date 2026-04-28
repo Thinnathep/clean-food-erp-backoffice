@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { supabase } from '../config/supabase';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { KdsTask, MenuItem, PintoPackage, GlobalPlanSlot, MemberMealSchedule, Member } from '../types';
 import { 
@@ -261,42 +262,35 @@ export const useKdsStore = create<KdsState>()(
       
       await Promise.all(promises);
 
-      // 2. SMART DEDUCTION: Calculate meals used per package in the current draft
-      // We group by package_id and count the number of meals
-      const usageMap: Record<string, number> = {};
-      
-      // We only count NEW schedules (temp_) or modified ones? 
-      // Actually, if we are saving the WHOLE draft, we should probably only deduct 
-      // what was newly added. This is tricky.
-      
-      // For now, let's implement the logic: 
-      // Count all items in the CURRENT state that are "temp_" (newly added)
-      schedules.forEach(s => {
-        if (s.id.startsWith('temp_')) {
-          usageMap[s.package_id] = (usageMap[s.package_id] || 0) + s.quantity;
-        }
-      });
-      
-      // Apply deductions
-      const deductionPromises = Object.entries(usageMap).map(([pkgId, amount]) => 
-        decrementMealsRemaining(pkgId, amount)
-      );
-      
-      await Promise.all(deductionPromises);
+      // 2. SMART SYNC: Calculate absolute balance from DB
+       const allPackageSchedules = await fetchMemberSchedules('2020-01-01', '2030-12-31', pkgId);
+       const totalUsed = allPackageSchedules.reduce((sum, s) => sum + (s.quantity || 1), 0);
+       
+       const targetPackage = get().activePackages.find(p => p.id === pkgId);
+       if (targetPackage) {
+         const newRemaining = Math.max(0, targetPackage.meals_total - totalUsed);
+         
+         // ALERT for debugging
+         alert(`ระบบตรวจพบรายการอาหารทั้งหมดในฐานข้อมูล: ${totalUsed} มื้อ\nยอดคงเหลือใหม่จะเป็น: ${newRemaining} มื้อ`);
+         
+         const { error } = await supabase
+           .from('pinto_packages')
+           .update({ meals_remaining: newRemaining })
+           .eq('id', targetPackage.id);
+         
+         if (error) throw new Error(error.message);
+       }
+       
+       await get().loadMasterData();
       
       set({ hasUnsavedChanges: false, isLoadingData: false });
       
-      // 3. REFRESH ENTIRE WEEK
       if (schedules.length > 0) {
-        // Find min and max dates in the current schedules to reload the range
         const dates = schedules.map(s => s.delivery_date).sort();
         const start = dates[0];
         const end = dates[dates.length - 1];
         await get().loadMemberPlanner(start, end, pkgId);
       }
-      
-      // Clear localStorage draft is handled automatically by persist if we were to reset,
-      // but here we just mark as saved.
     } catch (error: any) {
       set({ error: error.message, isLoadingData: false });
     }
@@ -378,10 +372,31 @@ export const useKdsStore = create<KdsState>()(
   
   removeMemberSlot: async (scheduleId) => {
       try {
-        // Only call API if it's a real UUID (not temp_)
-        if (!scheduleId.startsWith('temp_')) {
+        const schedule = get().memberSchedules.find(s => s.id === scheduleId);
+        const pkgId = get().selectedPackageId;
+        
+        if (schedule && !scheduleId.startsWith('temp_') && pkgId) {
           await removeMemberSchedule(scheduleId);
+          
+          // SMART SYNC after deletion
+          const allPackageSchedules = await fetchMemberSchedules('2020-01-01', '2030-12-31', pkgId);
+          const totalUsed = allPackageSchedules.reduce((sum, s) => sum + (s.quantity || 1), 0);
+          
+          const targetPackage = get().activePackages.find(p => p.id === pkgId);
+          if (targetPackage) {
+            const newRemaining = Math.max(0, targetPackage.meals_total - totalUsed);
+            // CORRECT TABLE: update pinto_packages instead of members
+            const { error } = await supabase
+              .from('pinto_packages')
+              .update({ meals_remaining: newRemaining })
+              .eq('id', targetPackage.id);
+              
+            if (error) throw new Error(error.message);
+          }
+          
+          await get().loadMasterData();
         }
+        
         set(state => ({
           memberSchedules: state.memberSchedules.filter(s => s.id !== scheduleId),
           hasUnsavedChanges: true

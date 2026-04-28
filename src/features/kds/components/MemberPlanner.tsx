@@ -4,9 +4,11 @@ import {
   UtensilsCrossed, Copy, Clipboard, Search, FileText, Trash2, MapPin
 } from 'lucide-react';
 import dayjs from 'dayjs';
+import { supabase } from '../../../config/supabase';
 import { useKdsStore } from '../../../store/kdsStore';
 import { useAuthStore } from '../../../store/authStore';
 import { getWeekDays, formatDisplayDate } from '../../../lib/dateUtils';
+import { fetchMemberSchedules } from '../../../features/kds/api';
 import type { MemberMealSchedule } from '../../../types';
 
 export const MemberPlanner: React.FC = () => {
@@ -28,6 +30,7 @@ export const MemberPlanner: React.FC = () => {
   
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [memberUpdates, setMemberUpdates] = useState<any>(null);
+  const [packageUpdates, setPackageUpdates] = useState<{package_name: string, meals_total: number} | null>(null);
 
   const [isAddPackageModalOpen, setIsAddPackageModalOpen] = useState(false);
   const [newPackage, setNewPackage] = useState({
@@ -61,6 +64,7 @@ export const MemberPlanner: React.FC = () => {
   const addPintoPackage = useKdsStore(state => state.addPintoPackage);
   const members = useKdsStore(state => state.members);
   const isLoadingData = useKdsStore(state => state.isLoadingData);
+  const loadMasterData = useKdsStore(state => state.loadMasterData);
 
   const weekDays = getWeekDays(currentWeekStart);
   
@@ -170,13 +174,48 @@ export const MemberPlanner: React.FC = () => {
   const handleOpenProfile = () => {
     if (!selectedPackage?.members) return;
     setMemberUpdates({ ...selectedPackage.members });
+    // Add package updates state
+    setPackageUpdates({
+      package_name: selectedPackage.package_name,
+      meals_total: selectedPackage.meals_total
+    });
     setIsProfileModalOpen(true);
   };
 
   const handleSaveProfile = async () => {
-    if (!selectedPackage?.members || !memberUpdates) return;
-    await updateMemberProfile(selectedPackage.members.id, memberUpdates);
-    setIsProfileModalOpen(false);
+    if (!selectedPackage?.members || !memberUpdates || !packageUpdates) return;
+    
+    try {
+      // 1. Update Member Profile
+      await updateMemberProfile(selectedPackage.members.id, memberUpdates);
+      
+      // 2. Update Package Details
+      const { error } = await supabase
+        .from('pinto_packages')
+        .update({
+          package_name: packageUpdates.package_name,
+          meals_total: packageUpdates.meals_total
+        })
+        .eq('id', selectedPackage.id);
+        
+      if (error) throw new Error(error.message);
+      
+      // 3. Trigger Absolute Sync to fix remaining balance
+      const allPackageSchedules = await fetchMemberSchedules('2020-01-01', '2030-12-31', selectedPackage.id);
+      const totalUsed = allPackageSchedules.reduce((sum, s) => sum + (s.quantity || 1), 0);
+      const newRemaining = Math.max(0, packageUpdates.meals_total - totalUsed);
+      
+      await supabase
+        .from('pinto_packages')
+        .update({ meals_remaining: newRemaining })
+        .eq('id', selectedPackage.id);
+      
+      await loadMasterData();
+      setIsProfileModalOpen(false);
+      alert('บันทึกข้อมูลและปรับยอดมื้อเรียบร้อยแล้ว');
+    } catch (error: any) {
+      alert('เกิดข้อผิดพลาด: ' + error.message);
+    }
   };
 
   const handleAddPackage = async () => {
@@ -664,7 +703,32 @@ export const MemberPlanner: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Stats & Prediction */}
+                     <div className="bg-purple-50/50 p-6 rounded-2xl border border-purple-100 space-y-4">
+                       <h4 className="text-sm font-normal text-slate-900 border-b border-purple-200 pb-2 flex items-center gap-2">
+                         <Clipboard size={16} className="text-purple-500" /> จัดการแพ็กเกจ (Package Details)
+                       </h4>
+                       <div>
+                         <label className="block text-[11px] font-normal text-slate-900 mb-1">ชื่อแพ็กเกจปัจจุบัน</label>
+                         <input 
+                           type="text" 
+                           value={packageUpdates?.package_name || ''} 
+                           onChange={(e) => setPackageUpdates({...packageUpdates, package_name: e.target.value})}
+                           className="w-full p-2.5 bg-white border border-purple-200 rounded-xl text-sm font-normal focus:border-purple-500 outline-none"
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-[11px] font-normal text-purple-700 mb-1 font-bold">จำนวนมื้อทั้งหมด (ยอดเต็ม)</label>
+                         <input 
+                           type="number" 
+                           value={packageUpdates?.meals_total || 0} 
+                           onChange={(e) => setPackageUpdates({...packageUpdates, meals_total: parseInt(e.target.value) || 0})}
+                           className="w-full p-2.5 bg-white border border-purple-300 rounded-xl text-sm font-bold text-purple-700 focus:border-purple-500 outline-none"
+                         />
+                         <p className="text-[10px] text-purple-400 mt-1">* แก้ไขเมื่อมีโปรโมชั่นแถมมื้อ เช่น 60+2 ให้ใส่เป็น 62</p>
+                       </div>
+                     </div>
+
+                     {/* Stats & Prediction */}
                     <div className="bg-slate-900 p-6 rounded-2xl shadow-xl space-y-3">
                        <h4 className="text-xs font-normal text-slate-400 uppercase tracking-widest border-b border-slate-700 pb-2">สถิติและคาดการณ์</h4>
                        <div className="flex justify-between items-center">
@@ -681,10 +745,12 @@ export const MemberPlanner: React.FC = () => {
                </div>
                
                <div className="px-8 py-6 bg-slate-50 border-t border-slate-100 flex justify-end">
-                   <button 
+                    <button 
                     onClick={handleSaveProfile}
-                    className="px-8 py-3 bg-emerald-500 text-white hover:bg-emerald-600 shadow-xl shadow-emerald-500/20 rounded-2xl text-sm font-normal transition-all"
+                    disabled={isLoadingData}
+                    className="px-8 py-3 bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-emerald-500/20 rounded-2xl text-sm font-normal transition-all flex items-center gap-2"
                   >
+                    {isLoadingData && <Clock className="animate-spin" size={18} />}
                     บันทึกข้อมูลสมาชิก
                   </button>
                </div>
@@ -777,7 +843,7 @@ export const MemberPlanner: React.FC = () => {
                           <div 
                             key={m.id}
                             onClick={() => {
-                              setEditingSlot({...editingSlot, menuId: m.id});
+                              setEditingSlot({...editingSlot!, menuId: m.id});
                               setMenuSearch('');
                             }}
                             className="p-3 hover:bg-emerald-50 cursor-pointer border-b border-slate-50 last:border-0 text-sm font-normal text-slate-700 flex justify-between items-center group"
@@ -836,9 +902,11 @@ export const MemberPlanner: React.FC = () => {
                     </button>
                     <button 
                       onClick={handleSaveModal}
-                      className="flex items-center gap-2 px-8 py-2.5 bg-emerald-500 text-white rounded-xl text-sm font-normal hover:bg-emerald-600 shadow-lg shadow-emerald-500/20 transition-all active:scale-95"
+                      disabled={isLoadingData}
+                      className="flex items-center gap-2 px-8 py-2.5 bg-emerald-500 text-white rounded-xl text-sm font-normal hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/20 transition-all active:scale-95"
                     >
-                      <Save size={18} /> บันทึก
+                      {isLoadingData ? <Clock className="animate-spin" size={18} /> : <Save size={18} />}
+                      บันทึก
                     </button>
                   </div>
                </div>
