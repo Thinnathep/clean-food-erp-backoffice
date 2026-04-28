@@ -31,7 +31,7 @@ export const MemberManagement: React.FC = () => {
     phone: '',
     line_id: '',
     address: '',
-    zone: '',
+    delivery_time: '',
     health_goal: '',
     allergy_notes: ''
   });
@@ -85,7 +85,7 @@ export const MemberManagement: React.FC = () => {
         phone: '',
         line_id: '',
         address: '',
-        zone: '',
+        delivery_time: '',
         health_goal: '',
         allergy_notes: ''
       });
@@ -252,7 +252,7 @@ export const MemberManagement: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-purple-50 rounded-xl flex items-center justify-center text-purple-500 flex-shrink-0"><Clock size={16}/></div>
-                      <p className="text-sm font-normal text-slate-700">{selectedMember.zone || 'ไม่ระบุรอบส่ง'}</p>
+                      <p className="text-sm font-normal text-slate-700">{selectedMember.delivery_time || 'ไม่ระบุรอบส่ง'}</p>
                     </div>
                     
                     {/* แถวที่ 2 */}
@@ -476,10 +476,10 @@ export const MemberManagement: React.FC = () => {
                      <div>
                         <label className="block text-[11px] font-normal text-slate-400 uppercase tracking-widest mb-1.5 ml-1">รอบจัดส่งปกติ</label>
                         <select 
-                           value={editMember?.zone || newMember.zone || ''} 
+                           value={editMember?.delivery_time || newMember.delivery_time || ''} 
                            onChange={(e) => {
-                             if (editMember) setEditMember({...editMember, zone: e.target.value});
-                             else setNewMember({...newMember, zone: e.target.value});
+                             if (editMember) setEditMember({...editMember, delivery_time: e.target.value});
+                             else setNewMember({...newMember, delivery_time: e.target.value});
                            }}
                            className="w-full p-3.5 bg-white border border-slate-200 rounded-2xl text-sm font-normal text-slate-800 focus:border-emerald-500 outline-none transition-all shadow-sm"
                         >
@@ -590,8 +590,8 @@ export const MemberManagement: React.FC = () => {
                      <div>
                         <label className="block text-[11px] font-normal text-slate-400 uppercase tracking-widest mb-1.5 ml-1">รอบจัดส่งปกติ</label>
                         <select 
-                           value={editMember.zone || ''} 
-                           onChange={(e) => setEditMember({...editMember, zone: e.target.value})}
+                           value={editMember.delivery_time || ''} 
+                           onChange={(e) => setEditMember({...editMember, delivery_time: e.target.value})}
                            className="w-full p-3.5 bg-white border border-slate-200 rounded-2xl text-sm font-normal text-slate-800 focus:border-emerald-500 outline-none transition-all shadow-sm"
                         >
                            <option value="">-- เลือกเวลาส่ง --</option>

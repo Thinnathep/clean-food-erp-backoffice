@@ -370,7 +370,7 @@ export const MemberPlanner: React.FC = () => {
                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-1">
                            <span className="text-[10px] md:text-xs font-normal text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md truncate max-w-[150px]">{selectedPackage.package_name}</span>
                            <span className="text-[10px] md:text-xs font-normal text-slate-500 flex items-center gap-1">
-                             <Clock size={12} className="text-purple-500" /> {selectedPackage.members?.zone || 'ไม่ระบุรอบส่ง'}
+                             <Clock size={12} className="text-purple-500" /> {selectedPackage.members?.delivery_time || 'ไม่ระบุรอบส่ง'}
                            </span>
                            <span className="text-[10px] md:text-xs font-normal text-slate-500 flex items-center gap-1">
                              <MapPin size={12} className="text-emerald-500" /> {selectedPackage.members?.address || 'ไม่ระบุที่อยู่'}
@@ -652,8 +652,8 @@ export const MemberPlanner: React.FC = () => {
                         <div>
                           <label className="block text-[11px] font-normal text-slate-900 mb-1">รอบจัดส่งปกติ</label>
                           <select 
-                            value={memberUpdates.zone || ''} 
-                            onChange={(e) => setMemberUpdates({...memberUpdates, zone: e.target.value})}
+                            value={memberUpdates.delivery_time || ''} 
+                            onChange={(e) => setMemberUpdates({...memberUpdates, delivery_time: e.target.value})}
                             className="w-full p-2.5 bg-white border border-orange-200 rounded-xl text-sm font-normal text-slate-800 focus:border-orange-500 outline-none"
                           >
                              <option value="">-- เลือกเวลาส่ง --</option>
@@ -726,7 +726,7 @@ export const MemberPlanner: React.FC = () => {
                       </div>
                       <div>
                         <p className="text-[9px] font-normal text-slate-400 uppercase">รอบจัดส่งปกติ</p>
-                        <p className="text-xs font-normal text-blue-600">{selectedPackage?.members?.zone || '11:00 - 13:00'}</p>
+                        <p className="text-xs font-normal text-blue-600">{selectedPackage?.members?.delivery_time || '11:00 - 13:00'}</p>
                       </div>
                       <div>
                         <p className="text-[9px] font-normal text-red-400 uppercase">หมายเหตุ/แพ้</p>

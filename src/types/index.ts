@@ -44,7 +44,7 @@ export interface Member {
   // Demographic & Marketing
   age_range?: string;
   occupation?: string;
-  zone?: string;
+  delivery_time?: string;
   source?: string;
   food_preferences?: string[];
   
