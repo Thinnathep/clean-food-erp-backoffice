@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { ChefHat, Calendar, Users, Package, Wallet, Truck, Settings, LogOut, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { ChefHat, Users, Package, Wallet, Truck, Settings, LogOut, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 
 const navItems = [
