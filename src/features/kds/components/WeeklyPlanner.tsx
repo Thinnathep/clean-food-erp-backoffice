@@ -6,11 +6,14 @@ import {
   upsertWeeklyPlan, clearMealSlot, publishWeekMeals, unpublishWeekMeals
 } from '../api'
 import { usePlannerStore } from '../../../store/kdsStore'
+import { useAuthStore } from '../../../store/authStore'
 import { getWeekDates, formatDateTH, formatWeekLabel, dayjs, toISO } from '../../../lib/dateUtils'
 import { DAY_LABELS, MEAL_TYPES, MEAL_TYPE_LABELS, CATEGORY_COLORS, type PintoMealPlan, type MealType } from '../../../types'
 import MenuPanel from './MenuPanel'
 
 export const WeeklyPlanner = () => {
+  const { user } = useAuthStore()
+  const isAdmin = user?.role === 'ADMIN'
   const qc = useQueryClient()
   const { currentWeekStart, prevWeek, nextWeek, goToToday, selectedDate, selectedMealType, selectSlot } = usePlannerStore()
 
@@ -185,12 +188,14 @@ export const WeeklyPlanner = () => {
                               <div style={{ fontSize: '13px', fontWeight: 800, color: '#1e293b', lineHeight: 1.3 }}>{menu.name}</div>
                               {menu.calories > 0 && <div style={{ fontSize: '10px', color: '#64748b', marginTop: '4px', fontWeight: 600 }}>{menu.calories} kcal</div>}
                             </div>
-                            <button
-                              onClick={e => { e.stopPropagation(); clearSlotMutation.mutate({ date: dateStr, mealType }) }}
-                              style={{ alignSelf: 'flex-end', background: '#f1f5f9', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '4px', borderRadius: '6px' }}
-                            >
-                              <X size={10} />
-                            </button>
+                            {isAdmin && (
+                              <button
+                                onClick={e => { e.stopPropagation(); clearSlotMutation.mutate({ date: dateStr, mealType }) }}
+                                style={{ alignSelf: 'flex-end', background: '#f1f5f9', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '4px', borderRadius: '6px' }}
+                              >
+                                <X size={10} />
+                              </button>
+                            )}
                           </>
                         ) : (
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#94a3b8' }}>

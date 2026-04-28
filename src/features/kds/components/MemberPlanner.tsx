@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { 
   ChevronLeft, ChevronRight, MessageSquare, Plus, User, X, Clock, Save, 
-  UtensilsCrossed, Copy, Clipboard, Search, FileText 
+  UtensilsCrossed, Copy, Clipboard, Search, FileText, Trash2
 } from 'lucide-react';
 import dayjs from 'dayjs';
 import { useKdsStore } from '../../../store/kdsStore';
+import { useAuthStore } from '../../../store/authStore';
 import { getWeekDays, formatDisplayDate } from '../../../lib/dateUtils';
 import type { MemberMealSchedule } from '../../../types';
 
 export const MemberPlanner: React.FC = () => {
-  const [currentWeekStart, setCurrentWeekStart] = useState(dayjs().startOf('week').toDate());
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'ADMIN';
+  const [currentWeekStart, setCurrentWeekStart] = useState(dayjs().startOf('isoWeek' as any).toDate());
   
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -353,9 +356,20 @@ export const MemberPlanner: React.FC = () => {
                             >
                               <div className="flex justify-between items-center mb-2">
                                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">มื้อที่ {idx + 1}</span>
-                                {schedule.delivery_time && (
-                                   <span className="text-[9px] font-bold text-blue-500 flex items-center gap-1"><Clock size={10}/> {schedule.delivery_time}</span>
-                                )}
+                                <div className="flex items-center gap-1">
+                                  {schedule.delivery_time && (
+                                     <span className="text-[9px] font-bold text-blue-500 flex items-center gap-1"><Clock size={10}/> {schedule.delivery_time}</span>
+                                  )}
+                                  {isAdmin && (
+                                    <button 
+                                      onClick={(e) => handleRemoveClick(e, schedule.id)}
+                                      className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-all shadow-sm bg-white border border-slate-100"
+                                      title="ลบมื้อนี้"
+                                    >
+                                      <Trash2 size={12} />
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                               
                               <p className="text-sm font-black text-slate-800 leading-tight mb-2 truncate" title={schedule.menu_items?.name}>

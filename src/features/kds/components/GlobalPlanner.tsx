@@ -2,10 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import dayjs from 'dayjs';
 import { useKdsStore } from '../../../store/kdsStore';
+import { useAuthStore } from '../../../store/authStore';
 import { getWeekDays, formatDisplayDate } from '../../../lib/dateUtils';
 
 export const GlobalPlanner: React.FC = () => {
-  const [currentWeekStart, setCurrentWeekStart] = useState(dayjs().startOf('isoWeek').toDate());
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'ADMIN';
+  const [currentWeekStart, setCurrentWeekStart] = useState(dayjs().startOf('isoWeek' as any).toDate());
   
   const globalPlanSlots = useKdsStore(state => state.globalPlanSlots);
   const loadGlobalPlanner = useKdsStore(state => state.loadGlobalPlanner);
@@ -58,7 +61,7 @@ export const GlobalPlanner: React.FC = () => {
       >
         <div className="flex justify-between items-center mb-2">
           <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</span>
-          {slot && (
+          {slot && isAdmin && (
             <button 
               onClick={(e) => handleRemoveClick(e, date, meal)}
               className="w-5 h-5 rounded-full bg-white text-slate-400 hover:text-red-500 hover:bg-red-50 flex items-center justify-center shadow-sm transition-all"
@@ -87,11 +90,10 @@ export const GlobalPlanner: React.FC = () => {
         <div>
           <h2 className="text-lg font-black text-slate-900 tracking-tight">แผนเมนูหลักประจำสัปดาห์</h2>
           <p className="text-xs font-bold text-slate-500 mt-1">
-
+            ตั้งค่าเมนูมาตรฐานของทางร้าน
           </p>
         </div>
         <div className="flex items-center gap-3">
-
           <div className="flex items-center bg-white border border-slate-200 rounded-xl p-1">
             <button onClick={handlePrevWeek} className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-all"><ChevronLeft size={16} /></button>
             <span className="px-3 text-[10px] font-black uppercase tracking-widest text-emerald-600">
