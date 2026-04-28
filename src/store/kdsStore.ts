@@ -6,7 +6,7 @@ import {
   fetchGlobalPlanSlots, upsertGlobalPlanSlot, deleteGlobalPlanSlot,
   fetchActivePackages, fetchMemberSchedules, upsertMemberSchedule, removeMemberSchedule, updateMemberScheduleNote,
   updateMemberProfile as updateMemberProfileApi, createMember, decrementMealsRemaining,
-  fetchMembers, createPintoPackage 
+  fetchMembers, createPintoPackage, deletePintoPackage 
 } from '../features/kds/api';
 
 interface KdsState {
@@ -74,6 +74,7 @@ interface KdsState {
   updateMemberProfile: (memberId: string, updates: Partial<Member>) => Promise<void>;
   addNewMember: (member: Omit<Member, 'id'>) => Promise<void>;
   addPintoPackage: (pkg: Omit<PintoPackage, 'id'>) => Promise<void>;
+  cancelPintoPackage: (id: string) => Promise<void>;
   
   // Draft System
   hasUnsavedChanges: boolean;
@@ -307,15 +308,14 @@ export const useKdsStore = create<KdsState>()(
     try {
       set({ isLoadingData: true });
       
+      // บันทึกทุกฟิลด์ที่ส่งมาจาก UI (รวมถึง ตำบล, อำเภอ, รหัสไปรษณีย์ และอื่นๆ)
       const updatableFields = {
-        full_name: updates.full_name,
-        phone: updates.phone,
-        line_id: updates.line_id,
-        address: updates.address,
-        zone: updates.zone,
-        health_goal: updates.health_goal,
-        allergy_notes: updates.allergy_notes
+        ...updates
       };
+      // ป้องกันการส่ง id ซ้ำซ้อนไปที่ Supabase
+      delete (updatableFields as any).id;
+      delete (updatableFields as any).created_at;
+      delete (updatableFields as any).updated_at;
 
       await updateMemberProfileApi(memberId, updatableFields);
       
@@ -325,8 +325,6 @@ export const useKdsStore = create<KdsState>()(
         members: membersData,
         isLoadingData: false 
       });
-      
-      console.log('Update Success! Re-fetched all members.');
     } catch (error: any) {
       set({ error: error.message, isLoadingData: false });
       throw error;
@@ -339,6 +337,22 @@ export const useKdsStore = create<KdsState>()(
       await createPintoPackage(pkg);
       const packagesData = await fetchActivePackages();
       set({ activePackages: packagesData, isLoadingData: false });
+    } catch (error: any) {
+      set({ error: error.message, isLoadingData: false });
+    }
+  },
+
+  cancelPintoPackage: async (id) => {
+    if (!confirm('ยืนยันการยกเลิกแพ็กเกจนี้? ข้อมูลการจัดส่งจะถูกลบออกทั้งหมด')) return;
+    try {
+      set({ isLoadingData: true });
+      await deletePintoPackage(id);
+      const packagesData = await fetchActivePackages();
+      set({ 
+        activePackages: packagesData, 
+        selectedPackageId: get().selectedPackageId === id ? null : get().selectedPackageId,
+        isLoadingData: false 
+      });
     } catch (error: any) {
       set({ error: error.message, isLoadingData: false });
     }

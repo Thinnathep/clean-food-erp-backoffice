@@ -60,7 +60,7 @@ export const GlobalPlanner: React.FC = () => {
         }`}
       >
         <div className="flex justify-between items-center mb-2">
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{label}</span>
+          <span className="text-[10px] font-normal uppercase tracking-widest text-slate-400">{label}</span>
           {slot && isAdmin && (
             <button 
               onClick={(e) => handleRemoveClick(e, date, meal)}
@@ -73,11 +73,11 @@ export const GlobalPlanner: React.FC = () => {
         
         {slot && slot.menu_items ? (
           <div className="flex-1">
-            <p className="text-xs font-black text-slate-800 leading-tight mb-1">{slot.menu_items.name}</p>
+            <p className="text-xs font-normal text-slate-800 leading-tight mb-1">{slot.menu_items.name}</p>
           </div>
         ) : (
           <div className="flex-1 flex items-center justify-center">
-            {isInteractive && <span className="text-xs font-bold text-slate-300">คลิกเพื่อวางเมนูหลัก</span>}
+            {isInteractive && <span className="text-xs font-normal text-slate-300">คลิกเพื่อวางเมนูหลัก</span>}
           </div>
         )}
       </div>
@@ -88,15 +88,15 @@ export const GlobalPlanner: React.FC = () => {
     <div className="flex-1 flex flex-col bg-white overflow-hidden">
       <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 z-10">
         <div>
-          <h2 className="text-lg font-black text-slate-900 tracking-tight">แผนเมนูหลักประจำสัปดาห์</h2>
-          <p className="text-xs font-bold text-slate-500 mt-1">
+          <h2 className="text-lg font-normal text-slate-900 tracking-tight">แผนเมนูหลักประจำสัปดาห์</h2>
+          <p className="text-xs font-normal text-slate-500 mt-1">
             ตั้งค่าเมนูมาตรฐานของทางร้าน
           </p>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center bg-white border border-slate-200 rounded-xl p-1">
             <button onClick={handlePrevWeek} className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-all"><ChevronLeft size={16} /></button>
-            <span className="px-3 text-[10px] font-black uppercase tracking-widest text-emerald-600">
+            <span className="px-3 text-[10px] font-normal uppercase tracking-widest text-emerald-600">
                {formatDisplayDate(weekDays[0].date)}
             </span>
             <button onClick={handleNextWeek} className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-all"><ChevronRight size={16} /></button>
@@ -109,8 +109,8 @@ export const GlobalPlanner: React.FC = () => {
           {weekDays.map(day => (
             <div key={day.date} className={`bg-white rounded-2xl border ${day.isToday ? 'border-emerald-400 shadow-md ring-2 ring-emerald-500/10' : 'border-slate-200 shadow-sm'} overflow-hidden flex flex-col`}>
               <div className={`px-4 py-3 border-b ${day.isToday ? 'bg-emerald-500 text-white' : 'bg-slate-50 border-slate-100'}`}>
-                <p className={`text-[10px] font-black uppercase tracking-widest ${day.isToday ? 'text-emerald-100' : 'text-slate-400'}`}>{day.dayName}</p>
-                <h3 className={`text-lg font-black ${day.isToday ? 'text-white' : 'text-slate-800'}`}>{day.shortDate}</h3>
+                <p className={`text-[10px] font-normal uppercase tracking-widest ${day.isToday ? 'text-emerald-100' : 'text-slate-400'}`}>{day.dayName}</p>
+                <h3 className={`text-lg font-normal ${day.isToday ? 'text-white' : 'text-slate-800'}`}>{day.shortDate}</h3>
               </div>
               <div className="p-3 space-y-3 flex-1 flex flex-col bg-white">
                 {renderSlotCell(day.date, 'meal_1', 'มื้อที่ 1 (M1)')}

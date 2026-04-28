@@ -78,6 +78,8 @@ export interface PintoPackage {
   status: 'active' | 'paused' | 'cancelled' | 'completed';
   delivery_slot?: string;
   internal_notes?: string;
+  created_at?: string;
+  updated_at?: string;
   
   // Joined
   members?: Member;

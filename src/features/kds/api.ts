@@ -148,14 +148,15 @@ export const fetchActivePackages = async (): Promise<PintoPackage[]> => {
   const { data, error } = await supabase
     .from('pinto_packages')
     .select(`
-      id, member_id, package_name, days_total, days_remaining, meals_total, meals_remaining, start_date, end_date, status,
+      id, member_id, package_name, days_total, days_remaining, meals_total, meals_remaining, start_date, end_date, status, created_at,
       members!pinto_packages_member_id_fkey (
         id, full_name, phone, line_id, avatar_url, date_of_birth, gender, 
         health_goal, allergy_notes, internal_notes, tags, source,
         age_range, zone, address, sub_district, district, province, postal_code, food_preferences
       )
     `)
-    .eq('status', 'active');
+    .eq('status', 'active')
+    .order('created_at', { ascending: false });
 
   if (error) throw new Error(error.message);
   return data as unknown as PintoPackage[];
@@ -272,7 +273,7 @@ export const fetchMembers = async (): Promise<Member[]> => {
   const { data, error } = await supabase
     .from('members')
     .select('*')
-    .order('full_name', { ascending: true });
+    .order('created_at', { ascending: false });
 
   if (error) throw new Error(error.message);
   return data as Member[];
@@ -287,6 +288,15 @@ export const createPintoPackage = async (pkg: Omit<PintoPackage, 'id'>): Promise
 
   if (error) throw new Error(error.message);
   return data as PintoPackage;
+};
+
+export const deletePintoPackage = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('pinto_packages')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw new Error(error.message);
 };
 
 // ── KDS Weekly Planner API (Added) ──

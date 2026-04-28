@@ -2,7 +2,6 @@ import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { MainLayout } from './components/layout/MainLayout';
 import { KdsDashboard } from './features/kds/components/KdsDashboard';
-import { WeeklyPlanner } from './features/kds/components/WeeklyPlanner';
 import { MemberManagement } from './features/members/components/MemberManagement';
 import { Login } from './features/auth/Login';
 import { useAuthStore } from './store/authStore';
@@ -12,8 +11,8 @@ import { supabase } from './config/supabase';
 const PlaceholderPage: React.FC<{ title: string }> = ({ title }) => (
   <div className="flex items-center justify-center h-full">
     <div className="text-center opacity-50 p-6">
-      <h2 className="text-2xl font-bold text-slate-800">{title}</h2>
-      <p className="text-slate-500 font-bold mt-2">กำลังอยู่ในช่วงการพัฒนา (Phase 3+)</p>
+      <h2 className="text-2xl font-normal text-slate-800">{title}</h2>
+      <p className="text-slate-500 font-normal mt-2">กำลังอยู่ในช่วงการพัฒนา (Phase 3+)</p>
     </div>
   </div>
 );
@@ -64,7 +63,7 @@ function App() {
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
-          <p className="text-slate-500 font-bold animate-pulse">กำลังตรวจสอบสิทธิ์...</p>
+          <p className="text-slate-500 font-normal animate-pulse">กำลังตรวจสอบสิทธิ์...</p>
         </div>
       </div>
     );
@@ -79,7 +78,6 @@ function App() {
         
         {/* Protected ERP Routes */}
         <Route path="/kds" element={<ProtectedRoute><MainLayout><KdsDashboard /></MainLayout></ProtectedRoute>} />
-        <Route path="/planner" element={<ProtectedRoute><MainLayout><WeeklyPlanner /></MainLayout></ProtectedRoute>} />
         <Route path="/members" element={<ProtectedRoute><MainLayout><MemberManagement /></MainLayout></ProtectedRoute>} />
         <Route path="/inventory" element={<ProtectedRoute><MainLayout><PlaceholderPage title="ระบบคลังวัตถุดิบ & สูตรอาหาร" /></MainLayout></ProtectedRoute>} />
         <Route path="/finance" element={<ProtectedRoute><MainLayout><PlaceholderPage title="ระบบบัญชีและการเงิน" /></MainLayout></ProtectedRoute>} />

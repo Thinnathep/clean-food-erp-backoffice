@@ -67,16 +67,16 @@ export const TodayView: React.FC = () => {
       
       {/* Planned Menu Section (New System) */}
       <div className="mb-10">
-        <h3 className="text-lg font-black text-slate-800 mb-4 flex items-center gap-2">
+        <h3 className="text-lg font-normal text-slate-800 mb-4 flex items-center gap-2">
           <CalendarDays className="text-emerald-500" size={20} /> เมนูที่วางแผนไว้สำหรับวันนี้ (Global Plan)
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {isLoadingPlanned ? (
-            <div className="col-span-full h-20 bg-white rounded-xl border border-dashed border-slate-300 flex items-center justify-center text-slate-400 font-bold">
+            <div className="col-span-full h-20 bg-white rounded-xl border border-dashed border-slate-300 flex items-center justify-center text-slate-400 font-normal">
               กำลังโหลดแผนอาหาร...
             </div>
           ) : plannedMeals.length === 0 ? (
-            <div className="col-span-full p-6 bg-slate-100 rounded-xl text-center text-slate-500 font-bold border border-slate-200">
+            <div className="col-span-full p-6 bg-slate-100 rounded-xl text-center text-slate-500 font-normal border border-slate-200">
               ยังไม่มีการวางแผนเมนูสำหรับวันนี้
             </div>
           ) : (
@@ -89,12 +89,12 @@ export const TodayView: React.FC = () => {
                   </div>
                   <div className="flex-1">
                     <div className="flex justify-between items-center mb-1">
-                      <span className="text-[10px] font-black uppercase tracking-widest" style={{ color }}>{MEAL_TYPE_LABELS[meal.meal_type]}</span>
-                      {meal.is_published && <span className="text-[10px] bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full font-black">เผยแพร่แล้ว</span>}
+                      <span className="text-[10px] font-normal uppercase tracking-widest" style={{ color }}>{MEAL_TYPE_LABELS[meal.meal_type]}</span>
+                      {meal.is_published && <span className="text-[10px] bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full font-normal">เผยแพร่แล้ว</span>}
                     </div>
-                    <h4 className="font-black text-slate-800">{meal.menu_name}</h4>
+                    <h4 className="font-normal text-slate-800">{meal.menu_name}</h4>
                     {meal.menu_item && (
-                      <p className="text-[10px] font-bold text-slate-500 mt-1">
+                      <p className="text-[10px] font-normal text-slate-500 mt-1">
                         {meal.menu_item.calories} kcal · Protein {meal.menu_item.protein}g
                       </p>
                     )}
@@ -108,19 +108,19 @@ export const TodayView: React.FC = () => {
 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
         <div>
-          <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+          <h2 className="text-xl md:text-2xl font-normal text-slate-900 tracking-tight flex items-center gap-2">
              <ChefHat className="text-emerald-500" size={24}/> ยอดรวมทำอาหารวันนี้ (Auto-Count)
           </h2>
-          <p className="text-xs md:text-sm font-bold text-slate-500 mt-1">สรุปยอดเตรียมวัตถุดิบและอาหารสำหรับลูกค้าผูกปิ่นโตทั้งหมด</p>
+          <p className="text-xs md:text-sm font-normal text-slate-500 mt-1">สรุปยอดเตรียมวัตถุดิบและอาหารสำหรับลูกค้าผูกปิ่นโตทั้งหมด</p>
         </div>
         <div className="flex gap-2 w-full md:w-auto">
            <div className="bg-white border border-slate-200 px-4 py-2 rounded-xl text-center flex-1 md:flex-none">
-             <p className="text-[10px] font-black uppercase text-slate-400">เมนูที่ต้องทำ</p>
-             <p className="text-lg font-black text-emerald-600">{todayProduction.length}</p>
+             <p className="text-[10px] font-normal uppercase text-slate-400">เมนูที่ต้องทำ</p>
+             <p className="text-lg font-normal text-emerald-600">{todayProduction.length}</p>
            </div>
            <div className="bg-white border border-slate-200 px-4 py-2 rounded-xl text-center flex-1 md:flex-none">
-             <p className="text-[10px] font-black uppercase text-slate-400">รวมทั้งหมด</p>
-             <p className="text-lg font-black text-blue-600">
+             <p className="text-[10px] font-normal uppercase text-slate-400">รวมทั้งหมด</p>
+             <p className="text-lg font-normal text-blue-600">
                {todayProduction.reduce((sum, item) => sum + item.totalQty, 0)} <span className="text-xs">กล่อง</span>
              </p>
            </div>
@@ -130,37 +130,37 @@ export const TodayView: React.FC = () => {
       {todayProduction.length === 0 ? (
          <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-slate-400">
             <CheckCircle2 size={48} className="mx-auto mb-4 text-emerald-100" />
-            <h3 className="text-xl font-black text-slate-800">ไม่มีคิวทำอาหารปิ่นโตในวันนี้</h3>
-            <p className="text-sm font-bold mt-2">ยอดเยี่ยม! พักผ่อนได้เลย หรือไปลุย Live Orders แทน</p>
+            <h3 className="text-xl font-normal text-slate-800">ไม่มีคิวทำอาหารปิ่นโตในวันนี้</h3>
+            <p className="text-sm font-normal mt-2">ยอดเยี่ยม! พักผ่อนได้เลย หรือไปลุย Live Orders แทน</p>
          </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {todayProduction.map((item, idx) => (
             <div key={idx} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
               <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-start bg-slate-50/50">
-                <h3 className="text-lg font-black text-slate-800 leading-tight pr-4">{item.menuName}</h3>
-                <span className="text-2xl font-black text-emerald-500 bg-emerald-50 px-3 py-1 rounded-xl">
+                <h3 className="text-lg font-normal text-slate-800 leading-tight pr-4">{item.menuName}</h3>
+                <span className="text-2xl font-normal text-emerald-500 bg-emerald-50 px-3 py-1 rounded-xl">
                   {item.totalQty}
                 </span>
               </div>
               <div className="p-5 flex-1 bg-white">
                 {item.notes.length > 0 ? (
                    <div>
-                     <h4 className="text-[10px] font-black uppercase tracking-widest text-orange-500 mb-3 flex items-center gap-1">
+                     <h4 className="text-[10px] font-normal uppercase tracking-widest text-orange-500 mb-3 flex items-center gap-1">
                        <AlertTriangle size={12} /> รีเควสพิเศษ ({item.notes.length} กล่อง)
                      </h4>
                      <div className="space-y-2">
                        {item.notes.map((note, nIdx) => (
                          <div key={nIdx} className="bg-orange-50 border border-orange-100 p-2.5 rounded-lg">
-                            <p className="text-xs font-black text-orange-800 mb-1 leading-tight">"{note.note}"</p>
-                            <p className="text-[10px] font-bold text-orange-600/70">{note.memberName} (x{note.qty})</p>
+                            <p className="text-xs font-normal text-orange-800 mb-1 leading-tight">"{note.note}"</p>
+                            <p className="text-[10px] font-normal text-orange-600/70">{note.memberName} (x{note.qty})</p>
                          </div>
                        ))}
                      </div>
                    </div>
                 ) : (
                   <div className="h-full flex items-center justify-center">
-                     <p className="text-xs font-bold text-slate-400">สูตรปกติทั้งหมด</p>
+                     <p className="text-xs font-normal text-slate-400">สูตรปกติทั้งหมด</p>
                   </div>
                 )}
               </div>
@@ -170,15 +170,15 @@ export const TodayView: React.FC = () => {
       )}
       
       <div className="mt-8">
-        <h3 className="text-lg font-black text-slate-800 mb-4 flex items-center gap-2">
+        <h3 className="text-lg font-normal text-slate-800 mb-4 flex items-center gap-2">
           <Clock className="text-blue-500" size={20} /> Live Orders (ออเดอร์หน้าร้าน/เดลิเวอรี่)
         </h3>
         {tasks.length === 0 ? (
-          <div className="bg-white border border-slate-200 rounded-xl p-6 text-center text-slate-400 text-sm font-bold">
+          <div className="bg-white border border-slate-200 rounded-xl p-6 text-center text-slate-400 text-sm font-normal">
             ไม่มีออเดอร์หน้าร้านที่กำลังรอ
           </div>
         ) : (
-          <div className="bg-blue-50 border border-blue-200 text-blue-800 p-4 rounded-xl text-sm font-bold">
+          <div className="bg-blue-50 border border-blue-200 text-blue-800 p-4 rounded-xl text-sm font-normal">
             มีออเดอร์กำลังรอ {tasks.length} รายการ (ระบบแสดงใน KDS Order Card)
           </div>
         )}

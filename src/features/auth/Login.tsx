@@ -34,19 +34,19 @@ export const Login: React.FC = () => {
           <div className="w-16 h-16 bg-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-emerald-500/30 transform -rotate-6">
             <span className="text-3xl">🍃</span>
           </div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">CLEAN FOOD CR</h1>
-          <p className="text-sm font-bold text-slate-500 mt-2">ERP & Backoffice System</p>
+          <h1 className="text-2xl font-normal text-slate-900 tracking-tight">CLEAN FOOD CR</h1>
+          <p className="text-sm font-normal text-slate-500 mt-2">ERP & Backoffice System</p>
         </div>
 
         {error && (
-          <div className="bg-red-50 text-red-600 text-sm font-bold p-4 rounded-xl mb-6 border border-red-100 text-center animate-shake">
+          <div className="bg-red-50 text-red-600 text-sm font-normal p-4 rounded-xl mb-6 border border-red-100 text-center animate-shake">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-xs font-black text-slate-700 uppercase tracking-widest mb-2">Email Address</label>
+            <label className="block text-xs font-normal text-slate-700 uppercase tracking-widest mb-2">Email Address</label>
             <div className="relative">
               <Mail className="absolute left-4 top-3.5 text-slate-400" size={18} />
               <input 
@@ -54,14 +54,14 @@ export const Login: React.FC = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Email"
-                className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:bg-white outline-none transition-all"
+                className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-normal text-slate-800 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:bg-white outline-none transition-all"
                 required
               />
             </div>
           </div>
           
           <div>
-            <label className="block text-xs font-black text-slate-700 uppercase tracking-widest mb-2">Password</label>
+            <label className="block text-xs font-normal text-slate-700 uppercase tracking-widest mb-2">Password</label>
             <div className="relative">
               <Lock className="absolute left-4 top-3.5 text-slate-400" size={18} />
               <input 
@@ -69,7 +69,7 @@ export const Login: React.FC = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:bg-white outline-none transition-all"
+                className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-normal text-slate-800 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 focus:bg-white outline-none transition-all"
                 required
               />
             </div>
@@ -78,14 +78,14 @@ export const Login: React.FC = () => {
           <button 
             type="submit" 
             disabled={isLoading}
-            className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-xl transition-all flex justify-center items-center gap-2 mt-4 disabled:opacity-70 disabled:cursor-not-allowed"
+            className="w-full bg-slate-900 hover:bg-slate-800 text-white font-normal py-3.5 rounded-xl transition-all flex justify-center items-center gap-2 mt-4 disabled:opacity-70 disabled:cursor-not-allowed"
           >
             {isLoading ? <Loader2 className="animate-spin" size={20} /> : 'เข้าสู่ระบบ'}
           </button>
         </form>
         
         <div className="mt-8 pt-6 border-t border-slate-100 text-center">
-          <p className="text-xs font-bold text-slate-400">© 2026 Clean Food Chiang Rai. All rights reserved.</p>
+          <p className="text-xs font-normal text-slate-400">© 2026 Clean Food Chiang Rai. All rights reserved.</p>
         </div>
       </div>
     </div>
