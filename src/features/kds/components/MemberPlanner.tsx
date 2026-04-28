@@ -93,7 +93,6 @@ export const MemberPlanner: React.FC = () => {
           const nameB = (Array.isArray(b.members) ? b.members[0]?.full_name : b.members?.full_name) || '';
           return nameA.localeCompare(nameB, 'th');
         } else {
-          // เรียงจากล่าสุดไปหาเก่า (created_at descending)
           const dateA = a.created_at ? dayjs(a.created_at).valueOf() : 0;
           const dateB = b.created_at ? dayjs(b.created_at).valueOf() : 0;
           return dateB - dateA;
@@ -124,7 +123,6 @@ export const MemberPlanner: React.FC = () => {
         notes: existingSchedule.notes || ''
       });
     } else {
-      // Find next available meal_type (1 to 6)
       const currentSchedules = getSchedulesForDate(date);
       const usedTypes = currentSchedules.map(s => s.meal_type);
       let nextType: string = 'meal_1';
@@ -174,7 +172,6 @@ export const MemberPlanner: React.FC = () => {
   const handleOpenProfile = () => {
     if (!selectedPackage?.members) return;
     setMemberUpdates({ ...selectedPackage.members });
-    // Add package updates state
     setPackageUpdates({
       package_name: selectedPackage.package_name,
       meals_total: selectedPackage.meals_total
@@ -186,10 +183,8 @@ export const MemberPlanner: React.FC = () => {
     if (!selectedPackage?.members || !memberUpdates || !packageUpdates) return;
     
     try {
-      // 1. Update Member Profile
       await updateMemberProfile(selectedPackage.members.id, memberUpdates);
       
-      // 2. Update Package Details
       const { error } = await supabase
         .from('pinto_packages')
         .update({
@@ -243,7 +238,6 @@ export const MemberPlanner: React.FC = () => {
     }
   };
 
-  // Estimate days remaining based on current week's meal count
   const calculateEstimateEndDate = () => {
     if (!selectedPackage || selectedPackage.meals_remaining <= 0) return 'N/A';
     
@@ -283,7 +277,6 @@ export const MemberPlanner: React.FC = () => {
       </div>
 
       <div className="flex-1 flex overflow-hidden relative">
-        {/* Left sidebar: Package List */}
         <div className={`w-full md:w-72 bg-white md:border-r border-slate-200 flex-col z-10 absolute md:relative inset-0 transition-transform ${selectedPackage ? '-translate-x-full md:translate-x-0' : 'translate-x-0'} flex`}>
           <div className="p-4 border-b border-slate-100 space-y-3">
             <div className="flex justify-between items-center">
@@ -295,7 +288,6 @@ export const MemberPlanner: React.FC = () => {
                  <Plus size={12} /> เพิ่ม
               </button>
             </div>
-            {/* ช่องค้นหาลูกค้า */}
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
@@ -327,7 +319,6 @@ export const MemberPlanner: React.FC = () => {
             {filteredPackages.length === 0 && (
                <div className="text-center p-6 text-slate-400 text-xs font-normal">ไม่พบข้อมูลลูกค้า</div>
             )}
-            {/* Group packages by member_id */}
             {Object.values(filteredPackages.reduce((acc: any, pkg) => {
               const mId = pkg.member_id;
               if (!acc[mId]) {
@@ -380,7 +371,6 @@ export const MemberPlanner: React.FC = () => {
           </div>
         </div>
 
-        {/* Right area: Member Calendar */}
         {selectedPackage ? (
           <div className={`flex-1 flex flex-col overflow-hidden bg-[#F8FAFC] absolute md:relative inset-0 z-20 transition-transform ${selectedPackage ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}`}>
              <div className="px-4 md:px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-200 bg-white shadow-sm">
@@ -552,7 +542,6 @@ export const MemberPlanner: React.FC = () => {
         )}
       </div>
 
-      {/* Member Profile Modal */}
       {isProfileModalOpen && memberUpdates && (
         <div className="fixed inset-0 bg-slate-900/40 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden border border-slate-200">
@@ -572,7 +561,6 @@ export const MemberPlanner: React.FC = () => {
                </div>
                
                <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8 max-h-[75vh] overflow-y-auto custom-scrollbar">
-                  {/* Left Column: Personal & Address */}
                   <div className="space-y-6">
                     <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-4">
                       <h4 className="text-sm font-normal text-slate-900 border-b border-slate-200 pb-2 flex items-center gap-2">
@@ -643,7 +631,6 @@ export const MemberPlanner: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Right Column: Health & Marketing */}
                   <div className="space-y-6">
                     <div className="bg-emerald-50/50 p-6 rounded-2xl border border-emerald-100 space-y-4">
                       <h4 className="text-sm font-normal text-slate-900 border-b border-emerald-200 pb-2 flex items-center gap-2">
@@ -712,7 +699,7 @@ export const MemberPlanner: React.FC = () => {
                          <input 
                            type="text" 
                            value={packageUpdates?.package_name || ''} 
-                           onChange={(e) => setPackageUpdates({...packageUpdates, package_name: e.target.value})}
+                           onChange={(e) => setPackageUpdates({...packageUpdates!, package_name: e.target.value})}
                            className="w-full p-2.5 bg-white border border-purple-200 rounded-xl text-sm font-normal focus:border-purple-500 outline-none"
                          />
                        </div>
@@ -721,7 +708,7 @@ export const MemberPlanner: React.FC = () => {
                          <input 
                            type="number" 
                            value={packageUpdates?.meals_total || 0} 
-                           onChange={(e) => setPackageUpdates({...packageUpdates, meals_total: parseInt(e.target.value) || 0})}
+                           onChange={(e) => setPackageUpdates({...packageUpdates!, meals_total: parseInt(e.target.value) || 0})}
                            className="w-full p-2.5 bg-white border border-purple-300 rounded-xl text-sm font-bold text-purple-700 focus:border-purple-500 outline-none"
                          />
                          <p className="text-[10px] text-purple-400 mt-1">* แก้ไขเมื่อมีโปรโมชั่นแถมมื้อ เช่น 60+2 ให้ใส่เป็น 62</p>

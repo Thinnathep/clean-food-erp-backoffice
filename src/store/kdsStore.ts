@@ -6,7 +6,7 @@ import {
   fetchActiveKdsTasks, finishKdsTask, fetchMenuItems, createMenuItem, uploadMenuImage, updateMenuItem, deleteMenuItem,
   fetchGlobalPlanSlots, upsertGlobalPlanSlot, deleteGlobalPlanSlot,
   fetchActivePackages, fetchMemberSchedules, upsertMemberSchedule, removeMemberSchedule, updateMemberScheduleNote,
-  updateMemberProfile as updateMemberProfileApi, createMember, decrementMealsRemaining,
+  updateMemberProfile as updateMemberProfileApi, createMember,
   fetchMembers, createPintoPackage, deletePintoPackage 
 } from '../features/kds/api';
 

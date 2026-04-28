@@ -1,14 +1,8 @@
 import React, { useMemo, useEffect, useState } from 'react';
-import { ChefHat, CheckCircle2, Clock, AlertTriangle, Package, UtensilsCrossed, Printer, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChefHat, CheckCircle2, AlertTriangle, Package, UtensilsCrossed, Printer, ChevronLeft, ChevronRight } from 'lucide-react';
 import dayjs from 'dayjs';
 import 'dayjs/locale/th';
 import { useKdsStore } from '../../../store/kdsStore';
-
-const TIME_PRIORITY: Record<string, number> = {
-  'รอบเช้า': 1,
-  'รอบเย็น': 2,
-  'ไม่ระบุเวลา': 3
-};
 
 const CATEGORY_PRIORITY: Record<string, number> = {
   'ของหวาน': 1,
