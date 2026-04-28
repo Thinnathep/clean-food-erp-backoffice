@@ -270,9 +270,6 @@ export const useKdsStore = create<KdsState>()(
        if (targetPackage) {
          const newRemaining = Math.max(0, targetPackage.meals_total - totalUsed);
          
-         // ALERT for debugging
-         alert(`ระบบตรวจพบรายการอาหารทั้งหมดในฐานข้อมูล: ${totalUsed} มื้อ\nยอดคงเหลือใหม่จะเป็น: ${newRemaining} มื้อ`);
-         
          const { error } = await supabase
            .from('pinto_packages')
            .update({ meals_remaining: newRemaining })

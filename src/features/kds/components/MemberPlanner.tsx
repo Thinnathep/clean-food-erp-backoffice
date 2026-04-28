@@ -207,7 +207,6 @@ export const MemberPlanner: React.FC = () => {
       
       await loadMasterData();
       setIsProfileModalOpen(false);
-      alert('บันทึกข้อมูลและปรับยอดมื้อเรียบร้อยแล้ว');
     } catch (error: any) {
       alert('เกิดข้อผิดพลาด: ' + error.message);
     }
