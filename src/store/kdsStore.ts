@@ -85,6 +85,7 @@ interface KdsState {
   copiedDaySlots: MemberMealSchedule[] | null;
   copyDayPlan: (date: string) => void;
   pasteDayPlan: (targetDate: string, pkgId: string, memberId: string) => Promise<void>;
+  clearDayPlan: (date: string, pkgId: string) => Promise<void>;
 }
 
 export const useKdsStore = create<KdsState>()(
@@ -170,7 +171,12 @@ export const useKdsStore = create<KdsState>()(
 
   loadMemberPlanner: async (startDate, endDate, packageId) => {
      try {
-       set({ isLoadingPlanner: true });
+       set({ isLoadingPlanner: true, error: null }); // Clear previous errors
+       // Skip API call if packageId is temporary
+       if (packageId && packageId.startsWith('temp_')) {
+         set({ memberSchedules: [], isLoadingPlanner: false, hasUnsavedChanges: true });
+         return;
+       }
        const schedules = await fetchMemberSchedules(startDate, endDate, packageId);
        set({ memberSchedules: schedules, isLoadingPlanner: false, hasUnsavedChanges: false });
      } catch (error: any) {
@@ -372,9 +378,13 @@ export const useKdsStore = create<KdsState>()(
   
   removeMemberSlot: async (scheduleId) => {
       try {
-        await removeMemberSchedule(scheduleId);
+        // Only call API if it's a real UUID (not temp_)
+        if (!scheduleId.startsWith('temp_')) {
+          await removeMemberSchedule(scheduleId);
+        }
         set(state => ({
-          memberSchedules: state.memberSchedules.filter(s => s.id !== scheduleId)
+          memberSchedules: state.memberSchedules.filter(s => s.id !== scheduleId),
+          hasUnsavedChanges: true
         }));
       } catch (error: any) {
         set({ error: error.message });
@@ -383,9 +393,13 @@ export const useKdsStore = create<KdsState>()(
   
   updateMemberNote: async (scheduleId, note) => {
       try {
-        await updateMemberScheduleNote(scheduleId, note);
+        // Only call API if it's a real UUID
+        if (!scheduleId.startsWith('temp_')) {
+          await updateMemberScheduleNote(scheduleId, note);
+        }
         set(state => ({
-           memberSchedules: state.memberSchedules.map(s => s.id === scheduleId ? { ...s, notes: note } : s)
+           memberSchedules: state.memberSchedules.map(s => s.id === scheduleId ? { ...s, notes: note } : s),
+           hasUnsavedChanges: true
         }));
       } catch (error: any) {
          set({ error: error.message });
@@ -456,6 +470,29 @@ export const useKdsStore = create<KdsState>()(
       );
     }
     // No need to re-fetch or set loading, as assignMemberSlot updates local state
+  },
+  clearDayPlan: async (date, pkgId) => {
+    if (!confirm(`ยืนยันการลบแผนอาหารทั้งหมดของวันที่ ${date}?`)) return;
+    
+    const slotsToDelete = get().memberSchedules.filter(s => s.delivery_date === date && s.package_id === pkgId);
+    
+    try {
+      // Delete real records from DB
+      const realIds = slotsToDelete.filter(s => !s.id.startsWith('temp_')).map(s => s.id);
+      if (realIds.length > 0) {
+        for (const id of realIds) {
+          await removeMemberSchedule(id);
+        }
+      }
+      
+      // Update local state
+      set(state => ({
+        memberSchedules: state.memberSchedules.filter(s => !(s.delivery_date === date && s.package_id === pkgId)),
+        hasUnsavedChanges: true
+      }));
+    } catch (error: any) {
+      set({ error: error.message });
+    }
   }
 }), {
   name: 'kds-storage',

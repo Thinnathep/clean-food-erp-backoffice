@@ -53,6 +53,7 @@ export const MemberPlanner: React.FC = () => {
   const removeMemberSlot = useKdsStore(state => state.removeMemberSlot);
   const copyDayPlan = useKdsStore(state => state.copyDayPlan);
   const pasteDayPlan = useKdsStore(state => state.pasteDayPlan);
+  const clearDayPlan = useKdsStore(state => state.clearDayPlan);
   const copiedDaySlots = useKdsStore(state => state.copiedDaySlots);
   const hasUnsavedChanges = useKdsStore(state => state.hasUnsavedChanges);
   const saveMemberSchedules = useKdsStore(state => state.saveMemberSchedules);
@@ -416,31 +417,33 @@ export const MemberPlanner: React.FC = () => {
                             <p className={`text-[10px] font-normal uppercase tracking-widest ${day.isToday ? 'text-blue-100' : 'text-slate-400'}`}>{day.dayName}</p>
                             <h3 className={`text-lg font-normal ${day.isToday ? 'text-white' : 'text-slate-800'}`}>{day.shortDate}</h3>
                           </div>
-                          <div className="flex gap-1">
-                            <button 
-                              onClick={() => copyDayPlan(day.date)}
-                              title="คัดลอกแผนของวันนี้"
-                              className={`p-1.5 rounded-lg transition-colors ${day.isToday ? 'hover:bg-blue-600 text-blue-100' : 'hover:bg-slate-200 text-slate-400'}`}
-                            >
-                              <Copy size={14} />
-                            </button>
-                            {copiedDaySlots && (
+                            <div className="flex gap-1">
+                              {daySchedules.length > 0 && (
+                                <button 
+                                  onClick={() => clearDayPlan(day.date, selectedPackage.id)}
+                                  title="ลบแผนทั้งหมดของวันนี้"
+                                  className={`p-1.5 rounded-lg transition-colors ${day.isToday ? 'hover:bg-red-600 text-blue-100' : 'hover:bg-red-50 text-red-400'}`}
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              )}
                               <button 
-                                onClick={() => pasteDayPlan(day.date, selectedPackage.id, selectedPackage.member_id)}
-                                title="วางแผนที่คัดลอกมา"
-                                className={`p-1.5 rounded-lg transition-colors ${day.isToday ? 'bg-white text-blue-500' : 'bg-emerald-500 text-white shadow-sm'}`}
+                                onClick={() => copyDayPlan(day.date)}
+                                title="คัดลอกแผนของวันนี้"
+                                className={`p-1.5 rounded-lg transition-colors ${day.isToday ? 'hover:bg-blue-600 text-blue-100' : 'hover:bg-slate-200 text-slate-400'}`}
                               >
-                                <Clipboard size={14} />
+                                <Copy size={14} />
                               </button>
-                            )}
-                            <button 
-                              onClick={() => openModal(day.date)}
-                              title="เพิ่มมื้ออาหาร"
-                              className={`p-1.5 rounded-lg transition-colors ${day.isToday ? 'hover:bg-blue-600 text-blue-100' : 'hover:bg-slate-200 text-slate-400'}`}
-                            >
-                              <Plus size={14} />
-                            </button>
-                          </div>
+                              {copiedDaySlots && (
+                                <button 
+                                  onClick={() => pasteDayPlan(day.date, selectedPackage.id, selectedPackage.member_id)}
+                                  title="วางแผนที่คัดลอกมา"
+                                  className={`p-1.5 rounded-lg transition-colors ${day.isToday ? 'bg-white text-blue-500' : 'bg-emerald-500 text-white shadow-sm animate-pulse'}`}
+                                >
+                                  <Clipboard size={14} />
+                                </button>
+                              )}
+                            </div>
                         </div>
                         <div className="p-3 space-y-2 flex-1 flex flex-col bg-slate-50">
                           {daySchedules.map((schedule, idx) => (
@@ -818,24 +821,24 @@ export const MemberPlanner: React.FC = () => {
                   {editingSlot.scheduleId ? (
                     <button 
                       onClick={(e) => handleRemoveClick(e, editingSlot.scheduleId!)}
-                      className="text-red-500 hover:bg-red-50 px-4 py-2 rounded-lg text-sm font-normal transition-colors"
+                      className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 hover:bg-red-500 hover:text-white rounded-xl text-sm font-normal transition-all border border-red-100 shadow-sm"
                     >
-                      ลบมื้อนี้
+                      <Trash2 size={16} /> ลบมื้อนี้
                     </button>
                   ) : <div></div>}
                   
-                  <div className="flex gap-2">
+                  <div className="flex gap-3">
                     <button 
                       onClick={() => setIsModalOpen(false)}
-                      className="bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 px-4 py-2 rounded-lg text-sm font-normal transition-colors"
+                      className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl text-sm font-normal transition-all"
                     >
                       ยกเลิก
                     </button>
                     <button 
                       onClick={handleSaveModal}
-                      className="bg-emerald-500 text-white hover:bg-emerald-600 shadow-md shadow-emerald-500/20 px-6 py-2 rounded-lg text-sm font-normal transition-all flex items-center gap-2"
+                      className="flex items-center gap-2 px-8 py-2.5 bg-emerald-500 text-white rounded-xl text-sm font-normal hover:bg-emerald-600 shadow-lg shadow-emerald-500/20 transition-all active:scale-95"
                     >
-                      <Save size={16} /> บันทึก
+                      <Save size={18} /> บันทึก
                     </button>
                   </div>
                </div>
