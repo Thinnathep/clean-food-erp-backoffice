@@ -3,7 +3,7 @@ import { useKdsStore } from '../../../store/kdsStore';
 import { useAuthStore } from '../../../store/authStore';
 import {
   UtensilsCrossed, Clock, ChevronLeft, ChevronRight, Package, BarChart3,
-  Calendar as CalendarIcon, List as ListIcon, Printer, ShieldCheck,
+  Calendar as CalendarIcon, Printer,
   User, Sparkles, AlertCircle, TrendingUp, ChefHat
 } from 'lucide-react';
 import {
