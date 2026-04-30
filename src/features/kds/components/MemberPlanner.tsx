@@ -4,12 +4,13 @@ import {
   UtensilsCrossed, Copy, Clipboard, Search, FileText, Trash2, MapPin
 } from 'lucide-react';
 import dayjs from 'dayjs';
+import Swal from 'sweetalert2';
 import { supabase } from '../../../config/supabase';
 import { useKdsStore } from '../../../store/kdsStore';
 import { useAuthStore } from '../../../store/authStore';
 import { getWeekDays, formatDisplayDate } from '../../../lib/dateUtils';
 import { fetchMemberSchedules } from '../../../features/kds/api';
-import type { MemberMealSchedule } from '../../../types';
+import type { MemberMealSchedule, PintoPackage, Member } from '../../../types';
 
 export const MemberPlanner: React.FC = () => {
   const { user } = useAuthStore();
@@ -44,6 +45,7 @@ export const MemberPlanner: React.FC = () => {
   const [menuSearch, setMenuSearch] = useState('');
   const [sidebarSearchQuery, setSidebarSearchQuery] = useState('');
   const [sidebarSortBy, setSidebarSortBy] = useState<'latest' | 'name'>('latest');
+  const [sidebarFilterType, setSidebarFilterType] = useState<'all' | 'member' | 'retail'>('all');
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
 
   const menus = useKdsStore(state => state.menus);
@@ -79,13 +81,45 @@ export const MemberPlanner: React.FC = () => {
   const handlePrevWeek = () => setCurrentWeekStart(dayjs(currentWeekStart).subtract(1, 'week').toDate());
   const handleNextWeek = () => setCurrentWeekStart(dayjs(currentWeekStart).add(1, 'week').toDate());
 
-  const selectedPackage = activePackages.find(p => p.id === selectedPackageId);
 
   const filteredPackages = useMemo(() => {
-    return [...activePackages]
+    // 1. Start with members who have active packages
+    const packageMembersIds = new Set(activePackages.map(p => p.member_id));
+    
+    // 2. Get retail members who don't have active packages but we might want to plan for
+    const retailMembersWithoutPackages = members.filter(m => 
+      m.member_type === 'retail' && !packageMembersIds.has(m.id)
+    );
+
+    // 3. Create virtual package objects for retail members to fit existing UI
+    const virtualRetailPackages: PintoPackage[] = retailMembersWithoutPackages.map(m => ({
+      id: `retail_${m.id}`,
+      member_id: m.id,
+      package_name: 'ออเดอร์รายย่อย (No Package)',
+      meals_total: 0,
+      meals_remaining: 0,
+      days_total: 0,
+      days_remaining: 0,
+      start_date: m.created_at || new Date().toISOString(),
+      end_date: dayjs().add(1, 'year').toISOString(),
+      status: 'active' as const,
+      members: m,
+      created_at: m.created_at || new Date().toISOString()
+    }));
+
+    return [...activePackages, ...virtualRetailPackages]
       .filter(pkg => {
-        const name = (Array.isArray(pkg.members) ? pkg.members[0]?.full_name : pkg.members?.full_name) || '';
-        return name.toLowerCase().includes(sidebarSearchQuery.toLowerCase());
+        const member = Array.isArray(pkg.members) ? pkg.members[0] : pkg.members;
+        const name = member?.full_name || '';
+        const matchesSearch = name.toLowerCase().includes(sidebarSearchQuery.toLowerCase());
+        
+        if (sidebarFilterType === 'member') {
+          return matchesSearch && member?.member_type !== 'retail';
+        }
+        if (sidebarFilterType === 'retail') {
+          return matchesSearch && member?.member_type === 'retail';
+        }
+        return matchesSearch;
       })
       .sort((a, b) => {
         if (sidebarSortBy === 'name') {
@@ -98,11 +132,21 @@ export const MemberPlanner: React.FC = () => {
           return dateB - dateA;
         }
       });
-  }, [activePackages, sidebarSearchQuery, sidebarSortBy]);
+  }, [activePackages, sidebarSearchQuery, sidebarSortBy, sidebarFilterType, members]);
+
+  const selectedPackage = filteredPackages.find(p => p.id === selectedPackageId);
+
+  const projectedRemaining = useMemo(() => {
+    if (!selectedPackage) return 0;
+    // Count ALL meals planned for this package (both saved and unsaved)
+    const packageSchedules = memberSchedules.filter(s => s.package_id === selectedPackage.id);
+    const totalPlanned = packageSchedules.reduce((sum, s) => sum + (s.quantity || 1), 0);
+    return selectedPackage.meals_total - totalPlanned;
+  }, [selectedPackage, memberSchedules]);
 
   const getSchedulesForDate = (date: string): MemberMealSchedule[] => {
     return memberSchedules
-      .filter(s => s.delivery_date === date)
+      .filter(s => s.delivery_date === date && s.package_id === selectedPackageId)
       .sort((a, b) => {
         const numA = parseInt(a.meal_type.split('_')[1]) || 0;
         const numB = parseInt(b.meal_type.split('_')[1]) || 0;
@@ -182,9 +226,32 @@ export const MemberPlanner: React.FC = () => {
   const handleSaveProfile = async () => {
     if (!selectedPackage?.members || !memberUpdates || !packageUpdates) return;
     
+    const confirmResult = await Swal.fire({
+      title: 'ยืนยันการบันทึก?',
+      text: "ข้อมูลสมาชิกและแพ็กเกจจะถูกอัปเดตใหม่ทันที",
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#94a3b8',
+      confirmButtonText: 'ยืนยัน บันทึกเลย',
+      cancelButtonText: 'ยกเลิก'
+    });
+
+    if (!confirmResult.isConfirmed) return;
+
     try {
+      Swal.fire({
+        title: 'กำลังบันทึกข้อมูล...',
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+
+      // 1. Update Member Profile
       await updateMemberProfile(selectedPackage.members.id, memberUpdates);
       
+      // 2. Update Package Details (if needed)
       const { error } = await supabase
         .from('pinto_packages')
         .update({
@@ -205,42 +272,94 @@ export const MemberPlanner: React.FC = () => {
         .update({ meals_remaining: newRemaining })
         .eq('id', selectedPackage.id);
       
+      // 4. Refresh All Master Data to reflect everywhere
       await loadMasterData();
+      
       setIsProfileModalOpen(false);
+      
+      Swal.fire({
+        icon: 'success',
+        title: 'บันทึกสำเร็จ',
+        text: 'ข้อมูลสมาชิกและแพ็กเกจได้รับการอัปเดตแล้ว',
+        timer: 1500,
+        showConfirmButton: false
+      });
     } catch (error: any) {
-      alert('เกิดข้อผิดพลาด: ' + error.message);
+      Swal.fire({
+        icon: 'error',
+        title: 'เกิดข้อผิดพลาด',
+        text: error.message
+      });
     }
   };
 
   const handleAddPackage = async () => {
     if (!newPackage.member_id || !newPackage.package_name) {
-      alert('กรุณาเลือกชื่อลูกค้าและระบุชื่อแพ็กเกจ');
+      Swal.fire({
+        icon: 'warning',
+        title: 'ข้อมูลไม่ครบ',
+        text: 'กรุณาเลือกชื่อลูกค้าและระบุชื่อแพ็กเกจ'
+      });
       return;
     }
 
-    await addPintoPackage({
-      ...newPackage,
-      meals_remaining: newPackage.meals_total,
-      days_total: dayjs(newPackage.end_date).diff(dayjs(newPackage.start_date), 'day'),
-      days_remaining: dayjs(newPackage.end_date).diff(dayjs(newPackage.start_date), 'day'),
-      status: 'active'
-    });
+    try {
+      await addPintoPackage({
+        ...newPackage,
+        meals_remaining: newPackage.meals_total,
+        days_total: dayjs(newPackage.end_date).diff(dayjs(newPackage.start_date), 'day'),
+        days_remaining: dayjs(newPackage.end_date).diff(dayjs(newPackage.start_date), 'day'),
+        status: 'active'
+      });
 
-    setIsAddPackageModalOpen(false);
+      setIsAddPackageModalOpen(false);
+      Swal.fire({
+        icon: 'success',
+        title: 'เปิดแพ็กเกจสำเร็จ',
+        timer: 1500,
+        showConfirmButton: false
+      });
+    } catch (error: any) {
+      Swal.fire({
+        icon: 'error',
+        title: 'เกิดข้อผิดพลาด',
+        text: error.message
+      });
+    }
   };
 
   const handleRemoveClick = async (e: React.MouseEvent, scheduleId: string) => {
     e.stopPropagation();
-    if (window.confirm('ลบมื้อนี้ใช่ไหม?')) {
+    
+    const result = await Swal.fire({
+      title: 'ลบมื้อนี้ใช่ไหม?',
+      text: "คุณจะไม่สามารถกู้คืนข้อมูลมื้อนี้ได้",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#94a3b8',
+      confirmButtonText: 'ใช่, ลบทันที',
+      cancelButtonText: 'ยกเลิก'
+    });
+
+    if (result.isConfirmed) {
       await removeMemberSlot(scheduleId);
       setIsModalOpen(false);
+      Swal.fire({
+        title: 'ลบแล้ว!',
+        icon: 'success',
+        timer: 1000,
+        showConfirmButton: false
+      });
     }
   };
 
   const calculateEstimateEndDate = () => {
     if (!selectedPackage || selectedPackage.meals_remaining <= 0) return 'N/A';
     
-    const mealsPerWeek = memberSchedules.reduce((sum, s) => sum + (s.quantity || 1), 0);
+    const mealsPerWeek = memberSchedules
+      .filter(s => s.package_id === selectedPackage.id)
+      .reduce((sum, s) => sum + (s.quantity || 1), 0);
     if (mealsPerWeek <= 0) return 'ไม่มีแผนอาหาร';
     
     const avgMealsPerDay = mealsPerWeek / 7;
@@ -298,18 +417,28 @@ export const MemberPlanner: React.FC = () => {
                   className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-normal focus:border-emerald-500 outline-none transition-all"
                 />
               </div>
-              <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200">
+              <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200 gap-1">
                 <button 
-                  onClick={() => setSidebarSortBy('latest')}
-                  className={`px-2 py-1 rounded-md text-[9px] font-normal uppercase transition-all ${sidebarSortBy === 'latest' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}
+                  onClick={() => {
+                    setSidebarSortBy('latest');
+                    setSidebarFilterType('all');
+                  }}
+                  className={`px-2 py-1 rounded-md text-[9px] font-bold uppercase transition-all ${sidebarSortBy === 'latest' && sidebarFilterType === 'all' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400'}`}
                 >
                   ล่าสุด
                 </button>
+                <div className="w-[1px] bg-slate-200 my-1"></div>
                 <button 
-                  onClick={() => setSidebarSortBy('name')}
-                  className={`px-2 py-1 rounded-md text-[9px] font-normal uppercase transition-all ${sidebarSortBy === 'name' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}
+                  onClick={() => setSidebarFilterType('member')}
+                  className={`px-2 py-1 rounded-md text-[9px] font-bold uppercase transition-all ${sidebarFilterType === 'member' ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-400'}`}
                 >
-                  ชื่อ
+                  สมาชิก
+                </button>
+                <button 
+                  onClick={() => setSidebarFilterType('retail')}
+                  className={`px-2 py-1 rounded-md text-[9px] font-bold uppercase transition-all ${sidebarFilterType === 'retail' ? 'bg-orange-500 text-white shadow-sm' : 'text-slate-400'}`}
+                >
+                  รายย่อย
                 </button>
               </div>
             </div>
@@ -349,17 +478,46 @@ export const MemberPlanner: React.FC = () => {
                           {pkg.package_name}
                         </p>
                         <span className={`text-[11px] font-normal px-2 py-1 rounded-lg whitespace-nowrap ${
-                          pkg.meals_remaining < 3 
-                            ? 'bg-red-50 text-red-600 border border-red-100 animate-pulse' 
-                            : (pkg.meals_total === 14 || pkg.meals_total === 15)
-                              ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
-                              : (pkg.meals_total === 28 || pkg.meals_total === 30)
-                                ? 'bg-blue-50 text-blue-600 border border-blue-100'
-                                : (pkg.meals_total === 60 || pkg.meals_total === 62)
-                                  ? 'bg-purple-50 text-purple-600 border border-purple-100'
-                                  : 'bg-slate-100 text-slate-700 border border-slate-200'
+                          (() => {
+                            const currentPkgSchedules = memberSchedules.filter(s => s.package_id === pkg.id);
+                            
+                            // If it's a retail "virtual" package
+                            if (pkg.id.toString().startsWith('retail_')) {
+                              const activeOrders = currentPkgSchedules.filter(s => 
+                                dayjs(s.delivery_date).isSame(dayjs(), 'day') || dayjs(s.delivery_date).isAfter(dayjs(), 'day')
+                              ).reduce((sum, s) => sum + (s.quantity || 1), 0);
+                              
+                              return activeOrders > 0 
+                                ? 'bg-orange-500 text-white border border-orange-600 shadow-sm animate-pulse' 
+                                : 'bg-slate-100 text-slate-400 border border-slate-200';
+                            }
+
+                            // Original Member Logic
+                            const totalPlanned = currentPkgSchedules.reduce((sum, s) => sum + (s.quantity || 1), 0);
+                            const rem = pkg.meals_total - totalPlanned;
+                            
+                            if (rem < 0) return 'bg-red-500 text-white border border-red-600';
+                            if (rem < 3) return 'bg-red-50 text-red-600 border border-red-100 animate-pulse';
+                            
+                            if (pkg.meals_total === 14 || pkg.meals_total === 15) return 'bg-emerald-50 text-emerald-600 border border-emerald-100';
+                            if (pkg.meals_total === 28 || pkg.meals_total === 30) return 'bg-blue-50 text-blue-600 border border-blue-100';
+                            if (pkg.meals_total === 60 || pkg.meals_total === 62) return 'bg-purple-50 text-purple-600 border border-purple-100';
+                            
+                            return 'bg-slate-100 text-slate-700 border border-slate-200';
+                          })()
                         }`}>
-                          เหลือ {pkg.meals_remaining} มื้อ
+                          {(() => {
+                            const currentPkgSchedules = memberSchedules.filter(s => s.package_id === pkg.id);
+                            if (pkg.id.toString().startsWith('retail_')) {
+                              const activeOrders = currentPkgSchedules.filter(s => 
+                                dayjs(s.delivery_date).isSame(dayjs(), 'day') || dayjs(s.delivery_date).isAfter(dayjs(), 'day')
+                              ).reduce((sum, s) => sum + (s.quantity || 1), 0);
+                              return activeOrders > 0 ? `สั่งไว้ ${activeOrders} มื้อ` : 'ไม่มีออเดอร์';
+                            }
+                            
+                            const totalPlanned = currentPkgSchedules.reduce((sum, s) => sum + (s.quantity || 1), 0);
+                            return `เหลือ ${pkg.meals_total - totalPlanned} มื้อ`;
+                          })()}
                         </span>
                       </div>
                     </div>
@@ -397,25 +555,27 @@ export const MemberPlanner: React.FC = () => {
                        </div>
                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-1">
                            <span className="text-[10px] md:text-xs font-normal text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md truncate max-w-[150px]">{selectedPackage.package_name}</span>
+                             <span className={`text-[10px] md:text-xs font-normal px-2 py-0.5 rounded-md border ${
+                               projectedRemaining < 0
+                                 ? 'bg-red-500 text-white border-red-600 animate-bounce' 
+                                 : projectedRemaining < 3
+                                   ? 'bg-red-50 text-red-600 border-red-100'
+                                   : (selectedPackage.meals_total === 14 || selectedPackage.meals_total === 15)
+                                     ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                                     : (selectedPackage.meals_total === 28 || selectedPackage.meals_total === 30)
+                                       ? 'bg-blue-50 text-blue-600 border-blue-100'
+                                       : (selectedPackage.meals_total === 60 || selectedPackage.meals_total === 62)
+                                         ? 'bg-purple-50 text-purple-600 border-purple-100'
+                                         : 'bg-slate-100 text-slate-600 border-slate-200'
+                             }`}>
+                               เหลือ {projectedRemaining} มื้อ
+                             </span>
                            <span className="text-[10px] md:text-xs font-normal text-slate-500 flex items-center gap-1">
                              <Clock size={12} className="text-purple-500" /> {selectedPackage.members?.delivery_time || 'ไม่ระบุรอบส่ง'}
                            </span>
                            <span className="text-[10px] md:text-xs font-normal text-slate-500 flex items-center gap-1">
                              <MapPin size={12} className="text-emerald-500" /> {selectedPackage.members?.address || 'ไม่ระบุที่อยู่'}
                            </span>
-                                                       <span className={`text-[10px] md:text-xs font-normal px-2 py-0.5 rounded-md border ${
-                              selectedPackage.meals_remaining < 3
-                                ? 'bg-red-50 text-red-600 border-red-100'
-                                : (selectedPackage.meals_total === 14 || selectedPackage.meals_total === 15)
-                                  ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
-                                  : (selectedPackage.meals_total === 28 || selectedPackage.meals_total === 30)
-                                    ? 'bg-blue-50 text-blue-600 border-blue-100'
-                                    : (selectedPackage.meals_total === 60 || selectedPackage.meals_total === 62)
-                                      ? 'bg-purple-50 text-purple-600 border-purple-100'
-                                      : 'bg-slate-100 text-slate-600 border-slate-200'
-                            }`}>
-                              เหลือ {selectedPackage.meals_remaining} มื้อ
-                            </span>
 
                            {selectedPackage.members?.health_goal && (
                              <span className="text-[10px] md:text-xs font-normal text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">{selectedPackage.members?.health_goal}</span>
@@ -573,6 +733,25 @@ export const MemberPlanner: React.FC = () => {
                       <h4 className="text-sm font-normal text-slate-900 border-b border-slate-200 pb-2 flex items-center gap-2">
                         <User size={16} className="text-emerald-500" /> ข้อมูลส่วนตัว
                       </h4>
+                      <div>
+                        <label className="block text-[11px] font-normal text-slate-900 mb-1">ประเภทลูกค้า</label>
+                        <div className="flex bg-white border border-slate-200 p-1 rounded-xl gap-1">
+                          <button 
+                            type="button"
+                            onClick={() => setMemberUpdates({...memberUpdates, member_type: 'member'})}
+                            className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all ${memberUpdates.member_type !== 'retail' ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                          >
+                            สมาชิกปิ่นโต
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => setMemberUpdates({...memberUpdates, member_type: 'retail'})}
+                            className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all ${memberUpdates.member_type === 'retail' ? 'bg-orange-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                          >
+                            ลูกค้ารายย่อย
+                          </button>
+                        </div>
+                      </div>
                       <div>
                         <label className="block text-[11px] font-normal text-slate-900 mb-1">ชื่อ-นามสกุล</label>
                         <input 

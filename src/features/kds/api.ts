@@ -151,7 +151,7 @@ export const fetchActivePackages = async (): Promise<PintoPackage[]> => {
       id, member_id, package_name, days_total, days_remaining, meals_total, meals_remaining, start_date, end_date, status, created_at,
       members!pinto_packages_member_id_fkey (
         id, full_name, phone, line_id, avatar_url, date_of_birth, gender, 
-        health_goal, allergy_notes, internal_notes, tags, source,
+        health_goal, allergy_notes, internal_notes, tags, source, member_type,
         age_range, delivery_time, address, sub_district, district, province, postal_code, food_preferences
       )
     `)
@@ -189,13 +189,18 @@ export const fetchMemberSchedules = async (startDate: string, endDate: string, p
       id, package_id, member_id, delivery_date, meal_type, menu_item_id, quantity, box_size, delivery_time, kitchen_status, notes,
       menu_items (id, name, category, protein, calories, image_url, tags),
       pinto_packages (id, package_name, meals_remaining),
-      members!erp_member_meal_schedules_member_id_fkey (id, full_name, phone, delivery_time)
+      members!erp_member_meal_schedules_member_id_fkey (id, full_name, phone, delivery_time, member_type)
     `)
     .gte('delivery_date', startDate)
     .lte('delivery_date', endDate);
 
   if (packageId) {
-    query = query.eq('package_id', packageId);
+    if (packageId.startsWith('retail_')) {
+      const memberId = packageId.replace('retail_', '');
+      query = query.eq('member_id', memberId).is('package_id', null);
+    } else {
+      query = query.eq('package_id', packageId);
+    }
   }
 
   const { data, error } = await query;
@@ -450,3 +455,83 @@ export async function fetchTodayMeals(): Promise<PintoMealPlan[]> {
   if (error) throw error;
   return data as unknown as PintoMealPlan[];
 }
+
+export async function createRetailOrder(order: { 
+  member_id: string; 
+  menu_item_id?: string;
+  menu_name: string; 
+  quantity: number; 
+  notes?: string; 
+}): Promise<void> {
+  const { error } = await supabase
+    .from('orders')
+    .insert({
+      order_id: `RT-${dayjs().format('YYMMDD')}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`,
+      menu_item_id: order.menu_item_id,
+      menu_name: `${order.menu_name} (x${order.quantity})`,
+      kitchen_status: 'ยืนยันแล้ว',
+      delivery_status: 'รอดำเนินการ',
+      customer_id: order.member_id, // Link order to the member
+      notes: order.notes
+    });
+
+  if (error) throw error;
+}
+
+// ── Recipe Management API (Phase 3) ──
+
+import type { RecipeItem, InventoryItem as InvItem } from '../../types';
+
+export const fetchMenuRecipes = async (menuItemId: string): Promise<RecipeItem[]> => {
+  const { data, error } = await supabase
+    .from('erp_recipes')
+    .select(`
+      *,
+      erp_inventory_items (name, storage_unit, avg_unit_cost)
+    `)
+    .eq('menu_item_id', menuItemId)
+    .is('deleted_at', null);
+
+  if (error) throw error;
+  
+  return (data || []).map(r => ({
+    ...r,
+    item_name: (r as any).erp_inventory_items?.name,
+    storage_unit: (r as any).erp_inventory_items?.storage_unit,
+    avg_unit_cost: (r as any).erp_inventory_items?.avg_unit_cost
+  })) as RecipeItem[];
+};
+
+export const fetchInventoryForRecipes = async (): Promise<InvItem[]> => {
+  const { data, error } = await supabase
+    .from('erp_inventory_items')
+    .select('*')
+    .is('deleted_at', null)
+    .order('name');
+
+  if (error) throw error;
+  return data as InvItem[];
+};
+
+export const addMenuRecipe = async (recipe: Partial<RecipeItem>): Promise<void> => {
+  const { error } = await supabase
+    .from('erp_recipes')
+    .insert([recipe]);
+  if (error) throw error;
+};
+
+export const deleteMenuRecipe = async (recipeId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('erp_recipes')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', recipeId);
+  if (error) throw error;
+};
+
+export const updateMenuTargetCost = async (menuItemId: string, targetCost: number): Promise<void> => {
+  const { error } = await supabase
+    .from('menu_items')
+    .update({ target_cost: targetCost.toString(), updated_at: new Date().toISOString() })
+    .eq('id', menuItemId);
+  if (error) throw error;
+};

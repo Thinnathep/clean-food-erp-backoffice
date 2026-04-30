@@ -9,12 +9,14 @@ import { useKdsStore } from '../../../store/kdsStore';
 import dayjs from 'dayjs';
 import { formatDisplayDate } from '../../../lib/dateUtils';
 import type { Member } from '../../../types';
+import Swal from 'sweetalert2';
 
 export const MemberManagement: React.FC = () => {
   const { 
     members, activePackages, isLoadingData, 
     loadMasterData, addNewMember, updateMemberProfile, 
-    addPintoPackage, cancelPintoPackage 
+    addPintoPackage, cancelPintoPackage,
+    createQuickRetailOrder, menus
   } = useKdsStore();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -24,6 +26,8 @@ export const MemberManagement: React.FC = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAddPackageModalOpen, setIsAddPackageModalOpen] = useState(false);
+  const [isQuickOrderModalOpen, setIsQuickOrderModalOpen] = useState(false);
+  const [typeFilter, setTypeFilter] = useState<'all' | 'member' | 'retail'>('all');
 
   // Forms
   const [newMember, setNewMember] = useState({
@@ -33,8 +37,50 @@ export const MemberManagement: React.FC = () => {
     address: '',
     delivery_time: '',
     health_goal: '',
-    allergy_notes: ''
+    allergy_notes: '',
+    member_type: 'member' as 'member' | 'retail'
   });
+
+  const [quickOrder, setQuickOrder] = useState({
+    phone: '',
+    full_name: '',
+    order_text: '', // Added for raw text input
+    parsedItems: [] as { menu_item_id: string, menu_name: string, quantity: number, notes: string }[],
+  });
+
+  const parseOrderText = (text: string) => {
+    // Regex to match items like "- Menu Name (x1) = ฿59"
+    const lines = text.split('\n');
+    const items: any[] = [];
+    let currentItem: any = null;
+
+    lines.forEach(line => {
+      const trimmed = line.trim();
+      if (trimmed.startsWith('- ')) {
+        // Start of a new item
+        const menuPart = trimmed.substring(2);
+        const qtyMatch = menuPart.match(/\((?:x|×)(\d+)\)/);
+        const qty = qtyMatch ? parseInt(qtyMatch[1]) : 1;
+        const name = menuPart.split('(')[0].trim();
+        
+        // Try to match with existing menus
+        const matched = menus.find(m => m.name.includes(name) || name.includes(m.name));
+        
+        currentItem = {
+          menu_item_id: matched?.id || '',
+          menu_name: name,
+          quantity: qty,
+          notes: ''
+        };
+        items.push(currentItem);
+      } else if (currentItem && trimmed && !trimmed.startsWith('-')) {
+        // This is a note/detail line for the current item
+        currentItem.notes += (currentItem.notes ? ' ' : '') + trimmed;
+      }
+    });
+
+    setQuickOrder(prev => ({ ...prev, parsedItems: items, order_text: text }));
+  };
 
   const matchedMember = useMemo(() => {
     if (newMember.phone.length < 9) return null;
@@ -53,16 +99,18 @@ export const MemberManagement: React.FC = () => {
 
   useEffect(() => {
     loadMasterData();
-  }, [loadMasterData]);
+  }, []);
 
   const filteredMembers = useMemo(() => {
     return members
-      .filter(m => 
-        m.full_name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        m.phone.includes(searchQuery)
-      )
+      .filter(m => {
+        const matchesSearch = m.full_name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                             m.phone.includes(searchQuery);
+        const matchesType = typeFilter === 'all' || m.member_type === typeFilter;
+        return matchesSearch && matchesType;
+      })
       .sort((a, b) => dayjs(b.created_at).valueOf() - dayjs(a.created_at).valueOf());
-  }, [members, searchQuery]);
+  }, [members, searchQuery, typeFilter]);
 
   const selectedMember = useMemo(() => {
     return members.find(m => m.id === selectedMemberId);
@@ -74,10 +122,22 @@ export const MemberManagement: React.FC = () => {
 
   const handleAddMember = async () => {
     if (!newMember.full_name || !newMember.phone) {
-      alert('กรุณาใส่ชื่อและเบอร์โทรศัพท์');
+      Swal.fire({
+        icon: 'warning',
+        title: 'ข้อมูลไม่ครบ',
+        text: 'กรุณาใส่ชื่อและเบอร์โทรศัพท์'
+      });
       return;
     }
     try {
+      Swal.fire({
+        title: 'กำลังลงทะเบียน...',
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+
       await addNewMember(newMember);
       setIsAddModalOpen(false);
       setNewMember({
@@ -87,18 +147,40 @@ export const MemberManagement: React.FC = () => {
         address: '',
         delivery_time: '',
         health_goal: '',
-        allergy_notes: ''
+        allergy_notes: '',
+        member_type: 'member'
+      });
+
+      Swal.fire({
+        icon: 'success',
+        title: 'ลงทะเบียนสำเร็จ',
+        timer: 1500,
+        showConfirmButton: false
       });
     } catch (err: any) {
       console.error(err);
       if (err.message?.includes('members_phone_key')) {
         const existing = members.find(m => m.phone === newMember.phone);
-        if (window.confirm('❌ เบอร์โทรศัพท์นี้มีในระบบแล้ว\nต้องการไปที่หน้าโปรไฟล์ของลูกค้าท่านนี้หรือไม่?')) {
-            if (existing) setSelectedMemberId(existing.id);
-            setIsAddModalOpen(false);
+        
+        const result = await Swal.fire({
+          icon: 'error',
+          title: 'เบอร์โทรศัพท์นี้มีในระบบแล้ว',
+          text: 'ต้องการไปที่หน้าโปรไฟล์ของลูกค้าท่านนี้หรือไม่?',
+          showCancelButton: true,
+          confirmButtonText: 'ไปที่โปรไฟล์',
+          cancelButtonText: 'ยกเลิก'
+        });
+
+        if (result.isConfirmed && existing) {
+          setSelectedMemberId(existing.id);
+          setIsAddModalOpen(false);
         }
       } else {
-        alert('เกิดข้อผิดพลาดในการเพิ่มข้อมูล: ' + err.message);
+        Swal.fire({
+          icon: 'error',
+          title: 'เกิดข้อผิดพลาด',
+          text: err.message
+        });
       }
     }
   };
@@ -106,18 +188,44 @@ export const MemberManagement: React.FC = () => {
   const handleUpdateMember = async () => {
     if (!editMember) return;
     try {
+      Swal.fire({
+        title: 'กำลังอัปเดตข้อมูล...',
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+
       await updateMemberProfile(editMember.id, editMember);
-      alert('✅ บันทึกข้อมูลเรียบร้อยแล้ว');
       setIsEditModalOpen(false);
+      
+      Swal.fire({
+        icon: 'success',
+        title: 'บันทึกสำเร็จ',
+        timer: 1500,
+        showConfirmButton: false
+      });
     } catch (err: any) {
       console.error(err);
-      alert('เกิดข้อผิดพลาดในการอัปเดตข้อมูล: ' + err.message);
+      Swal.fire({
+        icon: 'error',
+        title: 'เกิดข้อผิดพลาด',
+        text: err.message
+      });
     }
   };
 
   const handleAddPackage = async () => {
     if (!selectedMemberId || !newPackage.package_name) return;
     try {
+      Swal.fire({
+        title: 'กำลังเปิดแพ็กเกจ...',
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+
       await addPintoPackage({
         member_id: selectedMemberId,
         package_name: newPackage.package_name,
@@ -127,12 +235,24 @@ export const MemberManagement: React.FC = () => {
         days_remaining: dayjs(newPackage.end_date).diff(dayjs(newPackage.start_date), 'day'),
         start_date: newPackage.start_date,
         end_date: newPackage.end_date,
-        status: 'active',
-        delivery_slot: newPackage.delivery_slot
+        status: 'active'
       });
+      
       setIsAddPackageModalOpen(false);
-    } catch (err) {
+      
+      Swal.fire({
+        icon: 'success',
+        title: 'เปิดแพ็กเกจสำเร็จ',
+        timer: 1500,
+        showConfirmButton: false
+      });
+    } catch (err: any) {
       console.error(err);
+      Swal.fire({
+        icon: 'error',
+        title: 'เกิดข้อผิดพลาด',
+        text: err.message
+      });
     }
   };
 
@@ -157,12 +277,22 @@ export const MemberManagement: React.FC = () => {
             <h2 className="text-xl font-normal text-slate-900 tracking-tight flex items-center gap-2">
               <Users className="text-emerald-500" /> รายชื่อสมาชิก
             </h2>
-            <button 
-              onClick={() => setIsAddModalOpen(true)}
-              className="bg-emerald-500 hover:bg-emerald-600 text-white p-2 rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-95"
-            >
-              <Plus size={20} />
-            </button>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setIsQuickOrderModalOpen(true)}
+                className="bg-orange-500 hover:bg-orange-600 text-white p-2 rounded-xl shadow-lg shadow-orange-500/20 transition-all active:scale-95 flex items-center gap-1 px-3"
+                title="ออเดอร์รายย่อยด่วน"
+              >
+                <Package size={18} />
+                <span className="text-xs font-normal">สั่งด่วน</span>
+              </button>
+              <button 
+                onClick={() => setIsAddModalOpen(true)}
+                className="bg-emerald-500 hover:bg-emerald-600 text-white p-2 rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-95"
+              >
+                <Plus size={20} />
+              </button>
+            </div>
           </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
@@ -449,25 +579,41 @@ export const MemberManagement: React.FC = () => {
                            <div className="mt-2 p-3 bg-amber-100 border border-amber-200 rounded-xl flex items-center justify-between animate-in slide-in-from-top-2 duration-300">
                               <div className="flex items-center gap-2 text-amber-800">
                                  <AlertCircle size={14} />
-                                 <p className="text-[11px] font-normal">พบข้อมูลลูกค้าท่านนี้แล้ว: {matchedMember.full_name}</p>
+                                 <p className="text-[11px] font-normal">พบข้อมูลลูกค้าท่านนี้แล้วในระบบ</p>
                               </div>
                               <button 
-                                onClick={() => {
-                                  setSelectedMemberId(matchedMember.id);
-                                  setIsAddModalOpen(false);
-                                }}
-                                className="text-[10px] font-normal bg-amber-600 text-white px-3 py-1 rounded-lg hover:bg-amber-700 transition-all"
+                                 onClick={() => { setSelectedMemberId(matchedMember.id); setIsAddModalOpen(false); }}
+                                 className="text-[10px] font-normal bg-amber-200 hover:bg-amber-300 px-2 py-1 rounded-lg transition-colors"
                               >
-                                ไปที่โปรไฟล์
+                                 ไปที่โปรไฟล์
                               </button>
                            </div>
                         )}
                      </div>
-                     <div>
+                      <div>
+                         <label className="block text-[11px] font-normal text-slate-400 uppercase tracking-widest mb-1.5 ml-1">ประเภทลูกค้า</label>
+                         <div className="flex bg-slate-100 p-1 rounded-2xl gap-1">
+                            <button 
+                               type="button"
+                               onClick={() => setNewMember({...newMember, member_type: 'member'})}
+                               className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${newMember.member_type === 'member' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                            >
+                               สมาชิกปิ่นโต
+                            </button>
+                            <button 
+                               type="button"
+                               onClick={() => setNewMember({...newMember, member_type: 'retail'})}
+                               className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${newMember.member_type === 'retail' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                            >
+                               ลูกค้ารายย่อย
+                            </button>
+                         </div>
+                      </div>
+                      <div>
                         <label className="block text-[11px] font-normal text-slate-400 uppercase tracking-widest mb-1.5 ml-1">LINE ID</label>
                         <input 
                            type="text" 
-                           placeholder="ไอดีไลน์..."
+                           placeholder="@lineid"
                            value={newMember.line_id} 
                            onChange={(e) => setNewMember({...newMember, line_id: e.target.value})}
                            className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-normal text-slate-800 focus:border-emerald-500 focus:bg-white outline-none transition-all shadow-inner"
@@ -476,11 +622,8 @@ export const MemberManagement: React.FC = () => {
                      <div>
                         <label className="block text-[11px] font-normal text-slate-400 uppercase tracking-widest mb-1.5 ml-1">รอบจัดส่งปกติ</label>
                         <select 
-                           value={editMember?.delivery_time || newMember.delivery_time || ''} 
-                           onChange={(e) => {
-                             if (editMember) setEditMember({...editMember, delivery_time: e.target.value});
-                             else setNewMember({...newMember, delivery_time: e.target.value});
-                           }}
+                           value={newMember.delivery_time || ''} 
+                           onChange={(e) => setNewMember({...newMember, delivery_time: e.target.value})}
                            className="w-full p-3.5 bg-white border border-slate-200 rounded-2xl text-sm font-normal text-slate-800 focus:border-emerald-500 outline-none transition-all shadow-sm"
                         >
                            <option value="">-- เลือกเวลาส่ง --</option>
@@ -587,7 +730,26 @@ export const MemberManagement: React.FC = () => {
                            className="w-full p-3.5 bg-white border border-slate-200 rounded-2xl text-sm font-normal text-slate-800 focus:border-emerald-500 outline-none transition-all shadow-sm"
                         />
                      </div>
-                     <div>
+                      <div>
+                         <label className="block text-[11px] font-normal text-slate-400 uppercase tracking-widest mb-1.5 ml-1">ประเภทลูกค้า</label>
+                         <div className="flex bg-slate-100 p-1 rounded-2xl gap-1">
+                            <button 
+                               type="button"
+                               onClick={() => setEditMember({...editMember!, member_type: 'member'})}
+                               className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${editMember?.member_type === 'member' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                            >
+                               สมาชิกปิ่นโต
+                            </button>
+                            <button 
+                               type="button"
+                               onClick={() => setEditMember({...editMember!, member_type: 'retail'})}
+                               className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${editMember?.member_type === 'retail' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                            >
+                               ลูกค้ารายย่อย
+                            </button>
+                         </div>
+                      </div>
+                      <div>
                         <label className="block text-[11px] font-normal text-slate-400 uppercase tracking-widest mb-1.5 ml-1">รอบจัดส่งปกติ</label>
                         <select 
                            value={editMember.delivery_time || ''} 
@@ -754,6 +916,134 @@ export const MemberManagement: React.FC = () => {
                    </button>
                </div>
             </div>
+        </div>
+      )}
+
+      {/* Quick Retail Order Modal */}
+      {isQuickOrderModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+           <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in duration-300">
+               <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-orange-500 text-white">
+                  <div className="flex items-center gap-3">
+                     <Package size={20} />
+                     <h3 className="text-xl font-normal text-white">เพิ่มออเดอร์รายย่อย (ด่วน)</h3>
+                  </div>
+                  <button onClick={() => setIsQuickOrderModalOpen(false)} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-white/10 text-white transition-all">
+                    <X size={20} />
+                  </button>
+               </div>
+               
+               <div className="p-8 space-y-5 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-[10px] font-normal text-slate-400 uppercase tracking-widest mb-1.5 ml-1">เบอร์โทรศัพท์</label>
+                        <input 
+                           type="text" 
+                           placeholder="08X-XXX-XXXX"
+                           value={quickOrder.phone} 
+                           onChange={(e) => {
+                             const phone = e.target.value;
+                             const existing = members.find(m => m.phone === phone);
+                             setQuickOrder({
+                               ...quickOrder, 
+                               phone, 
+                               full_name: existing ? existing.full_name : quickOrder.full_name
+                             });
+                           }}
+                           className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-normal text-slate-800 focus:border-orange-500 outline-none"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-[10px] font-normal text-slate-400 uppercase tracking-widest mb-1.5 ml-1">ชื่อลูกค้า</label>
+                        <input 
+                           type="text" 
+                           placeholder="ชื่อ-นามสกุล..."
+                           value={quickOrder.full_name} 
+                           onChange={(e) => setQuickOrder({...quickOrder, full_name: e.target.value})}
+                           className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-normal text-slate-800 focus:border-orange-500 outline-none"
+                        />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-normal text-slate-400 uppercase tracking-widest mb-1.5 ml-1">วางข้อความออเดอร์ (Paste Order Text)</label>
+                    <textarea 
+                      rows={4}
+                      placeholder="- ชื่อเมนู (x1) ..."
+                      value={quickOrder.order_text}
+                      onChange={(e) => parseOrderText(e.target.value)}
+                      className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-normal text-slate-800 focus:border-orange-500 outline-none resize-none font-mono"
+                    />
+                  </div>
+
+                  {quickOrder.parsedItems.length > 0 && (
+                    <div className="space-y-3">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">รายการที่ตรวจพบ ({quickOrder.parsedItems.length}):</p>
+                      {quickOrder.parsedItems.map((item, idx) => (
+                        <div key={idx} className="p-4 bg-orange-50 border border-orange-100 rounded-2xl flex justify-between items-center animate-in slide-in-from-left-2 duration-300">
+                          <div>
+                            <p className="text-sm font-bold text-slate-800">{item.menu_name} <span className="text-orange-500 font-black">x{item.quantity}</span></p>
+                            {item.notes && <p className="text-[10px] text-slate-500 mt-0.5">{item.notes}</p>}
+                            {!item.menu_item_id && <p className="text-[9px] text-amber-600 font-medium mt-1">⚠️ ไม่พบเมนูนี้ในฐานข้อมูล (จะส่งเป็นข้อความดิบ)</p>}
+                          </div>
+                          <button 
+                            onClick={() => setQuickOrder(prev => ({ ...prev, parsedItems: prev.parsedItems.filter((_, i) => i !== idx) }))}
+                            className="text-slate-300 hover:text-red-500"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {quickOrder.parsedItems.length === 0 && (
+                    <div className="p-10 border-2 border-dashed border-slate-100 rounded-[32px] text-center">
+                       <Package size={32} className="mx-auto text-slate-100 mb-3" />
+                       <p className="text-xs text-slate-400 font-medium">รอวางข้อความเพื่อแกะออเดอร์...</p>
+                    </div>
+                  )}
+               </div>
+               
+               <div className="px-8 py-6 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+                   <button 
+                     onClick={() => setIsQuickOrderModalOpen(false)}
+                     className="px-6 py-3 bg-white border border-slate-200 text-slate-500 rounded-2xl text-sm font-normal hover:bg-slate-100 transition-all"
+                   >
+                     ยกเลิก
+                   </button>
+                   <button 
+                     disabled={quickOrder.parsedItems.length === 0}
+                     onClick={async () => {
+                       if (!quickOrder.phone || !quickOrder.full_name) {
+                         alert('กรุณากรอกชื่อและเบอร์โทร');
+                         return;
+                       }
+                       try {
+                        // Loop through parsed items and create orders
+                        for (const item of quickOrder.parsedItems) {
+                          await createQuickRetailOrder({
+                            phone: quickOrder.phone,
+                            full_name: quickOrder.full_name,
+                            menu_item_id: item.menu_item_id,
+                            menu_name: item.menu_name,
+                            quantity: item.quantity,
+                            notes: item.notes
+                          });
+                        }
+                        setIsQuickOrderModalOpen(false);
+                        setQuickOrder({ phone: '', full_name: '', order_text: '', parsedItems: [] });
+                        alert(`✅ ส่ง ${quickOrder.parsedItems.length} ออเดอร์เข้าครัวเรียบร้อยแล้ว`);
+                       } catch (err: any) {
+                        alert('เกิดข้อผิดพลาด: ' + err.message);
+                       }
+                     }}
+                     className="px-10 py-3 bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 disabled:grayscale shadow-xl shadow-orange-500/20 rounded-2xl text-sm font-normal transition-all flex items-center gap-2"
+                   >
+                     <Package size={18} /> ส่งเข้าครัวทันที
+                   </button>
+               </div>
+           </div>
         </div>
       )}
 

@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect, useState } from 'react';
-import { ChefHat, CheckCircle2, AlertTriangle, Package, UtensilsCrossed, Printer, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChefHat, CheckCircle2, AlertTriangle, Package, UtensilsCrossed, Printer, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import dayjs from 'dayjs';
 import 'dayjs/locale/th';
 import { useKdsStore } from '../../../store/kdsStore';
@@ -45,8 +45,14 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 export const TodayView: React.FC = () => {
   const memberSchedules = useKdsStore(state => state.memberSchedules);
+  const tasks = useKdsStore(state => state.tasks);
   const loadMemberPlanner = useKdsStore(state => state.loadMemberPlanner);
   const fetchTasks = useKdsStore(state => state.fetchTasks);
+  const menus = useKdsStore(state => state.menus);
+  
+  // Filters State
+  const [filterType, setFilterType] = useState<'all' | 'member' | 'retail'>('all');
+  const [sortBy, setSortBy] = useState<'priority' | 'latest'>('priority');
   
   // Date State
   const [selectedDate, setSelectedDate] = useState<string>(dayjs().format('YYYY-MM-DD'));
@@ -68,15 +74,22 @@ export const TodayView: React.FC = () => {
     } else {
       setCompletedMenus(new Set());
     }
-  }, [selectedDate, loadMemberPlanner, fetchTasks]);
+  }, [selectedDate]);
 
   const todayProduction = useMemo(() => {
-    const todaySchedules = memberSchedules.filter(s => s.delivery_date === selectedDate);
+    const todaySchedules = filterType === 'retail' ? [] : memberSchedules.filter(s => s.delivery_date === selectedDate);
+    
+    // Filter tasks (retail orders) for today
+    const todayTasks = filterType === 'member' ? [] : tasks.filter(t => {
+      const taskDate = dayjs(t.created_at).format('YYYY-MM-DD');
+      return taskDate === selectedDate;
+    });
+
     const grouped: Record<string, any> = {};
     let specialNotes = 0;
 
     const getCleanTimeLabel = (rawTime: string) => {
-      if (!rawTime) return 'ไม่ระบุเวลา';
+      if (!rawTime) return 'ออเดอร์สั่งด่วน (Retail)';
       const timeMatch = rawTime.match(/(\d{1,2})[:.](\d{2})/);
       const hour = timeMatch ? parseInt(timeMatch[1]) : -1;
       const isEvening = (hour >= 14 && hour <= 21) || rawTime.includes('เย็น') || rawTime.toLowerCase().includes('evening');
@@ -88,19 +101,19 @@ export const TodayView: React.FC = () => {
       return rawTime;
     };
 
+    // 1. Process Member Schedules
     todaySchedules.forEach(schedule => {
       const memberData = Array.isArray(schedule.members) ? schedule.members[0] : schedule.members;
       const rawTime = (schedule.delivery_time || memberData?.delivery_time || '').trim();
       const timeLabel = getCleanTimeLabel(rawTime);
       const menuId = schedule.menu_items?.id || 'unknown';
       
-      // Normalize category names
       let category = schedule.menu_items?.category || 'อื่นๆ';
       if (category.includes('ของหวาน')) category = 'ของหวาน';
       else if (category.includes('เส้น')) category = 'เส้น';
       else if (category.includes('ผัด')) category = 'ผัด';
       else if (category.includes('สลัด')) category = 'สลัด';
-      else if (category.includes('ซูวี') || category.toLowerCase().includes('sous-vide')) category = 'ซูวี';
+      else if (category.includes('ซูวี')) category = 'ซูวี';
       else if (category.includes('ซุป') || category.includes('ต้ม') || category.includes('แกง')) category = 'ซุป/แกง';
 
       if (!grouped[timeLabel]) {
@@ -129,15 +142,59 @@ export const TodayView: React.FC = () => {
         memberName,
         qty: schedule.quantity,
         note: schedule.notes || '',
-        deliveryTime: rawTime
+        deliveryTime: rawTime,
+        type: 'member',
+        createdAt: schedule.created_at || ''
       });
 
-      // Update category stats
       grouped[timeLabel].categoryStats[category] = (grouped[timeLabel].categoryStats[category] || 0) + schedule.quantity;
     });
 
+    // 2. Process Retail Tasks
+    todayTasks.forEach(task => {
+      const timeLabel = 'ออเดอร์สั่งด่วน (Retail)';
+      const menuNameRaw = task.menu_name || '';
+      // Try to find matching menu item for category/macros
+      const matchedMenu = menus.find(m => menuNameRaw.includes(m.name));
+      const menuId = matchedMenu?.id || `retail_${task.id}`;
+      const category = matchedMenu?.category || 'รายย่อย';
+
+      if (!grouped[timeLabel]) {
+        grouped[timeLabel] = { totalRoundQty: 0, menus: {}, categoryStats: {} };
+      }
+
+      if (!grouped[timeLabel].menus[menuId]) {
+        grouped[timeLabel].menus[menuId] = {
+          menuName: matchedMenu?.name || menuNameRaw,
+          totalQty: 0,
+          category,
+          hasNotes: false,
+          orders: [],
+          isRetail: true,
+          kcal: matchedMenu?.calories,
+          macros: matchedMenu ? `P:${matchedMenu.protein} C:${matchedMenu.carbs} F:${matchedMenu.fat}` : null
+        };
+      }
+
+      // Extract quantity from string if needed (e.g. "Pad Thai (x2)")
+      const qtyMatch = menuNameRaw.match(/\(x(\d+)\)/);
+      const qty = qtyMatch ? parseInt(qtyMatch[1]) : 1;
+
+      grouped[timeLabel].totalRoundQty += qty;
+      grouped[timeLabel].menus[menuId].totalQty += qty;
+      grouped[timeLabel].menus[menuId].orders.push({
+        memberName: 'ลูกค้ารายย่อย',
+        qty: qty,
+        note: '',
+        type: 'retail',
+        createdAt: task.created_at
+      });
+
+      grouped[timeLabel].categoryStats[category] = (grouped[timeLabel].categoryStats[category] || 0) + qty;
+    });
+
     return { groups: grouped, specialNotesCount: specialNotes };
-  }, [memberSchedules, selectedDate]);
+  }, [memberSchedules, tasks, menus, selectedDate, filterType, sortBy]);
 
   const toggleComplete = (time: string, menuId: string) => {
     const key = `${time}-${menuId}`;
@@ -215,10 +272,38 @@ export const TodayView: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-stretch gap-4">
+          <div className="flex items-stretch gap-3">
+            {/* NEW Filters */}
+            <div className="bg-white border border-slate-100 rounded-2xl p-1 flex gap-1 shadow-sm mr-2">
+                <button 
+                  onClick={() => setSortBy(sortBy === 'latest' ? 'priority' : 'latest')}
+                  className={`px-4 py-2 rounded-xl text-[11px] font-bold transition-all ${sortBy === 'latest' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
+                >
+                  ล่าสุด
+                </button>
+                <div className="w-[1px] bg-slate-100 mx-1"></div>
+                <button 
+                  onClick={() => setFilterType('member')}
+                  className={`px-4 py-2 rounded-xl text-[11px] font-bold transition-all ${filterType === 'member' ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20' : 'text-slate-400 hover:text-slate-600'}`}
+                >
+                  สมาชิก
+                </button>
+                <button 
+                  onClick={() => setFilterType('retail')}
+                  className={`px-4 py-2 rounded-xl text-[11px] font-bold transition-all ${filterType === 'retail' ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20' : 'text-slate-400 hover:text-slate-600'}`}
+                >
+                  รายย่อย
+                </button>
+                {filterType !== 'all' && (
+                  <button onClick={() => setFilterType('all')} className="px-2 text-slate-300 hover:text-slate-500">
+                    <X size={14} />
+                  </button>
+                )}
+            </div>
+
             <button 
               onClick={() => setSelectedDate(dayjs().format('YYYY-MM-DD'))}
-              className="px-5 bg-white border border-slate-100 rounded-2xl text-xs font-bold text-indigo-500 hover:text-indigo-600 hover:bg-slate-50 transition-all shadow-sm flex items-center justify-center active:scale-95"
+              className="px-5 bg-white border border-slate-100 rounded-2xl text-[11px] font-bold text-indigo-500 hover:text-indigo-600 hover:bg-slate-50 transition-all shadow-sm flex items-center justify-center active:scale-95"
             >
               วันนี้
             </button>
@@ -366,11 +451,13 @@ export const TodayView: React.FC = () => {
                                         <div className="p-3 flex flex-col gap-2.5">
                                             <div className="flex justify-between items-start gap-2">
                                                 <div className="flex flex-col gap-1.5">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-[8px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded-md w-fit text-white shadow-sm" style={{ backgroundColor: CATEGORY_COLORS[item.category] || '#94A3B8' }}>
-                                                            {item.category}
+                                                      <div className="flex items-center gap-2">
+                                                        <span className={`text-[8px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded-md w-fit text-white shadow-sm`} style={{ backgroundColor: item.isRetail ? '#F97316' : (CATEGORY_COLORS[item.category] || '#94A3B8') }}>
+                                                            {item.isRetail ? 'RETAIL' : item.category}
                                                         </span>
-                                                        {/* NEW: Special Request Indicator Icon */}
+                                                        {item.kcal && (
+                                                          <span className="text-[8px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">🔋 {item.kcal} kcal</span>
+                                                        )}
                                                         {item.hasNotes && !isDone && (
                                                             <div className="animate-bounce">
                                                                 <AlertTriangle size={12} className="text-red-500 fill-red-50" />
@@ -381,6 +468,9 @@ export const TodayView: React.FC = () => {
                                                     <h4 className={`text-[13px] font-medium leading-tight transition-colors line-clamp-2 ${isDone ? 'text-slate-400 line-through' : 'text-slate-900 group-hover:text-emerald-600'}`}>
                                                         {item.menuName}
                                                     </h4>
+                                                    {item.macros && !isDone && (
+                                                      <p className="text-[9px] font-medium text-slate-400">{item.macros}</p>
+                                                    )}
                                                 </div>
                                                 <div className={`${isDone ? 'bg-slate-200' : 'bg-slate-900'} text-white px-2 py-1.5 rounded-xl flex flex-col items-center justify-center shrink-0 min-w-[38px] shadow-md transition-colors`}>
                                                     <span className="text-[7px] font-medium uppercase opacity-50 leading-none">QTY</span>

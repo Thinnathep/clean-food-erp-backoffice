@@ -58,6 +58,7 @@ export interface Member {
   // Internal
   internal_notes?: string;
   member_status?: string;
+  member_type?: 'member' | 'retail';
   tags?: string[];
   total_orders?: number;
   lifetime_value?: number;
@@ -166,3 +167,51 @@ export const CATEGORY_COLORS: Record<string, string> = {
   'dessert':    '#f87171',
   'supplement': '#34d399',
 };
+
+// --- Inventory System Types ---
+
+export interface InventoryItem {
+  id: string;
+  name: string;
+  storage_unit: string;
+  category: string;
+  current_stock: number;
+  min_stock_level: number;
+  avg_unit_cost: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RecipeItem {
+  id: string;
+  menu_item_id: string;
+  menu_name: string;
+  item_id: string;
+  quantity_required: number;
+  yield_percentage: number;
+  created_at: string;
+  deleted_at?: string | null;
+  
+  // Joined fields
+  item_name?: string;
+  storage_unit?: string;
+  avg_unit_cost?: number;
+}
+
+export interface InventoryBatch {
+  id: string;
+  inventory_item_id: string;
+  qty: number;
+  unit_cost: number;
+  receipt_no?: string;
+  supplier_id?: string;
+  received_at: string;
+}
+
+export interface Supplier {
+  id: string;
+  name: string;
+  contact_person?: string;
+  phone?: string;
+  email?: string;
+}

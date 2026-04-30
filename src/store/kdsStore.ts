@@ -1,13 +1,15 @@
 import { create } from 'zustand';
+import Swal from 'sweetalert2';
 import { supabase } from '../config/supabase';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { KdsTask, MenuItem, PintoPackage, GlobalPlanSlot, MemberMealSchedule, Member } from '../types';
 import { 
   fetchActiveKdsTasks, finishKdsTask, fetchMenuItems, createMenuItem, uploadMenuImage, updateMenuItem, deleteMenuItem,
   fetchGlobalPlanSlots, upsertGlobalPlanSlot, deleteGlobalPlanSlot,
-  fetchActivePackages, fetchMemberSchedules, upsertMemberSchedule, removeMemberSchedule, updateMemberScheduleNote,
+  fetchActivePackages, fetchMemberSchedules, removeMemberSchedule, updateMemberScheduleNote,
   updateMemberProfile as updateMemberProfileApi, createMember,
-  fetchMembers, createPintoPackage, deletePintoPackage 
+  fetchMembers, createPintoPackage, deletePintoPackage,
+  createRetailOrder
 } from '../features/kds/api';
 
 interface KdsState {
@@ -18,10 +20,12 @@ interface KdsState {
   menus: MenuItem[];
   globalPlanSlots: GlobalPlanSlot[];
   activePackages: PintoPackage[];
-  memberSchedules: MemberMealSchedule[];
+  memberSchedules: MemberMealSchedule[]; // นี่คือตัวที่ใช้เก็บมื้อที่กำลังจัดของ "ทุกคน" ที่มีการเปลี่ยนแปลง
   members: Member[];
   
+  selectedPackageId: string | null;
   isLoadingData: boolean;
+  hasUnsavedChanges: boolean;
   isLoadingPlanner: boolean;
   error: string | null;
   
@@ -30,7 +34,6 @@ interface KdsState {
   categoryFilter: string;
   groupFilter: string;
   selectedMenuId: string | null;
-  selectedPackageId: string | null;
   isMenuPanelOpen: boolean;
 
   // Actions
@@ -73,12 +76,19 @@ interface KdsState {
   
   // Member Management
   updateMemberProfile: (memberId: string, updates: Partial<Member>) => Promise<void>;
-  addNewMember: (member: Omit<Member, 'id'>) => Promise<void>;
+  addNewMember: (member: Omit<Member, 'id'>) => Promise<Member>;
   addPintoPackage: (pkg: Omit<PintoPackage, 'id'>) => Promise<void>;
   cancelPintoPackage: (id: string) => Promise<void>;
+  createQuickRetailOrder: (data: { 
+    phone: string, 
+    full_name: string, 
+    menu_item_id: string,
+    menu_name: string, 
+    quantity: number, 
+    notes?: string 
+  }) => Promise<void>;
   
   // Draft System
-  hasUnsavedChanges: boolean;
   saveMemberSchedules: () => Promise<void>;
   discardChanges: () => Promise<void>;
   
@@ -146,7 +156,22 @@ export const useKdsStore = create<KdsState>()(
         fetchActivePackages(),
         fetchMembers()
       ]);
-      set({ menus: menusData, activePackages: packagesData, members: membersData, isLoadingData: false });
+
+      // NEW: Fetch ALL schedules for ALL active packages to ensure sidebar is accurate for everyone
+      const activePkgIds = packagesData.map(p => p.id);
+      if (activePkgIds.length > 0) {
+        // Fetch all schedules for these packages (wide date range)
+        const allSchedules = await fetchMemberSchedules('2020-01-01', '2030-12-31');
+        set({ 
+          menus: menusData, 
+          activePackages: packagesData, 
+          members: membersData, 
+          memberSchedules: allSchedules, // Load everyone's data into store
+          isLoadingData: false 
+        });
+      } else {
+        set({ menus: menusData, activePackages: packagesData, members: membersData, isLoadingData: false });
+      }
     } catch (error: any) {
       set({ error: error.message, isLoadingData: false });
     }
@@ -172,14 +197,40 @@ export const useKdsStore = create<KdsState>()(
 
   loadMemberPlanner: async (startDate, endDate, packageId) => {
      try {
-       set({ isLoadingPlanner: true, error: null }); // Clear previous errors
-       // Skip API call if packageId is temporary
-       if (packageId && packageId.startsWith('temp_')) {
-         set({ memberSchedules: [], isLoadingPlanner: false, hasUnsavedChanges: true });
+       set({ isLoadingPlanner: true, error: null });
+       if (packageId && packageId.toString().startsWith('temp_')) {
+         set({ isLoadingPlanner: false });
          return;
        }
-       const schedules = await fetchMemberSchedules(startDate, endDate, packageId);
-       set({ memberSchedules: schedules, isLoadingPlanner: false, hasUnsavedChanges: false });
+       const dbSchedules = await fetchMemberSchedules(startDate, endDate, packageId);
+       
+       set(state => {
+         // 1. เก็บมื้อที่ "ยังไม่ได้เซฟ" ของคนนี้ไว้
+         const unsavedForThisPkg = state.memberSchedules.filter(s => 
+           s.package_id === packageId && s.id.toString().startsWith('temp_')
+         );
+
+         // 2. กรองข้อมูล "เก่า" ของคนนี้ในช่วงวันที่นี้ออก (เพื่อเอาของใหม่จาก DB ใส่แทน)
+         const otherSchedules = state.memberSchedules.filter(s => 
+           !(s.package_id === packageId && s.delivery_date >= startDate && s.delivery_date <= endDate && !s.id.toString().startsWith('temp_'))
+         );
+
+         // 3. รวมร่าง: ข้อมูลคนอื่น + ข้อมูลใหม่จาก DB + ข้อมูลที่ยังไม่เซฟ
+         const merged = [...otherSchedules, ...dbSchedules];
+         
+         // ป้องกันตัวซ้ำ (กรณีทับซ้อนกับ unsaved)
+         unsavedForThisPkg.forEach(u => {
+           const idx = merged.findIndex(m => m.delivery_date === u.delivery_date && m.meal_type === u.meal_type && m.package_id === u.package_id);
+           if (idx !== -1) merged[idx] = u;
+           else merged.push(u);
+         });
+
+         return { 
+           memberSchedules: merged, 
+           isLoadingPlanner: false,
+           selectedPackageId: packageId 
+         };
+       });
      } catch (error: any) {
        set({ error: error.message, isLoadingPlanner: false });
      }
@@ -211,6 +262,27 @@ export const useKdsStore = create<KdsState>()(
   },
 
   assignMemberSlot: async (scheduleId, pkgId, memberId, date, meal, menuId, qty, time, notes) => {
+     // Check quota
+     const pkg = get().activePackages.find(p => p.id === pkgId);
+     if (pkg) {
+       const currentRemaining = pkg.meals_remaining;
+       const newRemaining = currentRemaining - qty;
+
+       if (newRemaining < 0) {
+         const result = await Swal.fire({
+           icon: 'warning',
+           title: 'เกินโควต้าแพ็กเกจ!',
+           text: `ลูกค้าลงมื้ออาหารเกินโควต้าที่เหลืออยู่ (เหลือ ${currentRemaining} มื้อ, กำลังจะลง ${qty} มื้อ) ยืนยันที่จะลงมื้ออาหารที่เกินโควต้าหรือไม่?`,
+           showCancelButton: true,
+           confirmButtonText: 'ยืนยัน (ยอมให้ติดลบ)',
+           cancelButtonText: 'ยกเลิก',
+           confirmButtonColor: '#f59e0b'
+         });
+
+         if (!result.isConfirmed) return;
+       }
+     }
+
      // LOCAL UPDATE ONLY (DRAFT MODE)
      const menu = get().menus.find(m => m.id === menuId);
      const newSlot: MemberMealSchedule = {
@@ -240,56 +312,85 @@ export const useKdsStore = create<KdsState>()(
   saveMemberSchedules: async () => {
     const schedules = get().memberSchedules;
     const pkgId = get().selectedPackageId;
-    if (!pkgId) return;
+    const pkg = get().activePackages.find(p => p.id === pkgId);
+    if (!pkgId || !pkg) return;
 
     try {
       set({ isLoadingData: true });
       
-      // 1. Save all schedules to Supabase
-      const promises = schedules.map(s => 
-        upsertMemberSchedule(
-          s.id.startsWith('temp_') ? null : s.id,
-          s.package_id,
-          s.member_id,
-          s.delivery_date,
-          s.meal_type,
-          s.menu_item_id,
-          s.quantity,
-          s.delivery_time || '',
-          s.notes
-        )
-      );
-      
-      await Promise.all(promises);
+      // Calculate total meals based on ALL schedules in current view
+      const packageSchedules = schedules.filter(s => s.package_id === pkgId);
+      const totalPlanned = packageSchedules.reduce((sum, s) => sum + (s.quantity || 1), 0);
+      const projectedRemaining = pkg.meals_total - totalPlanned;
 
-      // 2. SMART SYNC: Calculate absolute balance from DB
-       const allPackageSchedules = await fetchMemberSchedules('2020-01-01', '2030-12-31', pkgId);
-       const totalUsed = allPackageSchedules.reduce((sum, s) => sum + (s.quantity || 1), 0);
-       
-       const targetPackage = get().activePackages.find(p => p.id === pkgId);
-       if (targetPackage) {
-         const newRemaining = Math.max(0, targetPackage.meals_total - totalUsed);
-         
-         const { error } = await supabase
-           .from('pinto_packages')
-           .update({ meals_remaining: newRemaining })
-           .eq('id', targetPackage.id);
-         
-         if (error) throw new Error(error.message);
-       }
-       
-       await get().loadMasterData();
-      
-      set({ hasUnsavedChanges: false, isLoadingData: false });
-      
-      if (schedules.length > 0) {
-        const dates = schedules.map(s => s.delivery_date).sort();
-        const start = dates[0];
-        const end = dates[dates.length - 1];
-        await get().loadMemberPlanner(start, end, pkgId);
+      // Warning if over quota
+      if (projectedRemaining < 0) {
+        const result = await Swal.fire({
+          icon: 'warning',
+          title: 'มื้ออาหารเกินโควต้า!',
+          text: `คุณกำลังบันทึกมื้ออาหารเกินโควต้า (โควต้าทั้งหมด ${pkg.meals_total} มื้อ, ใช้ไปแล้ว ${totalPlanned} มื้อ) ยืนยันการบันทึกหรือไม่?`,
+          showCancelButton: true,
+          confirmButtonText: 'ยืนยันการบันทึก',
+          cancelButtonText: 'ยกเลิก',
+          confirmButtonColor: '#f59e0b'
+        });
+
+        if (!result.isConfirmed) {
+          set({ isLoadingData: false });
+          return;
+        }
       }
+
+      // 1. Save to Supabase
+      for (const s of packageSchedules) {
+        const { error } = await supabase
+          .from('erp_member_meal_schedules')
+          .upsert({
+            id: s.id && s.id.toString().startsWith('temp_') ? undefined : s.id,
+            package_id: s.package_id && s.package_id.toString().startsWith('retail_') ? null : s.package_id,
+            member_id: s.member_id,
+            delivery_date: s.delivery_date,
+            meal_type: s.meal_type,
+            menu_item_id: s.menu_item_id,
+            quantity: s.quantity,
+            delivery_time: s.delivery_time,
+            notes: s.notes,
+            kitchen_status: s.kitchen_status || 'pending'
+          });
+        if (error) throw error;
+      }
+
+      // 2. ABSOLUTE SYNC: Re-count ALL meals ever planned for this package in DB
+      // to ensure meals_remaining is 100% accurate (ONLY for real packages)
+      if (pkgId && !pkgId.toString().startsWith('retail_')) {
+        const allSchedulesInDB = await fetchMemberSchedules('2020-01-01', '2030-12-31', pkgId);
+        const actualUsedTotal = allSchedulesInDB.reduce((sum, s) => sum + (s.quantity || 1), 0);
+        const finalRemaining = pkg.meals_total - actualUsedTotal;
+
+        await supabase
+          .from('pinto_packages')
+          .update({ meals_remaining: finalRemaining })
+          .eq('id', pkgId);
+      }
+
+      // 3. Refresh and Reset
+      await get().loadMasterData();
+      set({ hasUnsavedChanges: false, isLoadingData: false });
+
+      Swal.fire({
+        icon: 'success',
+        title: 'บันทึกสำเร็จ',
+        timer: 1500,
+        showConfirmButton: false
+      });
     } catch (error: any) {
+      console.error('Save error:', error);
       set({ error: error.message, isLoadingData: false });
+      Swal.fire({
+        icon: 'error',
+        title: 'เกิดข้อผิดพลาด',
+        text: error.message
+      });
     }
   },
 
@@ -316,10 +417,14 @@ export const useKdsStore = create<KdsState>()(
 
       await updateMemberProfileApi(memberId, updatableFields);
       
-      const membersData = await fetchMembers();
+      const [membersData, packagesData] = await Promise.all([
+        fetchMembers(),
+        fetchActivePackages()
+      ]);
       
       set({ 
         members: membersData,
+        activePackages: packagesData,
         isLoadingData: false 
       });
     } catch (error: any) {
@@ -358,9 +463,48 @@ export const useKdsStore = create<KdsState>()(
   addNewMember: async (member) => {
     try {
       set({ isLoadingData: true });
-      await createMember(member);
+      const newMember = await createMember(member);
       const membersData = await fetchMembers();
       set({ members: membersData, isLoadingData: false });
+      return newMember;
+    } catch (error: any) {
+      set({ error: error.message, isLoadingData: false });
+      throw error;
+    }
+  },
+
+  createQuickRetailOrder: async (data) => {
+    try {
+      set({ isLoadingData: true });
+      
+      // 1. ตรวจสอบว่ามีสมาชิกนี้หรือยัง ถ้าไม่มีให้สร้าง (เป็นประเภทรายย่อย)
+      let memberId = '';
+      const existingMember = get().members.find(m => m.phone === data.phone);
+      
+      if (existingMember) {
+        memberId = existingMember.id;
+      } else {
+        const newMember = await createMember({
+          full_name: data.full_name,
+          phone: data.phone,
+          member_type: 'retail',
+          source: 'Quick Order'
+        });
+        memberId = newMember.id;
+        await get().loadMasterData(); // รีโหลดเพื่ออัปเดตรายชื่อ
+      }
+
+      // 2. สร้าง Order รายย่อย (เข้าตาราง orders)
+      await createRetailOrder({
+        member_id: memberId,
+        menu_item_id: data.menu_item_id, // ส่ง ID ไปด้วย
+        menu_name: data.menu_name,
+        quantity: data.quantity,
+        notes: data.notes
+      });
+
+      await get().fetchTasks(); // รีโหลดรายการในครัว
+      set({ isLoadingData: false });
     } catch (error: any) {
       set({ error: error.message, isLoadingData: false });
       throw error;
