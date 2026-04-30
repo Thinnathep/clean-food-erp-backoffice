@@ -10,7 +10,7 @@ import { useKdsStore } from '../../../store/kdsStore';
 import { useAuthStore } from '../../../store/authStore';
 import { getWeekDays, formatDisplayDate } from '../../../lib/dateUtils';
 import { fetchMemberSchedules } from '../../../features/kds/api';
-import type { MemberMealSchedule, PintoPackage, Member } from '../../../types';
+import type { MemberMealSchedule, PintoPackage } from '../../../types';
 
 export const MemberPlanner: React.FC = () => {
   const { user } = useAuthStore();

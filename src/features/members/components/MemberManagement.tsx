@@ -27,7 +27,7 @@ export const MemberManagement: React.FC = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAddPackageModalOpen, setIsAddPackageModalOpen] = useState(false);
   const [isQuickOrderModalOpen, setIsQuickOrderModalOpen] = useState(false);
-  const [typeFilter, setTypeFilter] = useState<'all' | 'member' | 'retail'>('all');
+  const [typeFilter] = useState<'all' | 'member' | 'retail'>('all');
 
   // Forms
   const [newMember, setNewMember] = useState({
