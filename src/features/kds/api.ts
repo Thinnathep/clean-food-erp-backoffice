@@ -535,3 +535,19 @@ export const updateMenuTargetCost = async (menuItemId: string, targetCost: numbe
     .eq('id', menuItemId);
   if (error) throw error;
 };
+
+export const closeKitchenSession = async (payload: {
+  sessionId: string;
+  actualQty: number;
+  currentStaffId?: string | null;
+}) => {
+  const { error } = await supabase
+    .from('erp_kitchen_sessions')
+    .update({
+      actual_qty: payload.actualQty,
+      closed_at: new Date().toISOString()
+    })
+    .eq('id', payload.sessionId);
+
+  if (error) throw error;
+};

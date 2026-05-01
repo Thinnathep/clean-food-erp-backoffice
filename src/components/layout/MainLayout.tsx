@@ -24,7 +24,7 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
         </div>
         
         {/* Content Area */}
-        <div className="flex-1 overflow-hidden relative">
+        <div className="flex-1 overflow-y-auto relative scroll-smooth">
           {children}
         </div>
       </main>

@@ -120,8 +120,8 @@ export const InventoryPage: React.FC = () => {
                 <Package size={24} />
               </div>
               <div>
-                <h1 className="text-2xl font-normal text-slate-800 uppercase tracking-tight">คลังวัตถุดิบ</h1>
-                <p className="text-[10px] font-normal text-slate-400 uppercase tracking-widest">จัดการสต็อกและต้นทุนวัตถุดิบ</p>
+                <h1 className="text-2xl font-normal text-slate-800 uppercase tracking-tight">เช็คสต็อกปัจจุบัน</h1>
+                <p className="text-[10px] font-normal text-slate-400 uppercase tracking-widest">ตรวจสอบยอดคงเหลือและรับของเข้าคลัง</p>
               </div>
            </div>
         </div>
@@ -153,14 +153,14 @@ export const InventoryPage: React.FC = () => {
       <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
         {/* Toolbar */}
         <div className="p-6 border-b border-slate-50 flex flex-col md:flex-row gap-4 items-center justify-between">
-           <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
-              <div className="relative group w-full md:w-64">
+           <div className="flex flex-col md:flex-row gap-3 w-full">
+              <div className="relative group w-full md:w-80">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-emerald-500 transition-colors" size={18} />
                 <input 
                   type="text" 
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="ค้นหาวัตถุดิบ..."
+                  placeholder="ค้นหาวัตถุดิบเพื่อเช็คสต็อก..."
                   className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-transparent rounded-2xl text-sm outline-none focus:bg-white focus:border-emerald-500 transition-all placeholder:text-slate-300"
                 />
               </div>
@@ -177,14 +177,6 @@ export const InventoryPage: React.FC = () => {
                 <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" size={14} />
               </div>
            </div>
-
-           <button 
-             onClick={() => { setEditingItem(null); setIsItemModalOpen(true); }}
-             className="w-full md:w-auto px-6 py-3 bg-emerald-500 text-white rounded-2xl flex items-center justify-center gap-2 hover:bg-emerald-600 shadow-lg shadow-emerald-500/20 active:scale-95 transition-all text-xs uppercase tracking-[0.15em]"
-           >
-             <Plus size={18} />
-             <span>เพิ่มวัตถุดิบ</span>
-           </button>
         </div>
 
         {/* Table */}
@@ -219,10 +211,27 @@ export const InventoryPage: React.FC = () => {
                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs ${isLow ? 'bg-red-100 text-red-500' : 'bg-slate-100 text-slate-400'}`}>
                               {item.name.charAt(0)}
                             </div>
-                            <div>
-                               <p className="text-sm font-normal text-slate-700">{item.name}</p>
-                               <p className="text-[9px] text-slate-400 uppercase tracking-widest">{item.category}</p>
-                            </div>
+                             <div>
+                                <p className="text-sm font-normal text-slate-700">{item.name}</p>
+                                {(() => {
+                                  const getBadgeColor = (cat: string) => {
+                                    switch(cat) {
+                                      case 'เนื้อสัตว์': return 'bg-rose-50 text-rose-600';
+                                      case 'ผัก/ผลไม้': return 'bg-emerald-50 text-emerald-600';
+                                      case 'เครื่องปรุง': return 'bg-amber-50 text-amber-600';
+                                      case 'ของแห้ง': return 'bg-slate-100 text-slate-600';
+                                      case 'บรรจุภัณฑ์': return 'bg-indigo-50 text-indigo-600';
+                                      case 'เครื่องดื่ม': return 'bg-cyan-50 text-cyan-600';
+                                      default: return 'bg-slate-50 text-slate-500';
+                                    }
+                                  };
+                                  return (
+                                    <p className={`inline-block mt-1 px-2 py-0.5 rounded-md text-[8px] font-semibold uppercase tracking-wider ${getBadgeColor(item.category)}`}>
+                                      {item.category}
+                                    </p>
+                                  );
+                                })()}
+                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-5">
@@ -241,18 +250,13 @@ export const InventoryPage: React.FC = () => {
                            <div className="flex items-center justify-center gap-2">
                               <button 
                                 onClick={() => { setSelectedItemForStockIn(item); setIsStockInModalOpen(true); }}
-                                className="w-9 h-9 bg-emerald-50 text-emerald-500 rounded-xl flex items-center justify-center hover:bg-emerald-500 hover:text-white transition-all shadow-sm"
+                                className="w-full h-10 bg-emerald-50 text-emerald-500 rounded-xl flex items-center justify-center gap-2 hover:bg-emerald-500 hover:text-white transition-all shadow-sm text-[10px] uppercase tracking-widest font-medium"
                                 title="รับของเข้าสต็อก"
                               >
                                 <ArrowUpCircle size={16} />
+                                รับของเข้า
                               </button>
-                              <button 
-                                onClick={() => { setEditingItem(item); setIsItemModalOpen(true); }}
-                                className="w-9 h-9 bg-slate-50 text-slate-400 rounded-xl flex items-center justify-center hover:bg-slate-800 hover:text-white transition-all shadow-sm"
-                                title="แก้ไขข้อมูล"
-                              >
-                                <Edit2 size={16} />
-                              </button>
+
                            </div>
                         </td>
                       </tr>

@@ -5,9 +5,12 @@ import { MainLayout } from './components/layout/MainLayout';
 import { KdsDashboard } from './features/kds/components/KdsDashboard';
 import { MemberManagement } from './features/members/components/MemberManagement';
 import { InventoryPage } from './features/inventory/components/InventoryPage';
+import { IngredientMasterPage } from './features/inventory/components/IngredientMasterPage';
 import { Login } from './features/auth/Login';
 import { useAuthStore } from './store/authStore';
 import { supabase } from './config/supabase';
+
+// Re-saved to ensure all imports are matched correctly
 
 // Placeholder Pages
 const PlaceholderPage: React.FC<{ title: string }> = ({ title }) => (
@@ -81,7 +84,9 @@ function App() {
         {/* Protected ERP Routes */}
         <Route path="/kds" element={<ProtectedRoute><MainLayout><KdsDashboard /></MainLayout></ProtectedRoute>} />
         <Route path="/members" element={<ProtectedRoute><MainLayout><MemberManagement /></MainLayout></ProtectedRoute>} />
-        <Route path="/inventory" element={<ProtectedRoute><MainLayout><InventoryPage /></MainLayout></ProtectedRoute>} />
+        <Route path="/inventory/items" element={<ProtectedRoute><MainLayout><IngredientMasterPage /></MainLayout></ProtectedRoute>} />
+        <Route path="/inventory/stock" element={<ProtectedRoute><MainLayout><InventoryPage /></MainLayout></ProtectedRoute>} />
+        <Route path="/inventory" element={<Navigate to="/inventory/stock" replace />} />
         <Route path="/finance" element={<ProtectedRoute><MainLayout><PlaceholderPage title="ระบบบัญชีและการเงิน" /></MainLayout></ProtectedRoute>} />
         <Route path="/logistics" element={<ProtectedRoute><MainLayout><PlaceholderPage title="ระบบจัดการไรเดอร์ส่งอาหาร" /></MainLayout></ProtectedRoute>} />
 

@@ -480,15 +480,17 @@ export const MemberPlanner: React.FC = () => {
                         <span className={`text-[11px] font-normal px-2 py-1 rounded-lg whitespace-nowrap ${
                           (() => {
                             const currentPkgSchedules = memberSchedules.filter(s => s.package_id === pkg.id);
+                            const member = Array.isArray(pkg.members) ? pkg.members[0] : pkg.members;
+                            const isRetailMember = member?.member_type === 'retail' || pkg.id.toString().startsWith('retail_');
                             
-                            // If it's a retail "virtual" package
-                            if (pkg.id.toString().startsWith('retail_')) {
+                            // If it's a retail member or virtual package
+                            if (isRetailMember) {
                               const activeOrders = currentPkgSchedules.filter(s => 
                                 dayjs(s.delivery_date).isSame(dayjs(), 'day') || dayjs(s.delivery_date).isAfter(dayjs(), 'day')
                               ).reduce((sum, s) => sum + (s.quantity || 1), 0);
                               
                               return activeOrders > 0 
-                                ? 'bg-orange-500 text-white border border-orange-600 shadow-sm animate-pulse' 
+                                ? 'bg-orange-500 text-white border border-orange-600 shadow-sm' 
                                 : 'bg-slate-100 text-slate-400 border border-slate-200';
                             }
 
@@ -508,7 +510,10 @@ export const MemberPlanner: React.FC = () => {
                         }`}>
                           {(() => {
                             const currentPkgSchedules = memberSchedules.filter(s => s.package_id === pkg.id);
-                            if (pkg.id.toString().startsWith('retail_')) {
+                            const member = Array.isArray(pkg.members) ? pkg.members[0] : pkg.members;
+                            const isRetailMember = member?.member_type === 'retail' || pkg.id.toString().startsWith('retail_');
+
+                            if (isRetailMember) {
                               const activeOrders = currentPkgSchedules.filter(s => 
                                 dayjs(s.delivery_date).isSame(dayjs(), 'day') || dayjs(s.delivery_date).isAfter(dayjs(), 'day')
                               ).reduce((sum, s) => sum + (s.quantity || 1), 0);
@@ -530,59 +535,71 @@ export const MemberPlanner: React.FC = () => {
 
         {selectedPackage ? (
           <div className={`flex-1 flex flex-col overflow-hidden bg-[#F8FAFC] absolute md:relative inset-0 z-20 transition-transform ${selectedPackage ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}`}>
-             <div className="px-4 md:px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-200 bg-white shadow-sm">
-                <div className="flex items-center gap-3">
-                   <button 
-                     onClick={() => setSelectedPackageId(null)} 
-                     className="md:hidden bg-slate-100 p-2 rounded-lg text-slate-600"
-                   >
-                     <ChevronLeft size={20} />
-                   </button>
-                   <div className="w-10 h-10 md:w-12 md:h-12 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 flex-shrink-0">
-                     <User size={20} />
-                   </div>
-                   <div className="min-w-0 flex-1">
-                       <div className="flex items-center gap-2">
-                           <h3 onClick={handleOpenProfile} className="text-base md:text-lg font-normal text-slate-900 truncate cursor-pointer hover:text-emerald-600 transition-colors">
-                             {Array.isArray(selectedPackage.members) ? selectedPackage.members[0]?.full_name : selectedPackage.members?.full_name}
-                           </h3>
-                          <button 
-                            onClick={handleOpenProfile} 
-                            className="flex items-center gap-1.5 px-2 py-1 bg-slate-100 hover:bg-emerald-500 hover:text-white text-slate-500 rounded-lg text-[10px] font-normal transition-all border border-slate-200 hover:border-emerald-500 shadow-sm"
-                          >
-                            <FileText size={12} /> รายละเอียดลูกค้า
-                          </button>
+              <div className="px-4 md:px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-200 bg-white shadow-sm">
+                {(() => {
+                  const member = Array.isArray(selectedPackage.members) ? selectedPackage.members[0] : selectedPackage.members;
+                  const isRetail = member?.member_type === 'retail' || selectedPackage.id.toString().startsWith('retail_');
+                  
+                  const packageSchedules = memberSchedules.filter(s => s.package_id === selectedPackage.id);
+                  const totalOrdered = packageSchedules.reduce((sum, s) => sum + (s.quantity || 1), 0);
+                  
+                  return (
+                    <div className="flex items-center gap-3">
+                       <button 
+                         onClick={() => setSelectedPackageId(null)} 
+                         className="md:hidden bg-slate-100 p-2 rounded-lg text-slate-600"
+                       >
+                         <ChevronLeft size={20} />
+                       </button>
+                       <div className="w-10 h-10 md:w-12 md:h-12 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 flex-shrink-0">
+                         <User size={20} />
                        </div>
-                       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-1">
-                           <span className="text-[10px] md:text-xs font-normal text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md truncate max-w-[150px]">{selectedPackage.package_name}</span>
-                             <span className={`text-[10px] md:text-xs font-normal px-2 py-0.5 rounded-md border ${
-                               projectedRemaining < 0
-                                 ? 'bg-red-500 text-white border-red-600 animate-bounce' 
-                                 : projectedRemaining < 3
-                                   ? 'bg-red-50 text-red-600 border-red-100'
-                                   : (selectedPackage.meals_total === 14 || selectedPackage.meals_total === 15)
-                                     ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
-                                     : (selectedPackage.meals_total === 28 || selectedPackage.meals_total === 30)
-                                       ? 'bg-blue-50 text-blue-600 border-blue-100'
-                                       : (selectedPackage.meals_total === 60 || selectedPackage.meals_total === 62)
-                                         ? 'bg-purple-50 text-purple-600 border-purple-100'
-                                         : 'bg-slate-100 text-slate-600 border-slate-200'
-                             }`}>
-                               เหลือ {projectedRemaining} มื้อ
-                             </span>
-                           <span className="text-[10px] md:text-xs font-normal text-slate-500 flex items-center gap-1">
-                             <Clock size={12} className="text-purple-500" /> {selectedPackage.members?.delivery_time || 'ไม่ระบุรอบส่ง'}
-                           </span>
-                           <span className="text-[10px] md:text-xs font-normal text-slate-500 flex items-center gap-1">
-                             <MapPin size={12} className="text-emerald-500" /> {selectedPackage.members?.address || 'ไม่ระบุที่อยู่'}
-                           </span>
-
-                           {selectedPackage.members?.health_goal && (
-                             <span className="text-[10px] md:text-xs font-normal text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">{selectedPackage.members?.health_goal}</span>
-                           )}
-                       </div>
+                       <div className="min-w-0 flex-1">
+                           <div className="flex items-center gap-2">
+                               <h3 onClick={handleOpenProfile} className="text-base md:text-lg font-normal text-slate-900 truncate cursor-pointer hover:text-emerald-600 transition-colors">
+                                 {member?.full_name}
+                               </h3>
+                              <button 
+                                onClick={handleOpenProfile} 
+                                className="flex items-center gap-1.5 px-2 py-1 bg-slate-100 hover:bg-emerald-500 hover:text-white text-slate-500 rounded-lg text-[10px] font-normal transition-all border border-slate-200 hover:border-emerald-500 shadow-sm"
+                              >
+                                <FileText size={12} /> รายละเอียดลูกค้า
+                              </button>
+                           </div>
+                           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-1">
+                               <span className="text-[10px] md:text-xs font-normal text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md truncate max-w-[150px]">{selectedPackage.package_name}</span>
+                                 <span className={`text-[10px] md:text-xs font-normal px-2 py-0.5 rounded-md border ${
+                                   isRetail
+                                     ? 'bg-orange-500 text-white border-orange-600 shadow-sm'
+                                     : projectedRemaining < 0
+                                       ? 'bg-red-500 text-white border-red-600 animate-bounce' 
+                                       : projectedRemaining < 3
+                                         ? 'bg-red-50 text-red-600 border-red-100'
+                                         : (selectedPackage.meals_total === 14 || selectedPackage.meals_total === 15)
+                                           ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                                           : (selectedPackage.meals_total === 28 || selectedPackage.meals_total === 30)
+                                             ? 'bg-blue-50 text-blue-600 border-blue-100'
+                                             : (selectedPackage.meals_total === 60 || selectedPackage.meals_total === 62)
+                                               ? 'bg-purple-50 text-purple-600 border-purple-100'
+                                               : 'bg-slate-100 text-slate-600 border-slate-200'
+                                 }`}>
+                                   {isRetail ? `สั่งไว้ ${totalOrdered} มื้อ` : `เหลือ ${projectedRemaining} มื้อ`}
+                                 </span>
+                               <span className="text-[10px] md:text-xs font-normal text-slate-500 flex items-center gap-1">
+                                 <Clock size={12} className="text-purple-500" /> {member?.delivery_time || 'ไม่ระบุรอบส่ง'}
+                               </span>
+                               <span className="text-[10px] md:text-xs font-normal text-slate-500 flex items-center gap-1">
+                                 <MapPin size={12} className="text-emerald-500" /> {member?.address || 'ไม่ระบุที่อยู่'}
+                               </span>
+    
+                               {member?.health_goal && (
+                                 <span className="text-[10px] md:text-xs font-normal text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">{member?.health_goal}</span>
+                               )}
+                           </div>
+                        </div>
                     </div>
-                </div>
+                  );
+                })()}
                 
                 <div className="flex w-full md:w-auto items-stretch gap-2">
                   <button 
@@ -880,6 +897,50 @@ export const MemberPlanner: React.FC = () => {
                        <h4 className="text-sm font-normal text-slate-900 border-b border-purple-200 pb-2 flex items-center gap-2">
                          <Clipboard size={16} className="text-purple-500" /> จัดการแพ็กเกจ (Package Details)
                        </h4>
+
+                       <div className="flex flex-wrap gap-2">
+                         <button 
+                           type="button"
+                           onClick={() => {
+                             setPackageUpdates({ package_name: 'ออเดอร์รายย่อย (No Package)', meals_total: 0 });
+                             setMemberUpdates({ ...memberUpdates, member_type: 'retail' });
+                           }}
+                           className="px-3 py-1.5 bg-white border border-orange-200 text-orange-600 rounded-lg text-[10px] font-bold hover:bg-orange-500 hover:text-white transition-all shadow-sm"
+                         >
+                           + เป็นรายย่อย (No Package)
+                         </button>
+                         <button 
+                           type="button"
+                           onClick={() => {
+                             setPackageUpdates({ package_name: '- ผูกปิ่นโต 7 วัน (14 มื้อ) (×1) = ฿899', meals_total: 15 });
+                             setMemberUpdates({ ...memberUpdates, member_type: 'member' });
+                           }}
+                           className="px-3 py-1.5 bg-white border border-emerald-200 text-emerald-600 rounded-lg text-[10px] font-bold hover:bg-emerald-500 hover:text-white transition-all shadow-sm"
+                         >
+                           + โปรฯ 7 วัน (15 มื้อ)
+                         </button>
+                         <button 
+                           type="button"
+                           onClick={() => {
+                             setPackageUpdates({ package_name: '- ผูกปิ่นโต 14 วัน (28 มื้อ) (×1) = ฿1,799', meals_total: 30 });
+                             setMemberUpdates({ ...memberUpdates, member_type: 'member' });
+                           }}
+                           className="px-3 py-1.5 bg-white border border-blue-200 text-blue-600 rounded-lg text-[10px] font-bold hover:bg-blue-500 hover:text-white transition-all shadow-sm"
+                         >
+                           + โปรฯ 14 วัน (30 มื้อ)
+                         </button>
+                         <button 
+                           type="button"
+                           onClick={() => {
+                             setPackageUpdates({ package_name: '- ผูกปิ่นโต 1 เดือน (60 มื้อ) (×1) = ฿3,799', meals_total: 62 });
+                             setMemberUpdates({ ...memberUpdates, member_type: 'member' });
+                           }}
+                           className="px-3 py-1.5 bg-white border border-purple-200 text-purple-600 rounded-lg text-[10px] font-bold hover:bg-purple-500 hover:text-white transition-all shadow-sm"
+                         >
+                           + โปรฯ 1 เดือน (62 มื้อ)
+                         </button>
+                       </div>
+
                        <div>
                          <label className="block text-[11px] font-normal text-slate-900 mb-1">ชื่อแพ็กเกจปัจจุบัน</label>
                          <input 
@@ -902,18 +963,34 @@ export const MemberPlanner: React.FC = () => {
                      </div>
 
                      {/* Stats & Prediction */}
-                    <div className="bg-slate-900 p-6 rounded-2xl shadow-xl space-y-3">
-                       <h4 className="text-xs font-normal text-slate-400 uppercase tracking-widest border-b border-slate-700 pb-2">สถิติและคาดการณ์</h4>
-                       <div className="flex justify-between items-center">
-                          <span className="text-xs text-slate-400">มื้ออาหารคงเหลือ:</span>
-                          <span className="text-lg font-normal text-emerald-400">{selectedPackage?.meals_remaining} มื้อ</span>
-                       </div>
-                       <div className="flex justify-between items-center">
-                          <span className="text-xs text-slate-400">คาดว่าจะหมดในวันที่:</span>
-                          <span className="text-sm font-normal text-blue-400">{calculateEstimateEndDate()}</span>
-                       </div>
-                       <p className="text-[10px] text-slate-500 italic mt-2">* คำนวณจากความถี่ในการวางแผนอาหารในสัปดาห์ปัจจุบัน</p>
-                    </div>
+                     <div className="bg-slate-900 p-6 rounded-2xl shadow-xl space-y-3">
+                        {(() => {
+                           const member = Array.isArray(selectedPackage.members) ? selectedPackage.members[0] : selectedPackage.members;
+                           const isRetail = member?.member_type === 'retail' || selectedPackage?.id.toString().startsWith('retail_');
+                           
+                           const packageSchedules = memberSchedules.filter(s => s.package_id === selectedPackage?.id);
+                           const totalOrdered = packageSchedules.reduce((sum, s) => sum + (s.quantity || 1), 0);
+                           
+                           return (
+                             <>
+                               <h4 className="text-xs font-normal text-slate-400 uppercase tracking-widest border-b border-slate-700 pb-2">สถิติและคาดการณ์</h4>
+                               <div className="flex justify-between items-center">
+                                  <span className="text-xs text-slate-400">{isRetail ? 'ยอดสั่งรวมทั้งสิ้น:' : 'มื้ออาหารคงเหลือ:'}</span>
+                                  <span className={`text-lg font-normal ${isRetail ? 'text-orange-400' : 'text-emerald-400'}`}>
+                                    {isRetail ? `${totalOrdered} มื้อ` : `${selectedPackage?.meals_remaining} มื้อ`}
+                                  </span>
+                               </div>
+                               {!isRetail && (
+                                 <div className="flex justify-between items-center">
+                                    <span className="text-xs text-slate-400">คาดว่าจะหมดในวันที่:</span>
+                                    <span className="text-sm font-normal text-blue-400">{calculateEstimateEndDate()}</span>
+                                 </div>
+                               )}
+                               <p className="text-[10px] text-slate-500 italic mt-2">* คำนวณจากความถี่ในการวางแผนอาหารในสัปดาห์ปัจจุบัน</p>
+                             </>
+                           );
+                        })()}
+                     </div>
                   </div>
                </div>
                

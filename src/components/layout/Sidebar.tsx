@@ -1,12 +1,20 @@
 import React, { useState } from 'react';
-import { NavLink } from 'react-router-dom';
-import { ChefHat, Users, Package, Wallet, Truck, Settings, LogOut, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { NavLink, useLocation } from 'react-router-dom';
+import { ChefHat, Users, Package, Wallet, Truck, Settings, LogOut, ChevronLeft, ChevronRight, X, ChevronDown } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 
 const navItems = [
   { path: '/kds', icon: ChefHat, label: 'งานห้องครัว (KDS)' },
   { path: '/members', icon: Users, label: 'สมาชิก & ปิ่นโต' },
-  { path: '/inventory', icon: Package, label: 'สต็อกวัตถุดิบ' },
+  { 
+    label: 'สต็อกวัตถุดิบ', 
+    icon: Package, 
+    path: '/inventory',
+    children: [
+      { path: '/inventory/items', label: 'จัดการวัตถุดิบ' },
+      { path: '/inventory/stock', label: 'เช็คสต็อก' },
+    ]
+  },
   { path: '/finance', icon: Wallet, label: 'บัญชี' },
   { path: '/logistics', icon: Truck, label: 'ระบบจัดส่ง' },
 ];
@@ -16,9 +24,17 @@ export const Sidebar: React.FC<{
   setMobileOpen: (open: boolean) => void 
 }> = ({ isMobileOpen, setMobileOpen }) => {
   const [isExpanded, setIsExpanded] = useState(true);
+  const [openMenus, setOpenMenus] = useState<string[]>(['สต็อกวัตถุดิบ']);
   const { logout, user } = useAuthStore();
+  const location = useLocation();
 
   const toggleExpand = () => setIsExpanded(!isExpanded);
+  
+  const toggleMenu = (label: string) => {
+    setOpenMenus(prev => 
+      prev.includes(label) ? prev.filter(l => l !== label) : [...prev, label]
+    );
+  };
 
   return (
     <>
@@ -52,32 +68,81 @@ export const Sidebar: React.FC<{
         
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-1.5 scrollbar-hide">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              onClick={() => setMobileOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 rounded-xl transition-all font-normal text-sm whitespace-nowrap overflow-hidden group
-                ${isExpanded ? 'px-4 py-3' : 'px-0 py-3 justify-center'}
-                ${isActive 
-                    ? 'bg-emerald-500/10 text-emerald-400' 
-                    : 'text-slate-400 hover:text-white hover:bg-white/5'
-                }`
-              }
-              title={!isExpanded ? item.label : undefined}
-            >
-              <item.icon size={20} className={`flex-shrink-0 ${isExpanded ? '' : 'mx-auto'}`} />
-              <span className={`transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0 hidden md:block w-0'}`}>
-                {item.label}
-              </span>
-            </NavLink>
-          ))}
+          {navItems.map((item) => {
+            const hasChildren = item.children && item.children.length > 0;
+            const isOpen = openMenus.includes(item.label);
+            const isChildActive = hasChildren && item.children?.some(child => location.pathname === child.path);
+
+            return (
+              <div key={item.label} className="space-y-1">
+                {hasChildren ? (
+                  <button
+                    onClick={() => {
+                      if (!isExpanded) setIsExpanded(true);
+                      toggleMenu(item.label);
+                    }}
+                    className={`w-full flex items-center gap-3 rounded-xl transition-all font-normal text-sm whitespace-nowrap overflow-hidden group
+                      ${isExpanded ? 'px-4 py-3' : 'px-0 py-3 justify-center'}
+                      ${isChildActive ? 'bg-white/5 text-white' : 'text-slate-400 hover:text-white hover:bg-white/5'}
+                    `}
+                  >
+                    <item.icon size={20} className="flex-shrink-0" />
+                    <span className={`flex-1 text-left transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0 hidden md:block w-0'}`}>
+                      {item.label}
+                    </span>
+                    {isExpanded && (
+                      <ChevronDown size={14} className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+                    )}
+                  </button>
+                ) : (
+                  <NavLink
+                    to={item.path || ''}
+                    onClick={() => setMobileOpen(false)}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 rounded-xl transition-all font-normal text-sm whitespace-nowrap overflow-hidden group
+                      ${isExpanded ? 'px-4 py-3' : 'px-0 py-3 justify-center'}
+                      ${isActive 
+                          ? 'bg-emerald-500/10 text-emerald-400' 
+                          : 'text-slate-400 hover:text-white hover:bg-white/5'
+                      }`
+                    }
+                    title={!isExpanded ? item.label : undefined}
+                  >
+                    <item.icon size={20} className={`flex-shrink-0 ${isExpanded ? '' : 'mx-auto'}`} />
+                    <span className={`transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0 hidden md:block w-0'}`}>
+                      {item.label}
+                    </span>
+                  </NavLink>
+                )}
+
+                {/* Sub-items */}
+                {hasChildren && isExpanded && isOpen && (
+                  <div className="ml-9 space-y-1 mt-1 border-l border-slate-800">
+                    {item.children?.map(child => (
+                      <NavLink
+                        key={child.path}
+                        to={child.path}
+                        onClick={() => setMobileOpen(false)}
+                        className={({ isActive }) =>
+                          `flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all font-normal text-xs whitespace-nowrap
+                          ${isActive 
+                              ? 'text-emerald-400 font-medium' 
+                              : 'text-slate-500 hover:text-white hover:bg-white/5'
+                          }`
+                        }
+                      >
+                        {child.label}
+                      </NavLink>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </nav>
         
         {/* Footer Area */}
         <div className="p-3 border-t border-slate-800 space-y-2">
-          {/* User Info (Mobile / Expanded) */}
           <div className={`px-2 py-2 mb-2 bg-slate-800/50 rounded-lg border border-slate-700/50 flex items-center gap-2 overflow-hidden ${!isExpanded && 'hidden md:flex justify-center'}`}>
              <div className="w-6 h-6 rounded-full bg-blue-500 flex-shrink-0 flex items-center justify-center text-[10px] font-normal">
                {user?.name?.charAt(0) || 'A'}

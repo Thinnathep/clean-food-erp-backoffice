@@ -44,8 +44,16 @@ export const updateInventoryItem = async (id: string, updates: Partial<Inventory
   return data;
 };
 
+export const deleteInventoryItem = async (id: string) => {
+  const { error } = await supabase
+    .from('erp_inventory_items')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+};
+
 export const recordStockIn = async (batch: Partial<InventoryBatch>, currentItem: InventoryItem) => {
-  // 1. Insert into batches
   const { data: batchData, error: batchError } = await supabase
     .from('erp_inventory_batches')
     .insert([batch])
@@ -54,7 +62,6 @@ export const recordStockIn = async (batch: Partial<InventoryBatch>, currentItem:
 
   if (batchError) throw batchError;
 
-  // 2. Calculate new stock and average cost
   const qty = Number(batch.qty) || 0;
   const cost = Number(batch.unit_cost) || 0;
   
@@ -62,14 +69,10 @@ export const recordStockIn = async (batch: Partial<InventoryBatch>, currentItem:
   const currentAvgCost = Number(currentItem.avg_unit_cost) || 0;
   
   const newStock = currentStock + qty;
-  
-  // Weighted Average: (OldTotalCost + NewTotalCost) / NewTotalStock
-  // If current stock is 0 or less, the new cost becomes the average cost
   const oldTotalCost = Math.max(0, currentStock) * currentAvgCost;
   const newTotalCost = qty * cost;
   const newAvgCost = newStock > 0 ? (oldTotalCost + newTotalCost) / newStock : cost;
 
-  // 3. Update inventory item
   const { error: updateError } = await supabase
     .from('erp_inventory_items')
     .update({
@@ -80,6 +83,16 @@ export const recordStockIn = async (batch: Partial<InventoryBatch>, currentItem:
     .eq('id', currentItem.id);
 
   if (updateError) throw updateError;
+
+  const { error: txError } = await supabase
+    .from('erp_inventory_transactions')
+    .insert({
+      item_id: currentItem.id,
+      type: 'STOCK_IN',
+      qty_changed: qty,
+      reason: `รับของเข้า - ใบเสร็จ: ${batch.receipt_no}`
+    });
+  if (txError) console.error('TX log failed:', txError);
 
   return batchData;
 };

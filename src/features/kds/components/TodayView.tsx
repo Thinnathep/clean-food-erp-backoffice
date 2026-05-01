@@ -3,6 +3,10 @@ import { ChefHat, CheckCircle2, AlertTriangle, Package, UtensilsCrossed, Printer
 import dayjs from 'dayjs';
 import 'dayjs/locale/th';
 import { useKdsStore } from '../../../store/kdsStore';
+import { useAuthStore } from '../../../store/authStore';
+import { closeKitchenSession } from '../api';
+import { supabase } from '../../../config/supabase';
+import Swal from 'sweetalert2';
 
 const CATEGORY_PRIORITY: Record<string, number> = {
   'ของหวาน': 1,
@@ -155,7 +159,10 @@ export const TodayView: React.FC = () => {
       const timeLabel = 'ออเดอร์สั่งด่วน (Retail)';
       const menuNameRaw = task.menu_name || '';
       // Try to find matching menu item for category/macros
-      const matchedMenu = menus.find(m => menuNameRaw.includes(m.name));
+      const cleanTaskName = menuNameRaw.replace(/\(x\d+\)/g, '').trim();
+      const matchedMenu = menus.find(m => m.name.trim() === cleanTaskName) || 
+                          menus.find(m => cleanTaskName.includes(m.name.trim()));
+      
       const menuId = matchedMenu?.id || `retail_${task.id}`;
       const category = matchedMenu?.category || 'รายย่อย';
 
@@ -196,18 +203,86 @@ export const TodayView: React.FC = () => {
     return { groups: grouped, specialNotesCount: specialNotes };
   }, [memberSchedules, tasks, menus, selectedDate, filterType, sortBy]);
 
-  const toggleComplete = (time: string, menuId: string) => {
+  const toggleComplete = async (time: string, menuId: string, actualQty: number) => {
     const key = `${time}-${menuId}`;
+    const isCurrentlyDone = completedMenus.has(key);
     
+    // 1. UI Toggle (Keep existing behavior)
     setCompletedMenus(prev => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
-      
-      // Save to localStorage
       localStorage.setItem(`kds_done_${selectedDate}`, JSON.stringify(Array.from(next)));
       return next;
     });
+
+    // 2. Task 2: Close Kitchen Session & Trigger Stock Deduction
+    if (!isCurrentlyDone) {
+      const user = useAuthStore.getState().user;
+      const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+
+      try {
+        if (!isUUID(menuId)) {
+          throw new Error(`ไม่พบเมนู "${menuId}" ในระบบฐานข้อมูล (กรุณาตรวจสอบชื่อเมนูในหน้า Menu Library)`);
+        }
+
+        // 1. Find existing session for this date and menu
+        const { data: session } = await supabase
+          .from('erp_kitchen_sessions')
+          .select('id')
+          .eq('session_date', selectedDate)
+          .eq('menu_item_id', menuId)
+          .maybeSingle();
+
+        let targetSessionId = session?.id;
+
+        // 2. If no session exists, CREATE ONE AUTOMATICALLY
+        if (!targetSessionId) {
+          const { data: newSession, error: createError } = await supabase
+            .from('erp_kitchen_sessions')
+            .insert({
+              session_date: selectedDate,
+              menu_item_id: menuId,
+              planned_qty: actualQty
+            })
+            .select()
+            .single();
+          
+          if (createError) throw createError;
+          targetSessionId = newSession.id;
+        }
+
+        // 3. Close Kitchen Session & Trigger Stock Deduction
+        if (targetSessionId) {
+          await closeKitchenSession({
+            sessionId: targetSessionId,
+            actualQty: actualQty,
+            currentStaffId: user?.id
+          });
+          
+          // Refetch inventory (via master data)
+          await useKdsStore.getState().loadMasterData();
+
+          // Show Toast
+          Swal.fire({
+            title: 'ปิด Session สำเร็จ',
+            text: 'ระบบสร้างบันทึกและตัดสต็อกอัตโนมัติเรียบร้อยแล้ว',
+            icon: 'success',
+            toast: true,
+            position: 'top-end',
+            timer: 3000,
+            showConfirmButton: false
+          });
+        }
+      } catch (error: any) {
+        console.error('Session auto-completion failed:', error);
+        Swal.fire({
+          icon: 'error',
+          title: 'ไม่สามารถตัดสต็อกได้',
+          text: error.message || 'เกิดข้อผิดพลาดในการสร้างหรือปิด Session ผลิต'
+        });
+      }
+    }
   };
 
   const totalBoxes = useMemo(() => {
@@ -441,7 +516,7 @@ export const TodayView: React.FC = () => {
                                     return (
                                     <div 
                                       key={menuId} 
-                                      onClick={() => toggleComplete(time, menuId)}
+                                      onClick={() => toggleComplete(time, menuId, item.totalQty)}
                                       className={`bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col overflow-hidden hover:shadow-xl transition-all duration-300 group relative cursor-pointer ${isDone ? 'opacity-40 grayscale-[0.5]' : ''}`}
                                     >
                                         

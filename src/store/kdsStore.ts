@@ -315,32 +315,37 @@ export const useKdsStore = create<KdsState>()(
   saveMemberSchedules: async () => {
     const schedules = get().memberSchedules;
     const pkgId = get().selectedPackageId;
+    
+    const isRetail = pkgId?.toString().startsWith('retail_');
     const pkg = get().activePackages.find(p => p.id === pkgId);
-    if (!pkgId || !pkg) return;
+    
+    if (!pkgId || (!pkg && !isRetail)) return;
 
     try {
       set({ isLoadingData: true });
       
-      // Calculate total meals based on ALL schedules in current view
       const packageSchedules = schedules.filter(s => s.package_id === pkgId);
-      const totalPlanned = packageSchedules.reduce((sum, s) => sum + (s.quantity || 1), 0);
-      const projectedRemaining = pkg.meals_total - totalPlanned;
 
-      // Warning if over quota
-      if (projectedRemaining < 0) {
-        const result = await Swal.fire({
-          icon: 'warning',
-          title: 'มื้ออาหารเกินโควต้า!',
-          text: `คุณกำลังบันทึกมื้ออาหารเกินโควต้า (โควต้าทั้งหมด ${pkg.meals_total} มื้อ, ใช้ไปแล้ว ${totalPlanned} มื้อ) ยืนยันการบันทึกหรือไม่?`,
-          showCancelButton: true,
-          confirmButtonText: 'ยืนยันการบันทึก',
-          cancelButtonText: 'ยกเลิก',
-          confirmButtonColor: '#f59e0b'
-        });
+      // Warning if over quota (Only for non-retail)
+      if (pkg && !isRetail) {
+        const totalPlanned = packageSchedules.reduce((sum, s) => sum + (s.quantity || 1), 0);
+        const projectedRemaining = pkg.meals_total - totalPlanned;
 
-        if (!result.isConfirmed) {
-          set({ isLoadingData: false });
-          return;
+        if (projectedRemaining < 0) {
+          const result = await Swal.fire({
+            icon: 'warning',
+            title: 'มื้ออาหารเกินโควต้า!',
+            text: `คุณกำลังบันทึกมื้ออาหารเกินโควต้า (โควต้าทั้งหมด ${pkg.meals_total} มื้อ, ใช้ไปแล้ว ${totalPlanned} มื้อ) ยืนยันการบันทึกหรือไม่?`,
+            showCancelButton: true,
+            confirmButtonText: 'ยืนยันการบันทึก',
+            cancelButtonText: 'ยกเลิก',
+            confirmButtonColor: '#f59e0b'
+          });
+
+          if (!result.isConfirmed) {
+            set({ isLoadingData: false });
+            return;
+          }
         }
       }
 
@@ -350,7 +355,7 @@ export const useKdsStore = create<KdsState>()(
           .from('erp_member_meal_schedules')
           .upsert({
             id: s.id && s.id.toString().startsWith('temp_') ? undefined : s.id,
-            package_id: s.package_id && s.package_id.toString().startsWith('retail_') ? null : s.package_id,
+            package_id: isRetail ? null : s.package_id,
             member_id: s.member_id,
             delivery_date: s.delivery_date,
             meal_type: s.meal_type,
@@ -363,9 +368,8 @@ export const useKdsStore = create<KdsState>()(
         if (error) throw error;
       }
 
-      // 2. ABSOLUTE SYNC: Re-count ALL meals ever planned for this package in DB
-      // to ensure meals_remaining is 100% accurate (ONLY for real packages)
-      if (pkgId && !pkgId.toString().startsWith('retail_')) {
+      // 2. ABSOLUTE SYNC: (Only for real packages)
+      if (pkgId && !isRetail) {
         const allSchedulesInDB = await fetchMemberSchedules('2020-01-01', '2030-12-31', pkgId);
         const actualUsedTotal = allSchedulesInDB.reduce((sum, s) => sum + (s.quantity || 1), 0);
         const finalRemaining = pkg.meals_total - actualUsedTotal;
