@@ -205,22 +205,25 @@ export const useKdsStore = create<KdsState>()(
        const dbSchedules = await fetchMemberSchedules(startDate, endDate, packageId);
        
        set(state => {
-         // 1. เก็บมื้อที่ "ยังไม่ได้เซฟ" ของคนนี้ไว้
          const unsavedForThisPkg = state.memberSchedules.filter(s => 
-           s.package_id === packageId && s.id.toString().startsWith('temp_')
+           (packageId ? s.package_id === packageId : true) && s.id.toString().startsWith('temp_')
          );
 
-         // 2. กรองข้อมูล "เก่า" ของคนนี้ในช่วงวันที่นี้ออก (เพื่อเอาของใหม่จาก DB ใส่แทน)
-         const otherSchedules = state.memberSchedules.filter(s => 
-           !(s.package_id === packageId && s.delivery_date >= startDate && s.delivery_date <= endDate && !s.id.toString().startsWith('temp_'))
-         );
+         const otherSchedules = state.memberSchedules.filter(s => {
+           const isSaved = !s.id.toString().startsWith('temp_');
+           const inDateRange = s.delivery_date >= startDate && s.delivery_date <= endDate;
+           const matchesPackage = packageId ? s.package_id === packageId : true;
+           return !(isSaved && inDateRange && matchesPackage);
+         });
 
-         // 3. รวมร่าง: ข้อมูลคนอื่น + ข้อมูลใหม่จาก DB + ข้อมูลที่ยังไม่เซฟ
          const merged = [...otherSchedules, ...dbSchedules];
          
-         // ป้องกันตัวซ้ำ (กรณีทับซ้อนกับ unsaved)
          unsavedForThisPkg.forEach(u => {
-           const idx = merged.findIndex(m => m.delivery_date === u.delivery_date && m.meal_type === u.meal_type && m.package_id === u.package_id);
+           const idx = merged.findIndex(m => 
+             m.delivery_date === u.delivery_date && 
+             m.meal_type === u.meal_type && 
+             m.package_id === u.package_id
+           );
            if (idx !== -1) merged[idx] = u;
            else merged.push(u);
          });
