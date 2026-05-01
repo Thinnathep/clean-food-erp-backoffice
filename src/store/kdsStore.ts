@@ -372,7 +372,7 @@ export const useKdsStore = create<KdsState>()(
       if (pkgId && !isRetail) {
         const allSchedulesInDB = await fetchMemberSchedules('2020-01-01', '2030-12-31', pkgId);
         const actualUsedTotal = allSchedulesInDB.reduce((sum, s) => sum + (s.quantity || 1), 0);
-        const finalRemaining = pkg.meals_total - actualUsedTotal;
+        const finalRemaining = (pkg?.meals_total || 0) - actualUsedTotal;
 
         await supabase
           .from('pinto_packages')

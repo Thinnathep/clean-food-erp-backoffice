@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Database, Plus, Search, Edit2, Filter, ChevronDown, CheckCircle2, X, Trash2 } from 'lucide-react';
+import { Database, Plus, Search, Edit2, Filter, ChevronDown, X, Trash2 } from 'lucide-react';
 import { fetchInventoryItems, addInventoryItem, updateInventoryItem, deleteInventoryItem } from '../api';
 import type { InventoryItem } from '../../../types';
 import Swal from 'sweetalert2';

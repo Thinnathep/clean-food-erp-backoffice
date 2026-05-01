@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Package, Plus, Search, ArrowUpCircle, AlertTriangle, Edit2, Filter, ChevronDown, CheckCircle2, X } from 'lucide-react';
-import { fetchInventoryItems, fetchSuppliers, addInventoryItem, updateInventoryItem, recordStockIn } from '../api';
+import { Package, Search, ArrowUpCircle, AlertTriangle, Filter, ChevronDown, CheckCircle2, X } from 'lucide-react';
+import { fetchInventoryItems, fetchSuppliers, recordStockIn } from '../api';
 import type { InventoryItem, Supplier } from '../../../types';
 import Swal from 'sweetalert2';
 
@@ -13,9 +13,7 @@ export const InventoryPage: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState('All');
   
   // Modals state
-  const [isItemModalOpen, setIsItemModalOpen] = useState(false);
   const [isStockInModalOpen, setIsStockInModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [selectedItemForStockIn, setSelectedItemForStockIn] = useState<InventoryItem | null>(null);
 
   useEffect(() => {
@@ -55,36 +53,6 @@ export const InventoryPage: React.FC = () => {
     const cats = Array.from(new Set(items.map(i => i.category)));
     return ['All', ...cats];
   }, [items]);
-
-  const handleSaveItem = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const itemData = {
-      name: formData.get('name') as string,
-      storage_unit: formData.get('storage_unit') as string,
-      category: formData.get('category') as string,
-      min_stock_level: Number(formData.get('min_stock_level')),
-    };
-
-    try {
-      if (editingItem) {
-        await updateInventoryItem(editingItem.id, itemData);
-      } else {
-        await addInventoryItem({ 
-          ...itemData, 
-          current_stock: 0, 
-          avg_unit_cost: 0,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
-      }
-      setIsItemModalOpen(false);
-      loadData();
-      Swal.fire({ title: 'สำเร็จ!', icon: 'success', timer: 1500, showConfirmButton: false });
-    } catch (error) {
-      Swal.fire('Error', 'ไม่สามารถบันทึกข้อมูลได้', 'error');
-    }
-  };
 
   const handleStockIn = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -269,45 +237,6 @@ export const InventoryPage: React.FC = () => {
       </div>
 
       {/* --- Modals --- */}
-
-      {/* 1. Item Modal (Add/Edit) */}
-      {isItemModalOpen && createPortal(
-        <div className="fixed inset-0 bg-slate-900/60 z-[9999] flex items-center justify-center p-4 backdrop-blur-md transition-all">
-          <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-scale-in border border-white/20">
-            <div className="px-8 py-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
-              <div>
-                <h3 className="text-lg font-normal text-slate-800 uppercase tracking-widest">{editingItem ? 'แก้ไขวัตถุดิบ' : 'เพิ่มวัตถุดิบใหม่'}</h3>
-                <p className="text-[9px] text-slate-400 uppercase tracking-widest">ข้อมูลตั้งต้นสำหรับระบบสต็อก</p>
-              </div>
-              <button onClick={() => setIsItemModalOpen(false)} className="w-10 h-10 rounded-2xl bg-white text-slate-400 hover:text-slate-800 shadow-sm flex items-center justify-center transition-all"><X size={20} /></button>
-            </div>
-            <form onSubmit={handleSaveItem} className="p-8 space-y-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-[10px] text-slate-400 uppercase tracking-widest mb-2 ml-1">ชื่อวัตถุดิบ</label>
-                  <input name="name" defaultValue={editingItem?.name} required className="w-full px-5 py-4 bg-slate-50 border border-transparent rounded-2xl text-sm outline-none focus:bg-white focus:border-emerald-500 transition-all" placeholder="เช่น อกไก่, ข้าวหอมมะลิ" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[10px] text-slate-400 uppercase tracking-widest mb-2 ml-1">หมวดหมู่</label>
-                    <input name="category" defaultValue={editingItem?.category} required className="w-full px-5 py-4 bg-slate-50 border border-transparent rounded-2xl text-sm outline-none focus:bg-white focus:border-emerald-500 transition-all" placeholder="เช่น เนื้อสัตว์" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] text-slate-400 uppercase tracking-widest mb-2 ml-1">หน่วยนับ</label>
-                    <input name="storage_unit" defaultValue={editingItem?.storage_unit} required className="w-full px-5 py-4 bg-slate-50 border border-transparent rounded-2xl text-sm outline-none focus:bg-white focus:border-emerald-500 transition-all" placeholder="เช่น กรัม, ชิ้น" />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-[10px] text-slate-400 uppercase tracking-widest mb-2 ml-1">สต็อกขั้นต่ำ (Min Level)</label>
-                  <input name="min_stock_level" type="number" defaultValue={editingItem?.min_stock_level || 0} required className="w-full px-5 py-4 bg-slate-50 border border-transparent rounded-2xl text-sm outline-none focus:bg-white focus:border-emerald-500 transition-all" />
-                </div>
-              </div>
-              <button type="submit" className="w-full py-5 bg-emerald-500 text-white rounded-2xl font-normal text-xs uppercase tracking-[0.2em] hover:bg-emerald-600 transition-all shadow-xl shadow-emerald-500/20">บันทึกข้อมูล</button>
-            </form>
-          </div>
-        </div>,
-        document.body
-      )}
 
       {/* 2. Stock In Modal */}
       {isStockInModalOpen && selectedItemForStockIn && createPortal(

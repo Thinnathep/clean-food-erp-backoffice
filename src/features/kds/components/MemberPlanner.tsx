@@ -496,7 +496,7 @@ export const MemberPlanner: React.FC = () => {
 
                             // Original Member Logic
                             const totalPlanned = currentPkgSchedules.reduce((sum, s) => sum + (s.quantity || 1), 0);
-                            const rem = pkg.meals_total - totalPlanned;
+                            const rem = (pkg?.meals_total || 0) - totalPlanned;
                             
                             if (rem < 0) return 'bg-red-500 text-white border border-red-600';
                             if (rem < 3) return 'bg-red-50 text-red-600 border border-red-100 animate-pulse';
@@ -521,7 +521,7 @@ export const MemberPlanner: React.FC = () => {
                             }
                             
                             const totalPlanned = currentPkgSchedules.reduce((sum, s) => sum + (s.quantity || 1), 0);
-                            return `เหลือ ${pkg.meals_total - totalPlanned} มื้อ`;
+                            return `เหลือ ${(pkg.meals_total || 0) - totalPlanned} มื้อ`;
                           })()}
                         </span>
                       </div>
@@ -965,7 +965,7 @@ export const MemberPlanner: React.FC = () => {
                      {/* Stats & Prediction */}
                      <div className="bg-slate-900 p-6 rounded-2xl shadow-xl space-y-3">
                         {(() => {
-                           const member = Array.isArray(selectedPackage.members) ? selectedPackage.members[0] : selectedPackage.members;
+                           const member = selectedPackage ? (Array.isArray(selectedPackage.members) ? selectedPackage.members[0] : selectedPackage.members) : null;
                            const isRetail = member?.member_type === 'retail' || selectedPackage?.id.toString().startsWith('retail_');
                            
                            const packageSchedules = memberSchedules.filter(s => s.package_id === selectedPackage?.id);
