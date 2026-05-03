@@ -214,7 +214,7 @@ export const TodayView: React.FC = () => {
     return { groups: grouped, specialNotesCount: specialNotes };
   }, [memberSchedules, tasks, menus, selectedDate, filterType]);
 
-  const toggleComplete = async (time: string, menuId: string, item: any) => {
+  const toggleComplete = async (menuId: string, item: any) => {
     const isCurrentlyDone = item.orders.every((o: any) => 
       o.status === 'ready' || o.status === 'done' || o.status === 'เสร็จสิ้น'
     );
@@ -420,7 +420,7 @@ export const TodayView: React.FC = () => {
                             {Object.entries(group.menus).sort((a: any, b: any) => (CATEGORY_PRIORITY[a[1].category] || 99) - (CATEGORY_PRIORITY[b[1].category] || 99)).map(([menuId, item]: [string, any]) => {
                                 const isDone = item.orders.every((o: any) => o.status === 'ready' || o.status === 'done' || o.status === 'เสร็จสิ้น');
                                 return (
-                                <div key={menuId} onClick={() => toggleComplete(time, menuId, item)} className={`bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col overflow-hidden hover:shadow-xl transition-all duration-300 group relative cursor-pointer ${isDone ? 'opacity-40 grayscale-[0.5]' : ''}`}>
+                                <div key={menuId} onClick={() => toggleComplete(menuId, item)} className={`bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col overflow-hidden hover:shadow-xl transition-all duration-300 group relative cursor-pointer ${isDone ? 'opacity-40 grayscale-[0.5]' : ''}`}>
                                     <div className="h-1 w-full opacity-60" style={{ backgroundColor: CATEGORY_COLORS[item.category] || '#94A3B8' }}></div>
                                     <div className="p-3 flex flex-col gap-2.5">
                                         <div className="flex justify-between items-start gap-2">
