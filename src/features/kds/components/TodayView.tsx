@@ -110,7 +110,8 @@ export const TodayView: React.FC = () => {
       const memberData = Array.isArray(schedule.members) ? schedule.members[0] : schedule.members;
       const rawTime = (schedule.delivery_time || memberData?.delivery_time || '').trim();
       const timeLabel = getCleanTimeLabel(rawTime);
-      const menuId = schedule.menu_items?.id || 'unknown';
+      const isExtra = schedule.is_extra_order || false;
+      const menuId = `${schedule.menu_items?.id || 'unknown'}-${isExtra ? 'extra' : 'package'}`;
       
       let category = schedule.menu_items?.category || 'อื่นๆ';
       if (category.includes('ของหวาน')) category = 'ของหวาน';
@@ -140,6 +141,10 @@ export const TodayView: React.FC = () => {
         grouped[timeLabel].menus[menuId].hasNotes = true;
       }
 
+      if (schedule.is_extra_order) {
+        grouped[timeLabel].menus[menuId].hasExtraOrder = true;
+      }
+
       grouped[timeLabel].totalRoundQty += schedule.quantity;
       grouped[timeLabel].menus[menuId].totalQty += schedule.quantity;
       grouped[timeLabel].menus[menuId].orders.push({
@@ -148,6 +153,7 @@ export const TodayView: React.FC = () => {
         note: schedule.notes || '',
         deliveryTime: rawTime,
         type: 'member',
+        isExtra: schedule.is_extra_order || false,
         createdAt: schedule.created_at || ''
       });
 
@@ -207,31 +213,41 @@ export const TodayView: React.FC = () => {
     const key = `${time}-${menuId}`;
     const isCurrentlyDone = completedMenus.has(key);
     
-    // 1. UI Toggle (Keep existing behavior)
+    // 1. UI Toggle (Stay and Fade)
     setCompletedMenus(prev => {
       const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
       localStorage.setItem(`kds_done_${selectedDate}`, JSON.stringify(Array.from(next)));
       return next;
     });
 
-    // 2. Task 2: Close Kitchen Session & Trigger Stock Deduction
+    // 2. Stock Deduction & Session Auto-Completion (Only when marking as DONE)
     if (!isCurrentlyDone) {
       const user = useAuthStore.getState().user;
+      
+      // Extract real UUID if menuId contains suffix (-package or -extra)
+      const realMenuId = menuId.includes('-') ? menuId.split('-')[0] : menuId;
+      
       const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 
       try {
-        if (!isUUID(menuId)) {
-          throw new Error(`ไม่พบเมนู "${menuId}" ในระบบฐานข้อมูล (กรุณาตรวจสอบชื่อเมนูในหน้า Menu Library)`);
+        if (!isUUID(realMenuId)) {
+          console.warn(`Menu ${realMenuId} is not a valid UUID, skipping stock deduction.`);
+          return;
         }
 
-        // 1. Find existing session for this date and menu
+        // Use realMenuId for all DB operations
+        const targetMenuId = realMenuId;
+
         const { data: session } = await supabase
           .from('erp_kitchen_sessions')
           .select('id')
           .eq('session_date', selectedDate)
-          .eq('menu_item_id', menuId)
+          .eq('menu_item_id', targetMenuId)
           .maybeSingle();
 
         let targetSessionId = session?.id;
@@ -242,7 +258,7 @@ export const TodayView: React.FC = () => {
             .from('erp_kitchen_sessions')
             .insert({
               session_date: selectedDate,
-              menu_item_id: menuId,
+              menu_item_id: targetMenuId,
               planned_qty: actualQty
             })
             .select()
@@ -527,9 +543,16 @@ export const TodayView: React.FC = () => {
                                             <div className="flex justify-between items-start gap-2">
                                                 <div className="flex flex-col gap-1.5">
                                                       <div className="flex items-center gap-2">
-                                                        <span className={`text-[8px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded-md w-fit text-white shadow-sm`} style={{ backgroundColor: item.isRetail ? '#F97316' : (CATEGORY_COLORS[item.category] || '#94A3B8') }}>
-                                                            {item.isRetail ? 'RETAIL' : item.category}
+                                                      <div className="flex flex-wrap gap-1">
+                                                        {(item.isRetail || item.hasExtraOrder) && (
+                                                          <span className="text-[8px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md w-fit text-white shadow-sm bg-slate-900">
+                                                              {item.isRetail ? 'รายย่อย' : 'สั่งแยก'}
+                                                          </span>
+                                                        )}
+                                                        <span className="text-[8px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded-md w-fit text-white shadow-sm" style={{ backgroundColor: CATEGORY_COLORS[item.category] || '#94A3B8' }}>
+                                                            {item.category}
                                                         </span>
+                                                      </div>
                                                         {item.kcal && (
                                                           <span className="text-[8px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">🔋 {item.kcal} kcal</span>
                                                         )}

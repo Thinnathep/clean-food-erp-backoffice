@@ -1,0 +1,5 @@
+ERP HEALTHCHECK ALERT
+Timestamp: 2026-05-03T10:47:36.042Z
+Fail count: 1
+
+- [API] REST health endpoint: REST endpoint failed with HTTP 401 (182 ms).

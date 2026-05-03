@@ -1,0 +1,6 @@
+ERP HEALTHCHECK ALERT
+Timestamp: 2026-05-03T10:46:58.179Z
+Fail count: 2
+
+- [Schema] Critical column coverage: Column mismatches in 1 table(s). menu_items: WHEN, ELSE
+- [API] REST health endpoint: REST endpoint failed with HTTP 401 (416 ms).

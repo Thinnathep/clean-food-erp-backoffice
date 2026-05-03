@@ -20,7 +20,7 @@ interface KdsState {
   menus: MenuItem[];
   globalPlanSlots: GlobalPlanSlot[];
   activePackages: PintoPackage[];
-  memberSchedules: MemberMealSchedule[]; // นี่คือตัวที่ใช้เก็บมื้อที่กำลังจัดของ "ทุกคน" ที่มีการเปลี่ยนแปลง
+  memberSchedules: MemberMealSchedule[]; 
   members: Member[];
   
   selectedPackageId: string | null;
@@ -65,7 +65,9 @@ interface KdsState {
     menuId: string, 
     qty: number, 
     time: string, 
-    notes: string
+    notes: string,
+    isExtraOrder?: boolean,
+    orderType?: 'subscription' | 'a-la-carte'
   ) => Promise<void>;
   updateMemberNote: (scheduleId: string, note: string) => Promise<void>;
   removeMemberSlot: (scheduleId: string) => Promise<void>;
@@ -104,579 +106,550 @@ export const useKdsStore = create<KdsState>()(
     (set, get) => ({
       tasks: [],
       isLoadingTasks: false,
-  
-  menus: [],
-  globalPlanSlots: [],
-  activePackages: [],
-  memberSchedules: [],
-  members: [],
-  isLoadingData: false,
-  isLoadingPlanner: false,
-  error: null,
-  hasUnsavedChanges: false,
-  
-  searchTerm: '',
-  categoryFilter: 'All',
-  groupFilter: 'All',
-  selectedMenuId: null,
-  selectedPackageId: null,
-  isMenuPanelOpen: false,
+      menus: [],
+      globalPlanSlots: [],
+      activePackages: [],
+      memberSchedules: [],
+      members: [],
+      isLoadingData: false,
+      isLoadingPlanner: false,
+      error: null,
+      hasUnsavedChanges: false,
+      searchTerm: '',
+      categoryFilter: 'All',
+      groupFilter: 'All',
+      selectedMenuId: null,
+      selectedPackageId: null,
+      isMenuPanelOpen: false,
 
-  setSearchTerm: (term) => set({ searchTerm: term }),
-  setCategoryFilter: (cat) => set({ categoryFilter: cat }),
-  setGroupFilter: (group) => set({ groupFilter: group }),
-  setSelectedMenuId: (id) => set({ selectedMenuId: id }),
-  setSelectedPackageId: (id) => set({ selectedPackageId: id }),
-  setIsMenuPanelOpen: (isOpen) => set({ isMenuPanelOpen: isOpen }),
+      setSearchTerm: (term) => set({ searchTerm: term }),
+      setCategoryFilter: (cat) => set({ categoryFilter: cat }),
+      setGroupFilter: (group) => set({ groupFilter: group }),
+      setSelectedMenuId: (id) => set({ selectedMenuId: id }),
+      setSelectedPackageId: (id) => set({ selectedPackageId: id }),
+      setIsMenuPanelOpen: (isOpen) => set({ isMenuPanelOpen: isOpen }),
 
-  fetchTasks: async () => {
-    try {
-      set({ isLoadingTasks: true, error: null });
-      const data = await fetchActiveKdsTasks();
-      set({ tasks: data, isLoadingTasks: false });
-    } catch (error: any) {
-      set({ error: error.message, isLoadingTasks: false });
-    }
-  },
-  markTaskAsDone: async (orderUuid) => {
-    try {
-      await finishKdsTask(orderUuid);
-      await get().fetchTasks();
-    } catch (error: any) {
-      set({ error: error.message });
-      throw error;
-    }
-  },
-  
-  loadMasterData: async () => {
-    try {
-      set({ isLoadingData: true, error: null });
-      const [menusData, packagesData, membersData] = await Promise.all([
-        fetchMenuItems(),
-        fetchActivePackages(),
-        fetchMembers()
-      ]);
+      fetchTasks: async () => {
+        try {
+          set({ isLoadingTasks: true, error: null });
+          const data = await fetchActiveKdsTasks();
+          set({ tasks: data, isLoadingTasks: false });
+        } catch (error: any) {
+          set({ error: error.message, isLoadingTasks: false });
+        }
+      },
+      markTaskAsDone: async (orderUuid) => {
+        try {
+          await finishKdsTask(orderUuid);
+          await get().fetchTasks();
+        } catch (error: any) {
+          set({ error: error.message });
+          throw error;
+        }
+      },
+      
+      loadMasterData: async () => {
+        try {
+          set({ isLoadingData: true, error: null });
+          const [menusData, packagesData, membersData] = await Promise.all([
+            fetchMenuItems(),
+            fetchActivePackages(),
+            fetchMembers()
+          ]);
 
-      // NEW: Fetch ALL schedules for ALL active packages to ensure sidebar is accurate for everyone
-      const activePkgIds = packagesData.map(p => p.id);
-      if (activePkgIds.length > 0) {
-        // Fetch all schedules for these packages (wide date range)
-        const allSchedules = await fetchMemberSchedules('2020-01-01', '2030-12-31');
-        set({ 
-          menus: menusData, 
-          activePackages: packagesData, 
-          members: membersData, 
-          memberSchedules: allSchedules, // Load everyone's data into store
-          isLoadingData: false 
-        });
-      } else {
-        set({ menus: menusData, activePackages: packagesData, members: membersData, isLoadingData: false });
-      }
-    } catch (error: any) {
-      set({ error: error.message, isLoadingData: false });
-    }
-  },
+          const allSchedules = await fetchMemberSchedules('2020-01-01', '2030-12-31');
+          set({ 
+            menus: menusData, 
+            activePackages: packagesData, 
+            members: membersData, 
+            memberSchedules: allSchedules,
+            isLoadingData: false 
+          });
+        } catch (error: any) {
+          set({ error: error.message, isLoadingData: false });
+        }
+      },
 
-  fetchAllMembers: async () => {
-    try {
-      const data = await fetchMembers();
-      set({ members: data });
-    } catch (error: any) {
-      set({ error: error.message });
-    }
-  },
-  
-  loadGlobalPlanner: async (startDate, endDate) => {
-    try {
-      const slots = await fetchGlobalPlanSlots(startDate, endDate);
-      set({ globalPlanSlots: slots });
-    } catch (error: any) {
-      console.error(error);
-    }
-  },
+      fetchAllMembers: async () => {
+        try {
+          const data = await fetchMembers();
+          set({ members: data });
+        } catch (error: any) {
+          set({ error: error.message });
+        }
+      },
+      
+      loadGlobalPlanner: async (startDate, endDate) => {
+        try {
+          const slots = await fetchGlobalPlanSlots(startDate, endDate);
+          set({ globalPlanSlots: slots });
+        } catch (error: any) {
+          console.error(error);
+        }
+      },
 
-  loadMemberPlanner: async (startDate, endDate, packageId) => {
-     try {
-       set({ isLoadingPlanner: true, error: null });
-       if (packageId && packageId.toString().startsWith('temp_')) {
-         set({ isLoadingPlanner: false });
-         return;
-       }
-       const dbSchedules = await fetchMemberSchedules(startDate, endDate, packageId);
-       
-       set(state => {
-         const unsavedForThisPkg = state.memberSchedules.filter(s => 
-           (packageId ? s.package_id === packageId : true) && s.id.toString().startsWith('temp_')
-         );
+      loadMemberPlanner: async (startDate, endDate, packageId) => {
+         try {
+           set({ isLoadingPlanner: true, error: null });
+           if (packageId && packageId.toString().startsWith('temp_')) {
+             set({ isLoadingPlanner: false });
+             return;
+           }
+           const dbSchedules = await fetchMemberSchedules(startDate, endDate, packageId);
+           
+           set(state => {
+             const unsavedForThisPkg = state.memberSchedules.filter(s => 
+               (packageId ? s.package_id === packageId : true) && s.id.toString().startsWith('temp_')
+             );
 
-         const otherSchedules = state.memberSchedules.filter(s => {
-           const isSaved = !s.id.toString().startsWith('temp_');
-           const inDateRange = s.delivery_date >= startDate && s.delivery_date <= endDate;
-           const matchesPackage = packageId ? s.package_id === packageId : true;
-           return !(isSaved && inDateRange && matchesPackage);
-         });
+             const otherSchedules = state.memberSchedules.filter(s => {
+               const isSaved = !s.id.toString().startsWith('temp_');
+               const inDateRange = s.delivery_date >= startDate && s.delivery_date <= endDate;
+               const matchesPackage = packageId ? s.package_id === packageId : true;
+               return !(isSaved && inDateRange && matchesPackage);
+             });
 
-         const merged = [...otherSchedules, ...dbSchedules];
-         
-         unsavedForThisPkg.forEach(u => {
-           const idx = merged.findIndex(m => 
-             m.delivery_date === u.delivery_date && 
-             m.meal_type === u.meal_type && 
-             m.package_id === u.package_id
-           );
-           if (idx !== -1) merged[idx] = u;
-           else merged.push(u);
-         });
+             const merged = [...otherSchedules, ...dbSchedules];
+             
+             unsavedForThisPkg.forEach(u => {
+               const idx = merged.findIndex(m => 
+                 m.delivery_date === u.delivery_date && 
+                 m.meal_type === u.meal_type && 
+                 m.package_id === u.package_id
+               );
+               if (idx !== -1) merged[idx] = u;
+               else merged.push(u);
+             });
 
-         return { 
-           memberSchedules: merged, 
-           isLoadingPlanner: false,
-           selectedPackageId: packageId 
+             return { 
+               memberSchedules: merged, 
+               isLoadingPlanner: false,
+               selectedPackageId: packageId 
+             };
+           });
+         } catch (error: any) {
+           set({ error: error.message, isLoadingPlanner: false });
+         }
+      },
+      
+      assignGlobalSlot: async (date, meal, menuId) => {
+        try {
+          await upsertGlobalPlanSlot(date, meal, menuId);
+          const menu = get().menus.find(m => m.id === menuId);
+          const newSlot: GlobalPlanSlot = { id: Math.random().toString(), delivery_date: date, meal_type: meal, menu_item_id: menuId, menu_items: menu };
+          set(state => ({
+            globalPlanSlots: [...state.globalPlanSlots.filter(s => !(s.delivery_date === date && s.meal_type === meal)), newSlot]
+          }));
+        } catch (error: any) {
+          set({ error: error.message });
+        }
+      },
+
+      removeGlobalSlot: async (date, meal) => {
+        try {
+          await deleteGlobalPlanSlot(date, meal);
+          set(state => ({
+            globalPlanSlots: state.globalPlanSlots.filter(s => !(s.delivery_date === date && s.meal_type === meal))
+          }));
+        } catch (error: any) {
+          set({ error: error.message });
+        }
+      },
+
+      assignMemberSlot: async (scheduleId, pkgId, memberId, date, meal, menuId, qty, time, notes, isExtraOrder = false, orderType = 'subscription') => {
+         const pkg = get().activePackages.find(p => p.id === pkgId);
+         if (pkg && !isExtraOrder) {
+           const currentRemaining = pkg.meals_remaining;
+           const newRemaining = currentRemaining - qty;
+
+           if (newRemaining < 0) {
+             const result = await Swal.fire({
+               icon: 'warning',
+               title: 'เกินโควต้าแพ็กเกจ!',
+               text: `ลูกค้าลงมื้ออาหารเกินโควต้าที่เหลืออยู่ (เหลือ ${currentRemaining} มื้อ, กำลังจะลง ${qty} มื้อ) ยืนยันที่จะลงมื้ออาหารที่เกินโควต้าหรือไม่?`,
+               showCancelButton: true,
+               confirmButtonText: 'ยืนยัน (ยอมให้ติดลบ)',
+               cancelButtonText: 'ยกเลิก',
+               confirmButtonColor: '#f59e0b'
+             });
+
+             if (!result.isConfirmed) return;
+           }
+         }
+
+         const menu = get().menus.find(m => m.id === menuId);
+         const newSlot: MemberMealSchedule = {
+           id: scheduleId || `temp_${Math.random()}`,
+           package_id: pkgId,
+           member_id: memberId,
+           delivery_date: date,
+           meal_type: meal as any,
+           menu_item_id: menuId,
+           quantity: qty,
+           box_size: 'regular',
+           delivery_time: time,
+           kitchen_status: 'pending',
+           notes: notes,
+           is_extra_order: isExtraOrder,
+           meal_order_type: orderType,
+           menu_items: menu
          };
-       });
-     } catch (error: any) {
-       set({ error: error.message, isLoadingPlanner: false });
-     }
-  },
-  
-  assignGlobalSlot: async (date, meal, menuId) => {
-    try {
-      await upsertGlobalPlanSlot(date, meal, menuId);
-      // Optimistic update
-      const menu = get().menus.find(m => m.id === menuId);
-      const newSlot: GlobalPlanSlot = { id: Math.random().toString(), delivery_date: date, meal_type: meal, menu_item_id: menuId, menu_items: menu };
-      set(state => ({
-        globalPlanSlots: [...state.globalPlanSlots.filter(s => !(s.delivery_date === date && s.meal_type === meal)), newSlot]
-      }));
-    } catch (error: any) {
-      set({ error: error.message });
-    }
-  },
 
-  removeGlobalSlot: async (date, meal) => {
-    try {
-      await deleteGlobalPlanSlot(date, meal);
-      set(state => ({
-        globalPlanSlots: state.globalPlanSlots.filter(s => !(s.delivery_date === date && s.meal_type === meal))
-      }));
-    } catch (error: any) {
-      set({ error: error.message });
-    }
-  },
-
-  assignMemberSlot: async (scheduleId, pkgId, memberId, date, meal, menuId, qty, time, notes) => {
-     // Check quota
-     const pkg = get().activePackages.find(p => p.id === pkgId);
-     if (pkg) {
-       const currentRemaining = pkg.meals_remaining;
-       const newRemaining = currentRemaining - qty;
-
-       if (newRemaining < 0) {
-         const result = await Swal.fire({
-           icon: 'warning',
-           title: 'เกินโควต้าแพ็กเกจ!',
-           text: `ลูกค้าลงมื้ออาหารเกินโควต้าที่เหลืออยู่ (เหลือ ${currentRemaining} มื้อ, กำลังจะลง ${qty} มื้อ) ยืนยันที่จะลงมื้ออาหารที่เกินโควต้าหรือไม่?`,
-           showCancelButton: true,
-           confirmButtonText: 'ยืนยัน (ยอมให้ติดลบ)',
-           cancelButtonText: 'ยกเลิก',
-           confirmButtonColor: '#f59e0b'
-         });
-
-         if (!result.isConfirmed) return;
-       }
-     }
-
-     // LOCAL UPDATE ONLY (DRAFT MODE)
-     const menu = get().menus.find(m => m.id === menuId);
-     const newSlot: MemberMealSchedule = {
-       id: scheduleId || `temp_${Math.random()}`,
-       package_id: pkgId,
-       member_id: memberId,
-       delivery_date: date,
-       meal_type: meal as any,
-       menu_item_id: menuId,
-       quantity: qty,
-       box_size: 'regular',
-       delivery_time: time,
-       kitchen_status: 'pending',
-       notes: notes,
-       menu_items: menu
-     };
-
-     set(state => ({
-       memberSchedules: [
-         ...state.memberSchedules.filter(s => !(s.delivery_date === date && s.meal_type === meal && s.package_id === pkgId)),
-         newSlot
-       ],
-       hasUnsavedChanges: true
-     }));
-  },
-  
-  saveMemberSchedules: async () => {
-    const schedules = get().memberSchedules;
-    const pkgId = get().selectedPackageId;
-    
-    const isRetail = pkgId?.toString().startsWith('retail_');
-    const pkg = get().activePackages.find(p => p.id === pkgId);
-    
-    if (!pkgId || (!pkg && !isRetail)) return;
-
-    try {
-      set({ isLoadingData: true });
-      
-      const packageSchedules = schedules.filter(s => s.package_id === pkgId);
-
-      // Warning if over quota (Only for non-retail)
-      if (pkg && !isRetail) {
-        const totalPlanned = packageSchedules.reduce((sum, s) => sum + (s.quantity || 1), 0);
-        const projectedRemaining = pkg.meals_total - totalPlanned;
-
-        if (projectedRemaining < 0) {
-          const result = await Swal.fire({
-            icon: 'warning',
-            title: 'มื้ออาหารเกินโควต้า!',
-            text: `คุณกำลังบันทึกมื้ออาหารเกินโควต้า (โควต้าทั้งหมด ${pkg.meals_total} มื้อ, ใช้ไปแล้ว ${totalPlanned} มื้อ) ยืนยันการบันทึกหรือไม่?`,
-            showCancelButton: true,
-            confirmButtonText: 'ยืนยันการบันทึก',
-            cancelButtonText: 'ยกเลิก',
-            confirmButtonColor: '#f59e0b'
-          });
-
-          if (!result.isConfirmed) {
-            set({ isLoadingData: false });
-            return;
-          }
-        }
-      }
-
-      // 1. Save to Supabase
-      for (const s of packageSchedules) {
-        const { error } = await supabase
-          .from('erp_member_meal_schedules')
-          .upsert({
-            id: s.id && s.id.toString().startsWith('temp_') ? undefined : s.id,
-            package_id: isRetail ? null : s.package_id,
-            member_id: s.member_id,
-            delivery_date: s.delivery_date,
-            meal_type: s.meal_type,
-            menu_item_id: s.menu_item_id,
-            quantity: s.quantity,
-            delivery_time: s.delivery_time,
-            notes: s.notes,
-            kitchen_status: s.kitchen_status || 'pending'
-          });
-        if (error) throw error;
-      }
-
-      // 2. ABSOLUTE SYNC: (Only for real packages)
-      if (pkgId && !isRetail) {
-        const allSchedulesInDB = await fetchMemberSchedules('2020-01-01', '2030-12-31', pkgId);
-        const actualUsedTotal = allSchedulesInDB.reduce((sum, s) => sum + (s.quantity || 1), 0);
-        const finalRemaining = (pkg?.meals_total || 0) - actualUsedTotal;
-
-        await supabase
-          .from('pinto_packages')
-          .update({ meals_remaining: finalRemaining })
-          .eq('id', pkgId);
-      }
-
-      // 3. Refresh and Reset
-      await get().loadMasterData();
-      set({ hasUnsavedChanges: false, isLoadingData: false });
-
-      Swal.fire({
-        icon: 'success',
-        title: 'บันทึกสำเร็จ',
-        timer: 1500,
-        showConfirmButton: false
-      });
-    } catch (error: any) {
-      console.error('Save error:', error);
-      set({ error: error.message, isLoadingData: false });
-      Swal.fire({
-        icon: 'error',
-        title: 'เกิดข้อผิดพลาด',
-        text: error.message
-      });
-    }
-  },
-
-  discardChanges: async () => {
-    const pkgId = get().selectedPackageId;
-    if (!pkgId) return;
-    // We need dates to re-fetch. This is a bit tricky if we don't store view range.
-    // For now, let's just trigger a reload if the user knows what they are doing.
-    set({ hasUnsavedChanges: false });
-  },
-
-  updateMemberProfile: async (memberId, updates) => {
-    try {
-      set({ isLoadingData: true });
-      
-      // บันทึกทุกฟิลด์ที่ส่งมาจาก UI (รวมถึง ตำบล, อำเภอ, รหัสไปรษณีย์ และอื่นๆ)
-      const updatableFields = {
-        ...updates
-      };
-      // ป้องกันการส่ง id ซ้ำซ้อนไปที่ Supabase
-      delete (updatableFields as any).id;
-      delete (updatableFields as any).created_at;
-      delete (updatableFields as any).updated_at;
-
-      await updateMemberProfileApi(memberId, updatableFields);
-      
-      const [membersData, packagesData] = await Promise.all([
-        fetchMembers(),
-        fetchActivePackages()
-      ]);
-      
-      set({ 
-        members: membersData,
-        activePackages: packagesData,
-        isLoadingData: false 
-      });
-    } catch (error: any) {
-      set({ error: error.message, isLoadingData: false });
-      throw error;
-    }
-  },
-
-  addPintoPackage: async (pkg) => {
-    try {
-      set({ isLoadingData: true });
-      await createPintoPackage(pkg);
-      const packagesData = await fetchActivePackages();
-      set({ activePackages: packagesData, isLoadingData: false });
-    } catch (error: any) {
-      set({ error: error.message, isLoadingData: false });
-    }
-  },
-
-  cancelPintoPackage: async (id) => {
-    if (!confirm('ยืนยันการยกเลิกแพ็กเกจนี้? ข้อมูลการจัดส่งจะถูกลบออกทั้งหมด')) return;
-    try {
-      set({ isLoadingData: true });
-      await deletePintoPackage(id);
-      const packagesData = await fetchActivePackages();
-      set({ 
-        activePackages: packagesData, 
-        selectedPackageId: get().selectedPackageId === id ? null : get().selectedPackageId,
-        isLoadingData: false 
-      });
-    } catch (error: any) {
-      set({ error: error.message, isLoadingData: false });
-    }
-  },
-
-  addNewMember: async (member) => {
-    try {
-      set({ isLoadingData: true });
-      const newMember = await createMember(member);
-      const membersData = await fetchMembers();
-      set({ members: membersData, isLoadingData: false });
-      return newMember;
-    } catch (error: any) {
-      set({ error: error.message, isLoadingData: false });
-      throw error;
-    }
-  },
-
-  createQuickRetailOrder: async (data) => {
-    try {
-      set({ isLoadingData: true });
-      
-      // 1. ตรวจสอบว่ามีสมาชิกนี้หรือยัง ถ้าไม่มีให้สร้าง (เป็นประเภทรายย่อย)
-      let memberId = '';
-      const existingMember = get().members.find(m => m.phone === data.phone);
-      
-      if (existingMember) {
-        memberId = existingMember.id;
-      } else {
-        const newMember = await createMember({
-          full_name: data.full_name,
-          phone: data.phone,
-          member_type: 'retail',
-          source: 'Quick Order'
-        });
-        memberId = newMember.id;
-        await get().loadMasterData(); // รีโหลดเพื่ออัปเดตรายชื่อ
-      }
-
-      // 2. สร้าง Order รายย่อย (เข้าตาราง orders)
-      await createRetailOrder({
-        member_id: memberId,
-        menu_item_id: data.menu_item_id, // ส่ง ID ไปด้วย
-        menu_name: data.menu_name,
-        quantity: data.quantity,
-        notes: data.notes
-      });
-
-      await get().fetchTasks(); // รีโหลดรายการในครัว
-      set({ isLoadingData: false });
-    } catch (error: any) {
-      set({ error: error.message, isLoadingData: false });
-      throw error;
-    }
-  },
-  
-  removeMemberSlot: async (scheduleId) => {
-      try {
-        const schedule = get().memberSchedules.find(s => s.id === scheduleId);
-        const pkgId = get().selectedPackageId;
-        
-        if (schedule && !scheduleId.startsWith('temp_') && pkgId) {
-          await removeMemberSchedule(scheduleId);
-          
-          // SMART SYNC after deletion
-          const allPackageSchedules = await fetchMemberSchedules('2020-01-01', '2030-12-31', pkgId);
-          const totalUsed = allPackageSchedules.reduce((sum, s) => sum + (s.quantity || 1), 0);
-          
-          const targetPackage = get().activePackages.find(p => p.id === pkgId);
-          if (targetPackage) {
-            const newRemaining = Math.max(0, targetPackage.meals_total - totalUsed);
-            // CORRECT TABLE: update pinto_packages instead of members
-            const { error } = await supabase
-              .from('pinto_packages')
-              .update({ meals_remaining: newRemaining })
-              .eq('id', targetPackage.id);
-              
-            if (error) throw new Error(error.message);
-          }
-          
-          await get().loadMasterData();
-        }
-        
-        set(state => ({
-          memberSchedules: state.memberSchedules.filter(s => s.id !== scheduleId),
-          hasUnsavedChanges: true
-        }));
-      } catch (error: any) {
-        set({ error: error.message });
-      }
-  },
-  
-  updateMemberNote: async (scheduleId, note) => {
-      try {
-        // Only call API if it's a real UUID
-        if (!scheduleId.startsWith('temp_')) {
-          await updateMemberScheduleNote(scheduleId, note);
-        }
-        set(state => ({
-           memberSchedules: state.memberSchedules.map(s => s.id === scheduleId ? { ...s, notes: note } : s),
+         set(state => ({
+           memberSchedules: [
+             ...state.memberSchedules.filter(s => !(s.delivery_date === date && s.meal_type === meal && s.package_id === pkgId)),
+             newSlot
+           ],
            hasUnsavedChanges: true
-        }));
-      } catch (error: any) {
-         set({ error: error.message });
-      }
-  },
+         }));
+      },
 
-  addMenuItem: async (menuItem: Omit<MenuItem, 'id'>) => {
-    try {
-      const newItem = await createMenuItem(menuItem);
-      set(state => ({ menus: [...state.menus, newItem] }));
-    } catch (error: any) {
-      set({ error: error.message });
-    }
-  },
+      saveMemberSchedules: async () => {
+        const schedules = get().memberSchedules;
+        const pkgId = get().selectedPackageId;
+        const isRetail = pkgId?.toString().startsWith('retail_');
+        const pkg = get().activePackages.find(p => p.id === pkgId);
+        
+        if (!pkgId || (!pkg && !isRetail)) return;
 
-  updateMenuItem: async (id: string, updates: Partial<MenuItem>) => {
-    try {
-      const updated = await updateMenuItem(id, updates);
-      set(state => ({
-        menus: state.menus.map(m => m.id === id ? updated : m)
-      }));
-    } catch (error: any) {
-      set({ error: error.message });
-    }
-  },
+        try {
+          set({ isLoadingData: true });
+          const packageSchedules = schedules.filter(s => s.package_id === pkgId);
 
-  deleteMenuItem: async (id) => {
-    try {
-      await deleteMenuItem(id);
-      set(state => ({
-        menus: state.menus.filter(m => m.id !== id)
-      }));
-    } catch (error: any) {
-      set({ error: error.message });
-    }
-  },
+          if (pkg && !isRetail) {
+            const totalSubscriptionPlanned = packageSchedules
+              .filter(s => !s.is_extra_order)
+              .reduce((sum, s) => sum + (s.quantity || 1), 0);
+            
+            const projectedRemaining = pkg.meals_total - totalSubscriptionPlanned;
 
-  uploadImage: async (file) => {
-    try {
-      return await uploadMenuImage(file);
-    } catch (error: any) {
-      set({ error: error.message });
-      throw error;
-    }
-  },
+            if (projectedRemaining < 0) {
+              const result = await Swal.fire({
+                icon: 'warning',
+                title: 'มื้ออาหารเกินโควต้า!',
+                text: `คุณกำลังบันทึกมื้ออาหารเกินโควต้า (โควต้าทั้งหมด ${pkg.meals_total} มื้อ, ใช้ไปแล้ว ${totalSubscriptionPlanned} มื้อ) ยืนยันการบันทึกหรือไม่?`,
+                showCancelButton: true,
+                confirmButtonText: 'ยืนยันการบันทึก',
+                cancelButtonText: 'ยกเลิก',
+                confirmButtonColor: '#f59e0b'
+              });
 
-  copiedDaySlots: null,
-  copyDayPlan: (date) => {
-    const slots = get().memberSchedules.filter(s => s.delivery_date === date);
-    set({ copiedDaySlots: slots });
-  },
-  pasteDayPlan: async (targetDate, pkgId, memberId) => {
-    const slots = get().copiedDaySlots;
-    if (!slots || slots.length === 0) return;
+              if (!result.isConfirmed) {
+                set({ isLoadingData: false });
+                return;
+              }
+            }
+          }
 
-    // Use assignMemberSlot for each copied slot to keep it in Draft Mode
-    for (const slot of slots) {
-      await get().assignMemberSlot(
-        null, // new draft record
-        pkgId,
-        memberId,
-        targetDate,
-        slot.meal_type,
-        slot.menu_item_id,
-        slot.quantity,
-        slot.delivery_time || '',
-        slot.notes || ''
-      );
-    }
-    // No need to re-fetch or set loading, as assignMemberSlot updates local state
-  },
-  clearDayPlan: async (date, pkgId) => {
-    if (!confirm(`ยืนยันการลบแผนอาหารทั้งหมดของวันที่ ${date}?`)) return;
-    
-    const slotsToDelete = get().memberSchedules.filter(s => s.delivery_date === date && s.package_id === pkgId);
-    
-    try {
-      // Delete real records from DB
-      const realIds = slotsToDelete.filter(s => !s.id.startsWith('temp_')).map(s => s.id);
-      if (realIds.length > 0) {
-        for (const id of realIds) {
-          await removeMemberSchedule(id);
+          for (const s of packageSchedules) {
+            const { error } = await supabase
+              .from('erp_member_meal_schedules')
+              .upsert({
+                id: s.id && s.id.toString().startsWith('temp_') ? undefined : s.id,
+                package_id: isRetail ? null : s.package_id,
+                member_id: s.member_id,
+                delivery_date: s.delivery_date,
+                meal_type: s.meal_type,
+                menu_item_id: s.menu_item_id,
+                quantity: s.quantity,
+                delivery_time: s.delivery_time,
+                notes: s.notes,
+                kitchen_status: s.kitchen_status || 'pending',
+                is_extra_order: s.is_extra_order || false,
+                meal_order_type: s.meal_order_type || 'subscription'
+              });
+            if (error) throw error;
+          }
+
+          if (pkgId && !isRetail) {
+            const allSchedulesInDB = await fetchMemberSchedules('2020-01-01', '2030-12-31', pkgId);
+            const actualSubscriptionUsedTotal = allSchedulesInDB
+              .filter(s => !s.is_extra_order)
+              .reduce((sum, s) => sum + (s.quantity || 1), 0);
+              
+            const finalRemaining = (pkg?.meals_total || 0) - actualSubscriptionUsedTotal;
+
+            await supabase
+              .from('pinto_packages')
+              .update({ meals_remaining: finalRemaining })
+              .eq('id', pkgId);
+          }
+
+          await get().loadMasterData();
+          set({ hasUnsavedChanges: false, isLoadingData: false });
+
+          Swal.fire({
+            icon: 'success',
+            title: 'บันทึกสำเร็จ',
+            timer: 1500,
+            showConfirmButton: false
+          });
+        } catch (error: any) {
+          console.error('Save error:', error);
+          set({ error: error.message, isLoadingData: false });
+          Swal.fire({
+            icon: 'error',
+            title: 'เกิดข้อผิดพลาด',
+            text: error.message
+          });
+        }
+      },
+
+      discardChanges: async () => {
+        set({ hasUnsavedChanges: false });
+        await get().loadMasterData();
+      },
+
+      updateMemberProfile: async (memberId, updates) => {
+        try {
+          set({ isLoadingData: true });
+          const updatableFields = { ...updates };
+          delete (updatableFields as any).id;
+          delete (updatableFields as any).created_at;
+          delete (updatableFields as any).updated_at;
+
+          await updateMemberProfileApi(memberId, updatableFields);
+          const [membersData, packagesData] = await Promise.all([
+            fetchMembers(),
+            fetchActivePackages()
+          ]);
+          
+          set({ 
+            members: membersData,
+            activePackages: packagesData,
+            isLoadingData: false 
+          });
+        } catch (error: any) {
+          set({ error: error.message, isLoadingData: false });
+          throw error;
+        }
+      },
+
+      addPintoPackage: async (pkg) => {
+        try {
+          set({ isLoadingData: true });
+          await createPintoPackage(pkg);
+          const packagesData = await fetchActivePackages();
+          set({ activePackages: packagesData, isLoadingData: false });
+        } catch (error: any) {
+          set({ error: error.message, isLoadingData: false });
+        }
+      },
+
+      cancelPintoPackage: async (id) => {
+        if (!confirm('ยืนยันการยกเลิกแพ็กเกจนี้? ข้อมูลการจัดส่งจะถูกลบออกทั้งหมด')) return;
+        try {
+          set({ isLoadingData: true });
+          await deletePintoPackage(id);
+          const packagesData = await fetchActivePackages();
+          set({ 
+            activePackages: packagesData, 
+            selectedPackageId: get().selectedPackageId === id ? null : get().selectedPackageId,
+            isLoadingData: false 
+          });
+        } catch (error: any) {
+          set({ error: error.message, isLoadingData: false });
+        }
+      },
+
+      addNewMember: async (member) => {
+        try {
+          set({ isLoadingData: true });
+          const newMember = await createMember(member);
+          const membersData = await fetchMembers();
+          set({ members: membersData, isLoadingData: false });
+          return newMember;
+        } catch (error: any) {
+          set({ error: error.message, isLoadingData: false });
+          throw error;
+        }
+      },
+
+      createQuickRetailOrder: async (data) => {
+        try {
+          set({ isLoadingData: true });
+          let memberId = '';
+          const existingMember = get().members.find(m => m.phone === data.phone);
+          
+          if (existingMember) {
+            memberId = existingMember.id;
+          } else {
+            const newMember = await createMember({
+              full_name: data.full_name,
+              phone: data.phone,
+              member_type: 'retail',
+              source: 'Quick Order'
+            });
+            memberId = newMember.id;
+            await get().loadMasterData(); 
+          }
+
+          await createRetailOrder({
+            member_id: memberId,
+            menu_item_id: data.menu_item_id,
+            menu_name: data.menu_name,
+            quantity: data.quantity,
+            notes: data.notes
+          });
+
+          await get().fetchTasks(); 
+          set({ isLoadingData: false });
+        } catch (error: any) {
+          set({ error: error.message, isLoadingData: false });
+          throw error;
+        }
+      },
+      
+      removeMemberSlot: async (scheduleId) => {
+          try {
+            const schedule = get().memberSchedules.find(s => s.id === scheduleId);
+            const pkgId = get().selectedPackageId;
+            
+            if (schedule && !scheduleId.startsWith('temp_') && pkgId) {
+              await removeMemberSchedule(scheduleId);
+              const allPackageSchedules = await fetchMemberSchedules('2020-01-01', '2030-12-31', pkgId);
+              const totalUsed = allPackageSchedules
+                .filter(s => !s.is_extra_order)
+                .reduce((sum, s) => sum + (s.quantity || 1), 0);
+              
+              const targetPackage = get().activePackages.find(p => p.id === pkgId);
+              if (targetPackage) {
+                const newRemaining = Math.max(0, targetPackage.meals_total - totalUsed);
+                const { error } = await supabase
+                  .from('pinto_packages')
+                  .update({ meals_remaining: newRemaining })
+                  .eq('id', targetPackage.id);
+                if (error) throw new Error(error.message);
+              }
+              await get().loadMasterData();
+            }
+            
+            set(state => ({
+              memberSchedules: state.memberSchedules.filter(s => s.id !== scheduleId),
+              hasUnsavedChanges: true
+            }));
+          } catch (error: any) {
+            set({ error: error.message });
+          }
+      },
+      
+      updateMemberNote: async (scheduleId, note) => {
+          try {
+            if (!scheduleId.startsWith('temp_')) {
+              await updateMemberScheduleNote(scheduleId, note);
+            }
+            set(state => ({
+               memberSchedules: state.memberSchedules.map(s => s.id === scheduleId ? { ...s, notes: note } : s),
+               hasUnsavedChanges: true
+            }));
+          } catch (error: any) {
+             set({ error: error.message });
+          }
+      },
+
+      addMenuItem: async (menuItem: Omit<MenuItem, 'id'>) => {
+        try {
+          const newItem = await createMenuItem(menuItem);
+          set(state => ({ menus: [...state.menus, newItem] }));
+        } catch (error: any) {
+          set({ error: error.message });
+        }
+      },
+
+      updateMenuItem: async (id: string, updates: Partial<MenuItem>) => {
+        try {
+          const updated = await updateMenuItem(id, updates);
+          set(state => ({
+            menus: state.menus.map(m => m.id === id ? updated : m)
+          }));
+        } catch (error: any) {
+          set({ error: error.message });
+        }
+      },
+
+      deleteMenuItem: async (id) => {
+        try {
+          await deleteMenuItem(id);
+          set(state => ({
+            menus: state.menus.filter(m => m.id !== id)
+          }));
+        } catch (error: any) {
+          set({ error: error.message });
+        }
+      },
+
+      uploadImage: async (file) => {
+        try {
+          return await uploadMenuImage(file);
+        } catch (error: any) {
+          set({ error: error.message });
+          throw error;
+        }
+      },
+
+      copiedDaySlots: null,
+      copyDayPlan: (date) => {
+        const slots = get().memberSchedules.filter(s => s.delivery_date === date);
+        set({ copiedDaySlots: slots });
+      },
+      pasteDayPlan: async (targetDate, pkgId, memberId) => {
+        const slots = get().copiedDaySlots;
+        if (!slots || slots.length === 0) return;
+        for (const slot of slots) {
+          await get().assignMemberSlot(
+            null,
+            pkgId,
+            memberId,
+            targetDate,
+            slot.meal_type,
+            slot.menu_item_id,
+            slot.quantity,
+            slot.delivery_time || '',
+            slot.notes || '',
+            slot.is_extra_order || false,
+            slot.meal_order_type || 'subscription'
+          );
+        }
+      },
+      clearDayPlan: async (date, pkgId) => {
+        if (!confirm(`ยืนยันการลบแผนอาหารทั้งหมดของวันที่ ${date}?`)) return;
+        const slotsToDelete = get().memberSchedules.filter(s => s.delivery_date === date && s.package_id === pkgId);
+        try {
+          const realIds = slotsToDelete.filter(s => !s.id.startsWith('temp_')).map(s => s.id);
+          if (realIds.length > 0) {
+            for (const id of realIds) {
+              await removeMemberSchedule(id);
+            }
+          }
+          set(state => ({
+            memberSchedules: state.memberSchedules.filter(s => !(s.delivery_date === date && s.package_id === pkgId)),
+            hasUnsavedChanges: true
+          }));
+        } catch (error: any) {
+          set({ error: error.message });
         }
       }
-      
-      // Update local state
-      set(state => ({
-        memberSchedules: state.memberSchedules.filter(s => !(s.delivery_date === date && s.package_id === pkgId)),
-        hasUnsavedChanges: true
-      }));
-    } catch (error: any) {
-      set({ error: error.message });
+    }), 
+    {
+      name: 'kds-storage',
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({ 
+        memberSchedules: state.memberSchedules,
+        hasUnsavedChanges: state.hasUnsavedChanges,
+        selectedPackageId: state.selectedPackageId
+      }),
     }
-  }
-}), {
-  name: 'kds-storage',
-  storage: createJSONStorage(() => localStorage),
-  partialize: (state) => ({ 
-    memberSchedules: state.memberSchedules,
-    hasUnsavedChanges: state.hasUnsavedChanges,
-    selectedPackageId: state.selectedPackageId
-  }),
-}));
+  )
+);
 
-// ── KDS Weekly Planner Store (Added) ──
-
+// ── KDS Weekly Planner Store ──
 interface PlannerStore {
   currentWeekStart: string;
-  selectedDate: string | null;    // YYYY-MM-DD
-  selectedMealType: string | null;  // meal_1 | meal_2
+  selectedDate: string | null;
+  selectedMealType: string | null;
   menuSearch: string;
   categoryFilter: string;
   isPanelOpen: boolean;
-
   setWeek: (weekStart: string) => void;
   prevWeek: () => void;
   nextWeek: () => void;

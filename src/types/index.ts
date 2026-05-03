@@ -110,6 +110,8 @@ export interface MemberMealSchedule {
   delivery_time?: string;
   kitchen_status: 'pending' | 'cooking' | 'done';
   notes: string;
+  is_extra_order?: boolean;
+  meal_order_type?: 'subscription' | 'a-la-carte';
   created_at?: string;
   
   // Joined

@@ -4,6 +4,18 @@ import { Database, Plus, Search, Edit2, Filter, ChevronDown, X, Trash2 } from 'l
 import { fetchInventoryItems, addInventoryItem, updateInventoryItem, deleteInventoryItem } from '../api';
 import type { InventoryItem } from '../../../types';
 import Swal from 'sweetalert2';
+import { useForm, type SubmitHandler } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+
+const itemSchema = z.object({
+  name: z.string().min(1, "ห้ามเว้นว่างชื่อวัตถุดิบ"),
+  category: z.string().min(1, "กรุณาเลือกหมวดหมู่"),
+  storage_unit: z.string().min(1, "กรุณาเลือกหน่วยนับ"),
+  min_stock_level: z.number().min(0, "ต้องมากกว่าหรือเท่ากับ 0")
+});
+
+type ItemFormValues = z.infer<typeof itemSchema>;
 
 export const IngredientMasterPage: React.FC = () => {
   const [items, setItems] = useState<InventoryItem[]>([]);
@@ -14,6 +26,27 @@ export const IngredientMasterPage: React.FC = () => {
   // Modals state
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+
+  const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<ItemFormValues>({
+    resolver: zodResolver(itemSchema),
+    defaultValues: {
+      name: '',
+      category: '',
+      storage_unit: '',
+      min_stock_level: 0
+    }
+  });
+
+  useEffect(() => {
+    if (editingItem) {
+      setValue('name', editingItem.name);
+      setValue('category', editingItem.category);
+      setValue('storage_unit', editingItem.storage_unit);
+      setValue('min_stock_level', editingItem.min_stock_level);
+    } else {
+      reset();
+    }
+  }, [editingItem, setValue, reset]);
 
   useEffect(() => {
     loadData();
@@ -45,22 +78,13 @@ export const IngredientMasterPage: React.FC = () => {
     return ['All', ...cats];
   }, [items]);
 
-  const handleSaveItem = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const itemData = {
-      name: formData.get('name') as string,
-      storage_unit: formData.get('storage_unit') as string,
-      category: formData.get('category') as string,
-      min_stock_level: Number(formData.get('min_stock_level')),
-    };
-
+  const onSubmit: SubmitHandler<ItemFormValues> = async (data) => {
     try {
       if (editingItem) {
-        await updateInventoryItem(editingItem.id, itemData);
+        await updateInventoryItem(editingItem.id, data);
       } else {
         await addInventoryItem({ 
-          ...itemData, 
+          ...data, 
           current_stock: 0, 
           avg_unit_cost: 0,
           created_at: new Date().toISOString(),
@@ -237,16 +261,17 @@ export const IngredientMasterPage: React.FC = () => {
               </div>
               <button onClick={() => setIsItemModalOpen(false)} className="w-10 h-10 rounded-2xl bg-white text-slate-400 hover:text-slate-800 shadow-sm flex items-center justify-center transition-all"><X size={20} /></button>
             </div>
-            <form onSubmit={handleSaveItem} className="p-8 space-y-6">
+            <form onSubmit={handleSubmit(onSubmit)} className="p-8 space-y-6">
               <div className="space-y-4">
                 <div>
                   <label className="block text-[10px] text-slate-400 uppercase tracking-widest mb-2 ml-1">ชื่อวัตถุดิบ</label>
-                  <input name="name" defaultValue={editingItem?.name} required className="w-full px-5 py-4 bg-slate-50 border border-transparent rounded-2xl text-sm outline-none focus:bg-white focus:border-emerald-500 transition-all" placeholder="เช่น อกไก่, ข้าวหอมมะลิ" />
+                  <input {...register("name")} className={`w-full px-5 py-4 bg-slate-50 border ${errors.name ? 'border-red-500 focus:border-red-500' : 'border-transparent focus:border-emerald-500'} rounded-2xl text-sm outline-none focus:bg-white transition-all`} placeholder="เช่น อกไก่, ข้าวหอมมะลิ" />
+                  {errors.name && <span className="text-red-500 text-xs ml-1 mt-1 block">{errors.name.message}</span>}
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[10px] text-slate-400 uppercase tracking-widest mb-2 ml-1">หมวดหมู่</label>
-                    <select name="category" defaultValue={editingItem?.category} required className="w-full px-5 py-4 bg-slate-50 border border-transparent rounded-2xl text-sm outline-none focus:bg-white focus:border-emerald-500 transition-all appearance-none">
+                    <select {...register("category")} className={`w-full px-5 py-4 bg-slate-50 border ${errors.category ? 'border-red-500 focus:border-red-500' : 'border-transparent focus:border-emerald-500'} rounded-2xl text-sm outline-none focus:bg-white transition-all appearance-none`}>
                       <option value="">เลือกหมวดหมู่</option>
                       <option value="เนื้อสัตว์">🥩 เนื้อสัตว์</option>
                       <option value="ผัก/ผลไม้">🥦 ผัก/ผลไม้</option>
@@ -256,10 +281,11 @@ export const IngredientMasterPage: React.FC = () => {
                       <option value="เครื่องดื่ม">🥤 เครื่องดื่ม</option>
                       <option value="อื่นๆ">❓ อื่นๆ</option>
                     </select>
+                    {errors.category && <span className="text-red-500 text-xs ml-1 mt-1 block">{errors.category.message}</span>}
                   </div>
                   <div>
                     <label className="block text-[10px] text-slate-400 uppercase tracking-widest mb-2 ml-1">หน่วยนับ</label>
-                    <select name="storage_unit" defaultValue={editingItem?.storage_unit} required className="w-full px-5 py-4 bg-slate-50 border border-transparent rounded-2xl text-sm outline-none focus:bg-white focus:border-emerald-500 transition-all appearance-none">
+                    <select {...register("storage_unit")} className={`w-full px-5 py-4 bg-slate-50 border ${errors.storage_unit ? 'border-red-500 focus:border-red-500' : 'border-transparent focus:border-emerald-500'} rounded-2xl text-sm outline-none focus:bg-white transition-all appearance-none`}>
                       <option value="">เลือกหน่วย</option>
                       <option value="g">กรัม (g)</option>
                       <option value="kg">กิโลกรัม (kg)</option>
@@ -270,11 +296,13 @@ export const IngredientMasterPage: React.FC = () => {
                       <option value="แพ็ค">แพ็ค (pack)</option>
                       <option value="ขวด">ขวด (bottle)</option>
                     </select>
+                    {errors.storage_unit && <span className="text-red-500 text-xs ml-1 mt-1 block">{errors.storage_unit.message}</span>}
                   </div>
                 </div>
                 <div>
                   <label className="block text-[10px] text-slate-400 uppercase tracking-widest mb-2 ml-1">แจ้งเตือนสต็อกต่ำกว่า (Min Level)</label>
-                  <input name="min_stock_level" type="number" defaultValue={editingItem?.min_stock_level || 0} required className="w-full px-5 py-4 bg-slate-50 border border-transparent rounded-2xl text-sm outline-none focus:bg-white focus:border-emerald-500 transition-all" />
+                  <input {...register("min_stock_level", { valueAsNumber: true })} type="number" step="0.01" className={`w-full px-5 py-4 bg-slate-50 border ${errors.min_stock_level ? 'border-red-500 focus:border-red-500' : 'border-transparent focus:border-emerald-500'} rounded-2xl text-sm outline-none focus:bg-white transition-all`} />
+                  {errors.min_stock_level && <span className="text-red-500 text-xs ml-1 mt-1 block">{errors.min_stock_level.message}</span>}
                 </div>
               </div>
               <button type="submit" className="w-full py-5 bg-emerald-500 text-white rounded-2xl font-normal text-xs uppercase tracking-[0.2em] hover:bg-emerald-600 transition-all shadow-xl shadow-emerald-500/20">บันทึกข้อมูล</button>

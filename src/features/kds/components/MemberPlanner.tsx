@@ -27,6 +27,8 @@ export const MemberPlanner: React.FC = () => {
     qty: number;
     deliveryTime: string;
     notes: string;
+    isExtraOrder: boolean;
+    orderType: 'subscription' | 'a-la-carte';
   } | null>(null);
   
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -47,6 +49,14 @@ export const MemberPlanner: React.FC = () => {
   const [sidebarSortBy, setSidebarSortBy] = useState<'latest' | 'name'>('latest');
   const [sidebarFilterType, setSidebarFilterType] = useState<'all' | 'member' | 'retail'>('all');
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
+
+  const [isMacrosModalOpen, setIsMacrosModalOpen] = useState(false);
+  const [macrosContent, setMacrosContent] = useState<{
+    date: string,
+    meals: any[],
+    totals: {kcal: number, protein: number, carbs: number, fat: number},
+    formattedText: string
+  } | null>(null);
 
   const menus = useKdsStore(state => state.menus);
   const activePackages = useKdsStore(state => state.activePackages);
@@ -81,6 +91,50 @@ export const MemberPlanner: React.FC = () => {
   const handlePrevWeek = () => setCurrentWeekStart(dayjs(currentWeekStart).subtract(1, 'week').toDate());
   const handleNextWeek = () => setCurrentWeekStart(dayjs(currentWeekStart).add(1, 'week').toDate());
 
+
+  const copyDailyMacros = (date: string) => {
+    const daySchedules = getSchedulesForDate(date);
+    if (daySchedules.length === 0) {
+      Swal.fire({ icon: 'info', title: 'ไม่มีรายการอาหาร', text: 'กรุณาเพิ่มเมนูก่อนคัดลอกสรุปสารอาหาร' });
+      return;
+    }
+
+    let totals = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
+    let meals: any[] = [];
+    let menuSummary = '';
+
+    daySchedules.forEach((s, idx) => {
+      const menu = s.menu_items;
+      if (menu) {
+        const qty = s.quantity || 1;
+        const mealMacros = {
+          name: menu.name,
+          kcal: (menu.calories || 0) * qty,
+          protein: (menu.protein || 0) * qty,
+          carbs: (menu.carbs || 0) * qty,
+          fat: (menu.fat || 0) * qty,
+          qty
+        };
+        totals.kcal += mealMacros.kcal;
+        totals.protein += mealMacros.protein;
+        totals.carbs += mealMacros.carbs;
+        totals.fat += mealMacros.fat;
+        meals.push(mealMacros);
+        menuSummary += `🍱 มื้อที่ ${idx + 1}: ${menu.name} (${mealMacros.kcal} kcal)\n`;
+      }
+    });
+
+    const displayDate = dayjs(date).locale('th').format('DD MMMM YYYY');
+    const formattedText = `📊 *สรุปสารอาหารประจำวันที่ ${displayDate}*\n${menuSummary}---\n🔥 *พลังงานรวม:* ${totals.kcal} kcal\n🍗 *โปรตีน:* ${totals.protein}g | 🍚 *คาร์บ:* ${totals.carbs}g | 🥑 *ไขมัน:* ${totals.fat}g`;
+
+    setMacrosContent({
+      date: displayDate,
+      meals,
+      totals,
+      formattedText
+    });
+    setIsMacrosModalOpen(true);
+  };
 
   const filteredPackages = useMemo(() => {
     // 1. Start with members who have active packages
@@ -138,10 +192,13 @@ export const MemberPlanner: React.FC = () => {
 
   const projectedRemaining = useMemo(() => {
     if (!selectedPackage) return 0;
-    // Count ALL meals planned for this package (both saved and unsaved)
+    // Count only subscription meals (exclude extra orders)
     const packageSchedules = memberSchedules.filter(s => s.package_id === selectedPackage.id);
-    const totalPlanned = packageSchedules.reduce((sum, s) => sum + (s.quantity || 1), 0);
-    return selectedPackage.meals_total - totalPlanned;
+    const totalSubscriptionPlanned = packageSchedules
+      .filter(s => !s.is_extra_order)
+      .reduce((sum, s) => sum + (s.quantity || 1), 0);
+    
+    return selectedPackage.meals_total - totalSubscriptionPlanned;
   }, [selectedPackage, memberSchedules]);
 
   const getSchedulesForDate = (date: string): MemberMealSchedule[] => {
@@ -164,7 +221,9 @@ export const MemberPlanner: React.FC = () => {
         menuId: existingSchedule.menu_item_id,
         qty: existingSchedule.quantity || 1,
         deliveryTime: existingSchedule.delivery_time || '',
-        notes: existingSchedule.notes || ''
+        notes: existingSchedule.notes || '',
+        isExtraOrder: existingSchedule.is_extra_order || false,
+        orderType: existingSchedule.meal_order_type || 'subscription'
       });
     } else {
       const currentSchedules = getSchedulesForDate(date);
@@ -185,7 +244,9 @@ export const MemberPlanner: React.FC = () => {
         menuId: '',
         qty: 1,
         deliveryTime: '',
-        notes: ''
+        notes: '',
+        isExtraOrder: false,
+        orderType: 'subscription'
       });
     }
     setIsModalOpen(true);
@@ -207,7 +268,9 @@ export const MemberPlanner: React.FC = () => {
       editingSlot.menuId,
       editingSlot.qty,
       editingSlot.deliveryTime,
-      editingSlot.notes
+      editingSlot.notes,
+      editingSlot.isExtraOrder,
+      editingSlot.orderType
     );
     
     setIsModalOpen(false);
@@ -264,8 +327,10 @@ export const MemberPlanner: React.FC = () => {
       
       // 3. Trigger Absolute Sync to fix remaining balance
       const allPackageSchedules = await fetchMemberSchedules('2020-01-01', '2030-12-31', selectedPackage.id);
-      const totalUsed = allPackageSchedules.reduce((sum, s) => sum + (s.quantity || 1), 0);
-      const newRemaining = Math.max(0, packageUpdates.meals_total - totalUsed);
+      const totalSubscriptionUsed = allPackageSchedules
+        .filter(s => !s.is_extra_order)
+        .reduce((sum, s) => sum + (s.quantity || 1), 0);
+      const newRemaining = Math.max(0, packageUpdates.meals_total - totalSubscriptionUsed);
       
       await supabase
         .from('pinto_packages')
@@ -358,7 +423,7 @@ export const MemberPlanner: React.FC = () => {
     if (!selectedPackage || selectedPackage.meals_remaining <= 0) return 'N/A';
     
     const mealsPerWeek = memberSchedules
-      .filter(s => s.package_id === selectedPackage.id)
+      .filter(s => s.package_id === selectedPackage.id && !s.is_extra_order)
       .reduce((sum, s) => sum + (s.quantity || 1), 0);
     if (mealsPerWeek <= 0) return 'ไม่มีแผนอาหาร';
     
@@ -495,8 +560,10 @@ export const MemberPlanner: React.FC = () => {
                             }
 
                             // Original Member Logic
-                            const totalPlanned = currentPkgSchedules.reduce((sum, s) => sum + (s.quantity || 1), 0);
-                            const rem = (pkg?.meals_total || 0) - totalPlanned;
+                            const totalSubscriptionPlanned = currentPkgSchedules
+                              .filter(s => !s.is_extra_order)
+                              .reduce((sum, s) => sum + (s.quantity || 1), 0);
+                            const rem = (pkg?.meals_total || 0) - totalSubscriptionPlanned;
                             
                             if (rem < 0) return 'bg-red-500 text-white border border-red-600';
                             if (rem < 3) return 'bg-red-50 text-red-600 border border-red-100 animate-pulse';
@@ -520,8 +587,8 @@ export const MemberPlanner: React.FC = () => {
                               return activeOrders > 0 ? `สั่งไว้ ${activeOrders} มื้อ` : 'ไม่มีออเดอร์';
                             }
                             
-                            const totalPlanned = currentPkgSchedules.reduce((sum, s) => sum + (s.quantity || 1), 0);
-                            return `เหลือ ${(pkg.meals_total || 0) - totalPlanned} มื้อ`;
+                            const totalSubscriptionPlanned = currentPkgSchedules.filter(s => !s.is_extra_order).reduce((sum, s) => sum + (s.quantity || 1), 0);
+                            return `เหลือ ${(pkg.meals_total || 0) - totalSubscriptionPlanned} มื้อ`;
                           })()}
                         </span>
                       </div>
@@ -541,7 +608,7 @@ export const MemberPlanner: React.FC = () => {
                   const isRetail = member?.member_type === 'retail' || selectedPackage.id.toString().startsWith('retail_');
                   
                   const packageSchedules = memberSchedules.filter(s => s.package_id === selectedPackage.id);
-                  const totalOrdered = packageSchedules.reduce((sum, s) => sum + (s.quantity || 1), 0);
+                  const totalSubscriptionOrdered = packageSchedules.filter(s => !s.is_extra_order).reduce((sum, s) => sum + (s.quantity || 1), 0);
                   
                   return (
                     <div className="flex items-center gap-3">
@@ -583,8 +650,20 @@ export const MemberPlanner: React.FC = () => {
                                                ? 'bg-purple-50 text-purple-600 border-purple-100'
                                                : 'bg-slate-100 text-slate-600 border-slate-200'
                                  }`}>
-                                   {isRetail ? `สั่งไว้ ${totalOrdered} มื้อ` : `เหลือ ${projectedRemaining} มื้อ`}
+                                   {isRetail ? `สั่งไว้ ${totalSubscriptionOrdered} มื้อ` : `เหลือ ${projectedRemaining} มื้อ`}
                                  </span>
+                                 {(() => {
+                                   const extraCount = packageSchedules
+                                     .filter(s => s.is_extra_order)
+                                     .reduce((sum, s) => sum + (s.quantity || 1), 0);
+                                   
+                                   if (extraCount === 0) return null;
+                                   return (
+                                     <span className="text-[10px] md:text-xs font-bold px-2 py-0.5 rounded-md bg-orange-500 text-white border border-orange-600 shadow-sm flex items-center gap-1 animate-in fade-in zoom-in duration-300">
+                                       สั่งแยก {extraCount} มื้อ
+                                     </span>
+                                   );
+                                 })()}
                                <span className="text-[10px] md:text-xs font-normal text-slate-500 flex items-center gap-1">
                                  <Clock size={12} className="text-purple-500" /> {member?.delivery_time || 'ไม่ระบุรอบส่ง'}
                                </span>
@@ -624,50 +703,85 @@ export const MemberPlanner: React.FC = () => {
                     const daySchedules = getSchedulesForDate(day.date);
                     
                     return (
-                      <div key={day.date} className={`bg-white rounded-2xl border ${day.isToday ? 'border-blue-400 shadow-md ring-2 ring-blue-500/10' : 'border-slate-200 shadow-sm'} overflow-hidden flex flex-col`}>
-                        <div className={`px-4 py-3 border-b flex justify-between items-center ${day.isToday ? 'bg-blue-500 text-white' : 'bg-slate-50 border-slate-100'}`}>
-                          <div>
-                            <p className={`text-[10px] font-normal uppercase tracking-widest ${day.isToday ? 'text-blue-100' : 'text-slate-400'}`}>{day.dayName}</p>
-                            <h3 className={`text-lg font-normal ${day.isToday ? 'text-white' : 'text-slate-800'}`}>{day.shortDate}</h3>
-                          </div>
-                            <div className="flex gap-1">
-                              {daySchedules.length > 0 && (
-                                <button 
-                                  onClick={() => clearDayPlan(day.date, selectedPackage.id)}
-                                  title="ลบแผนทั้งหมดของวันนี้"
-                                  className={`p-1.5 rounded-lg transition-colors ${day.isToday ? 'hover:bg-red-600 text-blue-100' : 'hover:bg-red-50 text-red-400'}`}
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              )}
+                      <div key={day.date} className="flex flex-col gap-2">
+                        {/* Day Toolbar - Above the card */}
+                        <div className="flex items-center justify-between px-2 py-1 bg-slate-100/50 rounded-xl border border-slate-200/50">
+                          <div className="flex gap-1">
+                            {daySchedules.length > 0 && (
                               <button 
-                                onClick={() => copyDayPlan(day.date)}
-                                title="คัดลอกแผนของวันนี้"
-                                className={`p-1.5 rounded-lg transition-colors ${day.isToday ? 'hover:bg-blue-600 text-blue-100' : 'hover:bg-slate-200 text-slate-400'}`}
+                                onClick={() => clearDayPlan(day.date, selectedPackage.id)}
+                                title="ล้างแผนทั้งหมด"
+                                className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
                               >
-                                <Copy size={14} />
+                                <Trash2 size={14} />
                               </button>
-                              {copiedDaySlots && (
-                                <button 
-                                  onClick={() => pasteDayPlan(day.date, selectedPackage.id, selectedPackage.member_id)}
-                                  title="วางแผนที่คัดลอกมา"
-                                  className={`p-1.5 rounded-lg transition-colors ${day.isToday ? 'bg-white text-blue-500' : 'bg-emerald-500 text-white shadow-sm animate-pulse'}`}
-                                >
-                                  <Clipboard size={14} />
-                                </button>
-                              )}
-                            </div>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <button 
+                              onClick={() => copyDailyMacros(day.date)}
+                              title="คัดลอกสรุปสารอาหาร (Macros)"
+                              className="p-1.5 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-all"
+                            >
+                              <FileText size={14} />
+                            </button>
+                            <button 
+                              onClick={() => copyDayPlan(day.date)}
+                              title="คัดลอกเมนูของวันนี้"
+                              className="p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-all"
+                            >
+                              <Copy size={14} />
+                            </button>
+                            {copiedDaySlots && (
+                              <button 
+                                onClick={() => pasteDayPlan(day.date, selectedPackage.id, selectedPackage.member_id)}
+                                title="วางเมนูที่คัดลอกมา"
+                                className="p-1.5 bg-emerald-500 text-white rounded-lg shadow-sm hover:bg-emerald-600 transition-all animate-pulse"
+                              >
+                                <Clipboard size={14} />
+                              </button>
+                            )}
+                          </div>
                         </div>
+
+                        <div className={`bg-white rounded-2xl border ${day.isToday ? 'border-blue-400 shadow-md ring-2 ring-blue-500/10' : 'border-slate-200 shadow-sm'} overflow-hidden flex flex-col`}>
+                          <div className={`px-4 py-3 border-b flex justify-between items-center ${day.isToday ? 'bg-blue-500 text-white' : 'bg-slate-50 border-slate-100'}`}>
+                            <div>
+                              <p className={`text-[10px] font-normal uppercase tracking-widest ${day.isToday ? 'text-blue-100' : 'text-slate-400'}`}>{day.dayName}</p>
+                              <h3 className={`text-lg font-normal ${day.isToday ? 'text-white' : 'text-slate-800'}`}>{day.shortDate}</h3>
+                            </div>
+                          </div>
                         <div className="p-3 space-y-2 flex-1 flex flex-col bg-slate-50">
                           {daySchedules.map((schedule, idx) => (
                             <div 
                               key={schedule.id}
                               onClick={() => openModal(day.date, schedule)}
-                              className="relative flex flex-col p-3 rounded-xl border bg-white border-blue-200 hover:border-emerald-500 cursor-pointer shadow-sm transition-all group"
+                              className={`relative flex flex-col p-3 rounded-xl border cursor-pointer shadow-sm transition-all group ${
+                                schedule.is_extra_order 
+                                  ? 'bg-orange-50 border-orange-300 hover:border-orange-500 shadow-orange-100' 
+                                  : 'bg-white border-blue-200 hover:border-emerald-500'
+                              }`}
                             >
-                              <div className="flex justify-between items-center mb-2">
-                                <span className="text-[10px] font-normal uppercase tracking-widest text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">มื้อที่ {idx + 1}</span>
-                                <div className="flex items-center gap-1">
+                                <div className="flex flex-wrap gap-1 mb-2">
+                                  {schedule.is_extra_order && (
+                                    <span className="bg-slate-900 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm animate-pulse">
+                                      สั่งแยก
+                                    </span>
+                                  )}
+                                  {schedule.menu_items?.category === 'dessert' && (
+                                    <span className="bg-pink-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+                                      ของหวาน
+                                    </span>
+                                  )}
+                                  {schedule.menu_items?.category && schedule.menu_items?.category !== 'dessert' && (
+                                    <span className="bg-slate-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+                                      {schedule.menu_items.category === 'main' ? 'เมนูหลัก' : schedule.menu_items.category}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex justify-between items-center mb-1">
+                                  <span className="text-[10px] font-normal uppercase tracking-widest text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">มื้อที่ {idx + 1}</span>
+                                  <div className="flex items-center gap-1">
                                   {schedule.delivery_time && (
                                      <span className="text-[9px] font-normal text-blue-500 flex items-center gap-1"><Clock size={10}/> {schedule.delivery_time}</span>
                                   )}
@@ -708,6 +822,7 @@ export const MemberPlanner: React.FC = () => {
                                <Plus size={16} /> 
                              </button>
                           )}
+                          </div>
                         </div>
                       </div>
                     );
@@ -969,7 +1084,7 @@ export const MemberPlanner: React.FC = () => {
                            const isRetail = member?.member_type === 'retail' || selectedPackage?.id.toString().startsWith('retail_');
                            
                            const packageSchedules = memberSchedules.filter(s => s.package_id === selectedPackage?.id);
-                           const totalOrdered = packageSchedules.reduce((sum, s) => sum + (s.quantity || 1), 0);
+                           const totalSubscriptionOrdered = packageSchedules.filter(s => !s.is_extra_order).reduce((sum, s) => sum + (s.quantity || 1), 0);
                            
                            return (
                              <>
@@ -977,8 +1092,17 @@ export const MemberPlanner: React.FC = () => {
                                <div className="flex justify-between items-center">
                                   <span className="text-xs text-slate-400">{isRetail ? 'ยอดสั่งรวมทั้งสิ้น:' : 'มื้ออาหารคงเหลือ:'}</span>
                                   <span className={`text-lg font-normal ${isRetail ? 'text-orange-400' : 'text-emerald-400'}`}>
-                                    {isRetail ? `${totalOrdered} มื้อ` : `${selectedPackage?.meals_remaining} มื้อ`}
+                                    {isRetail ? `${totalSubscriptionOrdered} มื้อ` : `${selectedPackage?.meals_remaining} มื้อ`}
                                   </span>
+                                  {(() => {
+                                    const extraCount = packageSchedules.filter(s => s.is_extra_order).reduce((sum, s) => sum + (s.quantity || 1), 0);
+                                    if (extraCount === 0) return null;
+                                    return (
+                                      <span className="text-[10px] md:text-xs font-bold px-2 py-0.5 rounded-md bg-orange-500 text-white border border-orange-600 shadow-sm flex items-center gap-1">
+                                        สั่งแยก {extraCount} มื้อ
+                                      </span>
+                                    );
+                                  })()}
                                </div>
                                {!isRetail && (
                                  <div className="flex justify-between items-center">
@@ -1107,6 +1231,24 @@ export const MemberPlanner: React.FC = () => {
                         ))}
                       </div>
                     )}
+                  </div>
+
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">ประเภทมื้ออาหาร (Order Type)</label>
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => setEditingSlot({...editingSlot!, isExtraOrder: false, orderType: 'subscription'})}
+                        className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all border ${!editingSlot.isExtraOrder ? 'bg-emerald-500 text-white border-emerald-600 shadow-md' : 'bg-white text-slate-400 border-slate-200'}`}
+                      >
+                        ในแพ็กเกจ
+                      </button>
+                      <button 
+                        onClick={() => setEditingSlot({...editingSlot!, isExtraOrder: true, orderType: 'a-la-carte'})}
+                        className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all border ${editingSlot.isExtraOrder ? 'bg-orange-500 text-white border-orange-600 shadow-md' : 'bg-white text-slate-400 border-slate-200'}`}
+                      >
+                        เมนูสั่งแยก (A-la-carte)
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
@@ -1282,6 +1424,92 @@ export const MemberPlanner: React.FC = () => {
            </div>
         </div>
       )}
+      {/* Macros Preview Modal */}
+      {isMacrosModalOpen && macrosContent && (
+        <div className="fixed inset-0 bg-slate-900/40 z-[70] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200">
+            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-indigo-50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center text-white shadow-lg">
+                  <FileText size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-normal text-slate-800">สรุปโภชนาการรายวัน</h3>
+                  <p className="text-[10px] font-normal text-indigo-400 uppercase tracking-widest">{macrosContent.date}</p>
+                </div>
+              </div>
+              <button onClick={() => setIsMacrosModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              <div className="space-y-3 overflow-y-auto max-h-[30vh] pr-2 custom-scrollbar">
+                {macrosContent.meals.map((meal, i) => (
+                  <div key={i} className="flex justify-between items-start p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-tighter">มื้อที่ {i+1}</p>
+                      <p className="text-sm font-normal text-slate-800 truncate max-w-[180px]">{meal.name}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-indigo-600">{meal.kcal} <span className="text-[10px] font-normal text-slate-400">kcal</span></p>
+                      <p className="text-[10px] text-slate-500">P:{meal.protein}g | C:{meal.carbs}g | F:{meal.fat}g</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="bg-indigo-600 rounded-2xl p-5 text-white shadow-xl shadow-indigo-200">
+                <div className="flex justify-between items-center mb-4 pb-4 border-b border-white/20">
+                  <span className="text-sm font-normal opacity-80">🔥 พลังงานรวมทั้งหมด</span>
+                  <span className="text-2xl font-bold">{macrosContent.totals.kcal} kcal</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="bg-white/10 rounded-xl py-2">
+                    <p className="text-[10px] opacity-70 uppercase">Protein</p>
+                    <p className="text-sm font-bold">{macrosContent.totals.protein}g</p>
+                  </div>
+                  <div className="bg-white/10 rounded-xl py-2">
+                    <p className="text-[10px] opacity-70 uppercase">Carbs</p>
+                    <p className="text-sm font-bold">{macrosContent.totals.carbs}g</p>
+                  </div>
+                  <div className="bg-white/10 rounded-xl py-2">
+                    <p className="text-[10px] opacity-70 uppercase">Fat</p>
+                    <p className="text-sm font-bold">{macrosContent.totals.fat}g</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setIsMacrosModalOpen(false)}
+                  className="flex-1 py-3 border border-slate-200 text-slate-600 rounded-2xl text-sm font-normal hover:bg-slate-50 transition-all"
+                >
+                  ปิด
+                </button>
+                <button 
+                  onClick={() => {
+                    navigator.clipboard.writeText(macrosContent.formattedText);
+                    Swal.fire({
+                      icon: 'success',
+                      title: 'คัดลอกสำเร็จ!',
+                      toast: true,
+                      position: 'top-end',
+                      timer: 2000,
+                      showConfirmButton: false
+                    });
+                    setIsMacrosModalOpen(false);
+                  }}
+                  className="flex-[2] py-3 bg-emerald-500 text-white rounded-2xl text-sm font-normal shadow-lg shadow-emerald-500/20 hover:bg-emerald-600 transition-all flex items-center justify-center gap-2"
+                >
+                  <Copy size={16} /> คัดลอกสรุปส่งลูกค้า
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+

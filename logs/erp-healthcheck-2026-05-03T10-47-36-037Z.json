@@ -1,0 +1,410 @@
+{
+  "startedAt": "2026-05-03T10:47:32.443Z",
+  "finishedAt": "2026-05-03T10:47:36.037Z",
+  "environment": {
+    "sqlPath": "D:\\VS CODE\\CL FOOD CR erp_backoffice\\erp_backoffice\\SQL_database.sql",
+    "strictRls": true,
+    "rlsExemptTables": []
+  },
+  "summary": {
+    "total": 20,
+    "pass": 16,
+    "fail": 1,
+    "warn": 1,
+    "skip": 2
+  },
+  "checks": [
+    {
+      "section": "Config",
+      "name": "Env DATABASE_URL",
+      "status": "PASS",
+      "detail": "DATABASE_URL is set.",
+      "durationMs": 0,
+      "meta": {}
+    },
+    {
+      "section": "Schema",
+      "name": "Load SQL schema file",
+      "status": "PASS",
+      "detail": "Loaded SQL schema successfully.",
+      "durationMs": 20,
+      "meta": {
+        "sqlPath": "D:\\VS CODE\\CL FOOD CR erp_backoffice\\erp_backoffice\\SQL_database.sql"
+      }
+    },
+    {
+      "section": "Schema",
+      "name": "Parse SQL expected tables",
+      "status": "PASS",
+      "detail": "Parsed 31 expected tables from SQL file.",
+      "durationMs": 0,
+      "meta": {}
+    },
+    {
+      "section": "Database",
+      "name": "Connectivity",
+      "status": "PASS",
+      "detail": "Connected to postgres as postgres.",
+      "durationMs": 52,
+      "meta": {
+        "db": "postgres",
+        "usr": "postgres",
+        "ts": "2026-05-03T10:47:32.805Z"
+      }
+    },
+    {
+      "section": "Schema",
+      "name": "Public tables discovery",
+      "status": "PASS",
+      "detail": "Discovered 31 public tables.",
+      "durationMs": 64,
+      "meta": {
+        "tableNames": [
+          "erp_audit_logs",
+          "erp_deliveries",
+          "erp_delivery_schedules",
+          "erp_financial_transactions",
+          "erp_inventory_batches",
+          "erp_inventory_items",
+          "erp_inventory_transactions",
+          "erp_kds_tasks",
+          "erp_kitchen_sessions",
+          "erp_member_meal_schedules",
+          "erp_member_streaks",
+          "erp_order_feedback",
+          "erp_recipes",
+          "erp_staff",
+          "erp_suppliers",
+          "erp_system_configs",
+          "erp_vehicle_logs",
+          "meal_deduction_logs",
+          "member_addresses",
+          "members",
+          "menu_items",
+          "notifications_log",
+          "order_items",
+          "orders",
+          "orders_web",
+          "payments",
+          "pinto_meal_plan",
+          "pinto_packages",
+          "promotions",
+          "shop_holidays",
+          "weekly_plans"
+        ]
+      }
+    },
+    {
+      "section": "Schema",
+      "name": "Expected tables exist",
+      "status": "PASS",
+      "detail": "All expected tables from SQL file are present.",
+      "durationMs": 0,
+      "meta": {}
+    },
+    {
+      "section": "Schema",
+      "name": "Critical column coverage",
+      "status": "PASS",
+      "detail": "All expected columns are present.",
+      "durationMs": 0,
+      "meta": {}
+    },
+    {
+      "section": "Schema",
+      "name": "shop_holidays.holiday_date constraint guard",
+      "status": "PASS",
+      "detail": "holiday_date keeps NOT NULL + UNIQUE constraint.",
+      "durationMs": 107,
+      "meta": {
+        "not_null_ok": true,
+        "unique_ok": true
+      }
+    },
+    {
+      "section": "RLS",
+      "name": "RLS overview by table",
+      "status": "PASS",
+      "detail": "Collected RLS metadata for 31 tables.",
+      "durationMs": 53,
+      "meta": {
+        "rows": [
+          {
+            "table_name": "erp_audit_logs",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 2
+          },
+          {
+            "table_name": "erp_deliveries",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 4
+          },
+          {
+            "table_name": "erp_delivery_schedules",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_financial_transactions",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 2
+          },
+          {
+            "table_name": "erp_inventory_batches",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_inventory_items",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 2
+          },
+          {
+            "table_name": "erp_inventory_transactions",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_kds_tasks",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 2
+          },
+          {
+            "table_name": "erp_kitchen_sessions",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 3
+          },
+          {
+            "table_name": "erp_member_meal_schedules",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 5
+          },
+          {
+            "table_name": "erp_member_streaks",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_order_feedback",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_recipes",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 2
+          },
+          {
+            "table_name": "erp_staff",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 3
+          },
+          {
+            "table_name": "erp_suppliers",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_system_configs",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 2
+          },
+          {
+            "table_name": "erp_vehicle_logs",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "meal_deduction_logs",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "member_addresses",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "members",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 4
+          },
+          {
+            "table_name": "menu_items",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 5
+          },
+          {
+            "table_name": "notifications_log",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "order_items",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 3
+          },
+          {
+            "table_name": "orders",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 6
+          },
+          {
+            "table_name": "orders_web",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 3
+          },
+          {
+            "table_name": "payments",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "pinto_meal_plan",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 9
+          },
+          {
+            "table_name": "pinto_packages",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 5
+          },
+          {
+            "table_name": "promotions",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "shop_holidays",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 2
+          },
+          {
+            "table_name": "weekly_plans",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 5
+          }
+        ]
+      }
+    },
+    {
+      "section": "RLS",
+      "name": "RLS strict validation",
+      "status": "PASS",
+      "detail": "All non-exempt tables have RLS enabled and at least 1 policy.",
+      "durationMs": 0,
+      "meta": {}
+    },
+    {
+      "section": "API",
+      "name": "REST health endpoint",
+      "status": "FAIL",
+      "detail": "REST endpoint failed with HTTP 401 (182 ms).",
+      "durationMs": 182,
+      "meta": {}
+    },
+    {
+      "section": "API",
+      "name": "Query orders",
+      "status": "PASS",
+      "detail": "HTTP 200 (398 ms).",
+      "durationMs": 398,
+      "meta": {}
+    },
+    {
+      "section": "API",
+      "name": "Query menu_items",
+      "status": "PASS",
+      "detail": "HTTP 200 (124 ms).",
+      "durationMs": 124,
+      "meta": {}
+    },
+    {
+      "section": "API",
+      "name": "Query erp_inventory_items",
+      "status": "PASS",
+      "detail": "HTTP 200 (120 ms).",
+      "durationMs": 120,
+      "meta": {}
+    },
+    {
+      "section": "API",
+      "name": "Query pinto_meal_plan",
+      "status": "PASS",
+      "detail": "HTTP 200 (149 ms).",
+      "durationMs": 149,
+      "meta": {}
+    },
+    {
+      "section": "Jobs",
+      "name": "pg_cron extension",
+      "status": "WARN",
+      "detail": "pg_cron is not installed. Background jobs may be external.",
+      "durationMs": 49,
+      "meta": {}
+    },
+    {
+      "section": "Jobs",
+      "name": "Active cron jobs",
+      "status": "SKIP",
+      "detail": "Skipped because pg_cron is not installed.",
+      "durationMs": 0,
+      "meta": {}
+    },
+    {
+      "section": "Jobs",
+      "name": "Recent cron failures (24h)",
+      "status": "SKIP",
+      "detail": "Skipped because pg_cron is not installed.",
+      "durationMs": 0,
+      "meta": {}
+    },
+    {
+      "section": "Database",
+      "name": "Disabled triggers",
+      "status": "PASS",
+      "detail": "No disabled business triggers.",
+      "durationMs": 48,
+      "meta": {}
+    },
+    {
+      "section": "Database",
+      "name": "Long running queries (> 5 min)",
+      "status": "PASS",
+      "detail": "No long-running active queries.",
+      "durationMs": 53,
+      "meta": {}
+    }
+  ]
+}
