@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Database, Plus, Search, Edit2, Filter, ChevronDown, X, Trash2 } from 'lucide-react';
-import { fetchInventoryItems, addInventoryItem, updateInventoryItem, deleteInventoryItem } from '../api';
-import type { InventoryItem } from '../../../types';
+import { fetchInventoryItems, addInventoryItem, updateInventoryItem, deleteInventoryItem, fetchUnitConversions, addUnitConversion, deleteUnitConversion } from '../api';
+import type { InventoryItem, UnitConversion } from '../../../types';
 import Swal from 'sweetalert2';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -26,6 +26,7 @@ export const IngredientMasterPage: React.FC = () => {
   // Modals state
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+  const [conversions, setConversions] = useState<UnitConversion[]>([]);
 
   const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<ItemFormValues>({
     resolver: zodResolver(itemSchema),
@@ -43,10 +44,50 @@ export const IngredientMasterPage: React.FC = () => {
       setValue('category', editingItem.category);
       setValue('storage_unit', editingItem.storage_unit);
       setValue('min_stock_level', editingItem.min_stock_level);
+      loadConversions(editingItem.id);
     } else {
       reset();
+      setConversions([]);
     }
   }, [editingItem, setValue, reset]);
+
+  const loadConversions = async (itemId: string) => {
+    try {
+      const data = await fetchUnitConversions(itemId);
+      setConversions(data);
+    } catch (error) {
+      console.error('Error loading conversions:', error);
+    }
+  };
+
+  const handleAddConversion = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editingItem) return;
+    const formData = new FormData(e.currentTarget);
+    const newConv = {
+      item_id: editingItem.id,
+      from_unit: formData.get('from_unit') as string,
+      to_unit: editingItem.storage_unit,
+      conversion_factor: Number(formData.get('factor'))
+    };
+
+    try {
+      await addUnitConversion(newConv);
+      loadConversions(editingItem.id);
+      (e.target as HTMLFormElement).reset();
+    } catch (error) {
+      Swal.fire('Error', 'ไม่สามารถเพิ่มการแปลงหน่วยได้', 'error');
+    }
+  };
+
+  const handleDeleteConversion = async (id: string) => {
+    try {
+      await deleteUnitConversion(id);
+      if (editingItem) loadConversions(editingItem.id);
+    } catch (error) {
+      Swal.fire('Error', 'ไม่สามารถลบการแปลงหน่วยได้', 'error');
+    }
+  };
 
   useEffect(() => {
     loadData();
@@ -180,7 +221,20 @@ export const IngredientMasterPage: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {isLoading ? (
           Array(8).fill(0).map((_, i) => (
-            <div key={i} className="h-28 bg-white rounded-2xl animate-pulse border border-slate-100"></div>
+            <div key={i} className="bg-white p-5 rounded-[1.5rem] border border-slate-100 animate-pulse space-y-4">
+              <div className="flex justify-between">
+                <div className="w-8 h-8 bg-slate-100 rounded-xl"></div>
+                <div className="h-5 w-16 bg-slate-50 rounded-full"></div>
+              </div>
+              <div className="space-y-2">
+                <div className="h-4 w-3/4 bg-slate-100 rounded"></div>
+                <div className="h-2 w-1/2 bg-slate-50 rounded"></div>
+              </div>
+              <div className="pt-4 border-t border-slate-50 flex justify-between">
+                <div className="h-6 w-12 bg-slate-50 rounded"></div>
+                <div className="h-6 w-12 bg-slate-50 rounded"></div>
+              </div>
+            </div>
           ))
         ) : filteredItems.length === 0 ? (
           <div className="col-span-full py-20 text-center text-slate-400 text-xs uppercase tracking-widest">ไม่พบข้อมูลวัตถุดิบ</div>
@@ -304,9 +358,37 @@ export const IngredientMasterPage: React.FC = () => {
                   <input {...register("min_stock_level", { valueAsNumber: true })} type="number" step="0.01" className={`w-full px-5 py-4 bg-slate-50 border ${errors.min_stock_level ? 'border-red-500 focus:border-red-500' : 'border-transparent focus:border-emerald-500'} rounded-2xl text-sm outline-none focus:bg-white transition-all`} />
                   {errors.min_stock_level && <span className="text-red-500 text-xs ml-1 mt-1 block">{errors.min_stock_level.message}</span>}
                 </div>
+
+                {/* Unit Conversion Section - Only for Editing */}
+                {editingItem && (
+                  <div className="pt-6 border-t border-slate-100">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-4">ตั้งค่าการแปลงหน่วย (สำหรับรับของ)</h4>
+                    <div className="space-y-3">
+                      {conversions.map(conv => (
+                        <div key={conv.id} className="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-100">
+                          <span className="text-xs text-slate-600">1 {conv.from_unit} = {conv.conversion_factor} {conv.to_unit}</span>
+                          <button type="button" onClick={() => handleDeleteConversion(conv.id)} className="text-slate-300 hover:text-red-500 transition-colors">
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      ))}
+                      
+                      <div className="bg-emerald-50/30 p-3 rounded-xl border border-emerald-100/50">
+                        <p className="text-[9px] text-emerald-600 font-bold uppercase tracking-widest mb-2">เพิ่มหน่วยใหม่</p>
+                        <div className="flex gap-2">
+                           <input name="from_unit" placeholder="หน่วยใหญ่ (เช่น ลัง)" className="flex-1 px-3 py-2 bg-white border border-emerald-100 rounded-lg text-xs outline-none focus:border-emerald-500" form="conv-form" />
+                           <input name="factor" type="number" step="0.01" placeholder="ตัวคูณ" className="w-20 px-3 py-2 bg-white border border-emerald-100 rounded-lg text-xs outline-none focus:border-emerald-500" form="conv-form" />
+                           <button type="submit" form="conv-form" className="px-3 py-2 bg-emerald-500 text-white rounded-lg text-[10px] font-bold hover:bg-emerald-600 transition-all">เพิ่ม</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
               <button type="submit" className="w-full py-5 bg-emerald-500 text-white rounded-2xl font-normal text-xs uppercase tracking-[0.2em] hover:bg-emerald-600 transition-all shadow-xl shadow-emerald-500/20">บันทึกข้อมูล</button>
             </form>
+            <form id="conv-form" onSubmit={handleAddConversion} className="hidden" />
+
           </div>
         </div>,
         document.body

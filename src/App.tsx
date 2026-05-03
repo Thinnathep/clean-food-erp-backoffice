@@ -17,7 +17,7 @@ const PlaceholderPage: React.FC<{ title: string }> = ({ title }) => (
   <div className="flex items-center justify-center h-full">
     <div className="text-center opacity-50 p-6">
       <h2 className="text-2xl font-normal text-slate-800">{title}</h2>
-      <p className="text-slate-500 font-normal mt-2">กำลังอยู่ในช่วงการพัฒนา (Phase 3+)</p>
+      <p className="text-slate-500 font-normal mt-2">กำลังอยู่ในช่วงการพัฒนา</p>
     </div>
   </div>
 );
@@ -87,6 +87,11 @@ function App() {
         <Route path="/inventory/items" element={<ProtectedRoute><MainLayout><IngredientMasterPage /></MainLayout></ProtectedRoute>} />
         <Route path="/inventory/stock" element={<ProtectedRoute><MainLayout><InventoryPage /></MainLayout></ProtectedRoute>} />
         <Route path="/inventory" element={<Navigate to="/inventory/stock" replace />} />
+        
+        <Route path="/menu/member" element={<ProtectedRoute><MainLayout><PlaceholderPage title="จัดการเมนูสำหรับสมาชิก" /></MainLayout></ProtectedRoute>} />
+        <Route path="/menu/retail" element={<ProtectedRoute><MainLayout><PlaceholderPage title="จัดการเมนูร้านค้า (หน้าร้าน)" /></MainLayout></ProtectedRoute>} />
+        <Route path="/menu" element={<Navigate to="/menu/member" replace />} />
+
         <Route path="/finance" element={<ProtectedRoute><MainLayout><PlaceholderPage title="ระบบบัญชีและการเงิน" /></MainLayout></ProtectedRoute>} />
         <Route path="/logistics" element={<ProtectedRoute><MainLayout><PlaceholderPage title="ระบบจัดการไรเดอร์ส่งอาหาร" /></MainLayout></ProtectedRoute>} />
 

@@ -683,7 +683,7 @@ export const MemberPlanner: React.FC = () => {
                 <div className="flex w-full md:w-auto items-stretch gap-2">
                   <button 
                     onClick={() => setCurrentWeekStart(dayjs().startOf('isoWeek' as any).toDate())}
-                    className="px-4 py-2 bg-white border border-slate-200 text-slate-600 hover:text-emerald-600 hover:border-emerald-200 rounded-xl text-xs font-medium transition-all shadow-sm shrink-0 flex items-center justify-center"
+                    className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 hover:text-emerald-600 hover:border-emerald-200 rounded-xl text-xs font-medium transition-all shadow-sm shrink-0 flex items-center justify-center"
                   >
                     วันนี้
                   </button>

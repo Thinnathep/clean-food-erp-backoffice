@@ -82,7 +82,7 @@ function DateNav({
       {onToday && (
         <button
           onClick={onToday}
-          className={`px-4 rounded-xl border text-xs font-bold transition-all active:scale-95 flex items-center justify-center ${
+          className={`px-6 py-2.5 rounded-xl border text-xs font-bold transition-all active:scale-95 flex items-center justify-center ${
             isDark 
               ? 'border-slate-700 bg-slate-800/60 text-slate-400 hover:text-white hover:bg-slate-700' 
               : 'border-slate-200 bg-white text-slate-500 hover:text-slate-900 hover:bg-slate-50 shadow-sm'

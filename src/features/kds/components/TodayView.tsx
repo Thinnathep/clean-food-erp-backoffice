@@ -400,7 +400,7 @@ export const TodayView: React.FC = () => {
 
             <button 
               onClick={() => setSelectedDate(dayjs().format('YYYY-MM-DD'))}
-              className="px-5 bg-white border border-slate-100 rounded-2xl text-[11px] font-bold text-indigo-500 hover:text-indigo-600 hover:bg-slate-50 transition-all shadow-sm flex items-center justify-center active:scale-95"
+              className="px-6 py-3 bg-white border border-slate-100 rounded-2xl text-xs font-bold text-indigo-500 hover:text-indigo-600 hover:bg-slate-50 transition-all shadow-sm flex items-center justify-center active:scale-95"
             >
               วันนี้
             </button>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { ChefHat, Users, Package, Wallet, Truck, Settings, LogOut, ChevronLeft, ChevronRight, X, ChevronDown } from 'lucide-react';
+import { ChefHat, Users, Package, Wallet, Truck, Settings, LogOut, ChevronLeft, ChevronRight, X, ChevronDown, BookOpen } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 
 const navItems = [
@@ -13,6 +13,15 @@ const navItems = [
     children: [
       { path: '/inventory/items', label: 'จัดการวัตถุดิบ' },
       { path: '/inventory/stock', label: 'เช็คสต็อก' },
+    ]
+  },
+  {
+    label: 'จัดการเมนูอาหาร',
+    icon: BookOpen,
+    path: '/menu',
+    children: [
+      { path: '/menu/member', label: 'เมนูสมาชิก' },
+      { path: '/menu/retail', label: 'เมนูร้าน' },
     ]
   },
   { path: '/finance', icon: Wallet, label: 'บัญชี' },
