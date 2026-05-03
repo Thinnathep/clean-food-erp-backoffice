@@ -24,6 +24,15 @@ export const finishKdsTask = async (orderUuid: string): Promise<void> => {
   if (error) throw new Error(error.message);
 };
 
+export const updateOrdersKitchenStatus = async (ids: string[], status: string): Promise<void> => {
+  const { error } = await supabase
+    .from('orders')
+    .update({ kitchen_status: status })
+    .in('id', ids);
+
+  if (error) throw new Error(error.message);
+};
+
 // --- Master Menu (Updated for Planner) ---
 export const fetchMenuItems = async (): Promise<MenuItem[]> => {
   const { data, error } = await supabase
@@ -252,6 +261,15 @@ export const updateMemberScheduleNote = async (scheduleId: string, notes: string
      .update({ notes })
      .eq('id', scheduleId);
    if (error) throw new Error(error.message);
+};
+
+export const updateSchedulesKitchenStatus = async (ids: string[], status: string): Promise<void> => {
+  const { error } = await supabase
+    .from('erp_member_meal_schedules')
+    .update({ kitchen_status: status })
+    .in('id', ids);
+
+  if (error) throw new Error(error.message);
 };
 
 export const updateMemberProfile = async (memberId: string, updates: Partial<Member>): Promise<void> => {
