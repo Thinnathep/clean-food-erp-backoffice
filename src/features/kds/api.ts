@@ -84,7 +84,7 @@ export const updateMenuItem = async (id: string, updates: Partial<MenuItem>): Pr
 export const deleteMenuItem = async (id: string): Promise<void> => {
   const { error } = await supabase
     .from('menu_items')
-    .delete()
+    .update({ deleted_at: new Date().toISOString() })
     .eq('id', id);
 
   if (error) throw new Error(error.message);

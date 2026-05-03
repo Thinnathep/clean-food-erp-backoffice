@@ -153,7 +153,7 @@ CREATE TABLE public.erp_kds_tasks (
 );
 CREATE TABLE public.erp_kitchen_sessions (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
-  session_date date NOT NULL UNIQUE,
+  session_date date NOT NULL,
   menu_item_id uuid,
   planned_qty integer NOT NULL DEFAULT 0,
   actual_qty integer DEFAULT 0,
@@ -185,6 +185,8 @@ CREATE TABLE public.erp_member_meal_schedules (
   notes text,
   created_at timestamp with time zone DEFAULT now(),
   delivery_time text,
+  is_extra_order boolean DEFAULT false,
+  meal_order_type text DEFAULT 'subscription'::text,
   CONSTRAINT erp_member_meal_schedules_pkey PRIMARY KEY (id),
   CONSTRAINT erp_member_meal_schedules_package_id_fkey FOREIGN KEY (package_id) REFERENCES public.pinto_packages(id),
   CONSTRAINT erp_member_meal_schedules_member_id_fkey FOREIGN KEY (member_id) REFERENCES public.members(id),

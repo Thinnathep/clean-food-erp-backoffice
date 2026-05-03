@@ -142,8 +142,8 @@ function KpiCard({ label, value, icon: Icon, color }: {
         <Icon size={20} />
       </div>
       <div>
-        <p className="text-[11px] text-slate-400 font-medium uppercase tracking-wider mb-0.5">{label}</p>
-        <p className="text-2xl font-light text-slate-800 leading-none">{value}</p>
+        <p className="text-[12px] text-slate-400 font-bold uppercase tracking-wider mb-1">{label}</p>
+        <p className="text-3xl font-black text-slate-900 leading-none">{value}</p>
       </div>
     </motion.div>
   );
@@ -165,15 +165,15 @@ function ProductionCard({ item, idx }: { item: any; idx: number }) {
             <UtensilsCrossed size={18} />
           </div>
           <div className="min-w-0">
-            <h4 className="font-medium text-slate-800 text-base leading-tight truncate">{item.name}</h4>
-            <p className="text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">เมนูประจำวัน</p>
+            <h4 className="font-bold text-slate-900 text-lg leading-tight truncate">{item.name}</h4>
+            <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">เมนูประจำวัน</p>
           </div>
         </div>
         {/* Total badge */}
         <div className="shrink-0 text-right">
-          <span className="inline-flex items-baseline gap-1">
-            <span className="text-3xl font-light text-emerald-600 leading-none">{item.total}</span>
-            <span className="text-xs font-medium text-emerald-400">กล่อง</span>
+          <span className="inline-flex items-baseline gap-1 bg-emerald-50 px-3 py-1 rounded-xl border border-emerald-100">
+            <span className="text-3xl font-black text-emerald-600 leading-none">{item.total}</span>
+            <span className="text-sm font-bold text-emerald-500">กล่อง</span>
           </span>
         </div>
       </div>
@@ -183,11 +183,11 @@ function ProductionCard({ item, idx }: { item: any; idx: number }) {
         {Object.entries(item.rounds).map(([round, count]: [string, any]) => (
           <div key={round} className="bg-slate-50 rounded-xl p-3.5 border border-slate-100">
             <div className="flex items-center gap-2 mb-2">
-              <Clock size={13} className="text-blue-500 shrink-0" />
-              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider truncate">{round}</p>
+              <Clock size={14} className="text-blue-500 shrink-0" />
+              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">{round}</p>
             </div>
-            <p className="text-xl font-light text-slate-700">
-              {count}<span className="text-xs font-medium text-slate-400 ml-1">boxes</span>
+            <p className="text-2xl font-bold text-slate-800">
+              {count}<span className="text-sm font-medium text-slate-400 ml-1">boxes</span>
             </p>
           </div>
         ))}
@@ -381,7 +381,7 @@ function ProductionTab({ dailySummary }: { dailySummary: any[] }) {
   }
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+    <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6">
       {dailySummary.map((item, idx) => (
         <ProductionCard key={idx} item={item} idx={idx} />
       ))}

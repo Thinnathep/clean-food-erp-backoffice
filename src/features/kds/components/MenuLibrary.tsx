@@ -72,6 +72,14 @@ const MenuCard = memo(({
               {menu.menu_group === 'pinto' ? 'ปิ่นโต' : menu.menu_group === 'special' ? 'พิเศษ' : 'ทั่วไป'}
             </span>
             
+            {menu.menu_group !== 'pinto' && (
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                isSelected ? 'bg-white/20 text-white' : 'bg-slate-800 text-white shadow-sm'
+              }`}>
+                สั่งแยก
+              </span>
+            )}
+            
             <div className="flex gap-1">
               <button 
                 onClick={(e) => onEdit(e, menu)}
@@ -85,9 +93,9 @@ const MenuCard = memo(({
               <button 
                 onClick={(e) => onDelete(e, menu)}
                 className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
-                  isSelected ? 'bg-white/20 text-white hover:bg-red-500' : 'bg-slate-100 text-slate-500 hover:bg-red-500 hover:text-white shadow-sm'
+                  isSelected ? 'bg-white/20 text-white hover:bg-orange-500' : 'bg-slate-100 text-slate-500 hover:bg-orange-500 hover:text-white shadow-sm'
                 }`}
-                title="ลบ"
+                title="ยกเลิกการใช้งาน (Archive)"
               >
                 <Trash2 size={14} />
               </button>
@@ -605,8 +613,6 @@ export const MenuLibrary: React.FC<{ onClose?: () => void }> = ({ onClose }) => 
   const setSearchTerm = useKdsStore(state => state.setSearchTerm);
   const categoryFilter = useKdsStore(state => state.categoryFilter);
   const setCategoryFilter = useKdsStore(state => state.setCategoryFilter);
-  const groupFilter = useKdsStore(state => state.groupFilter);
-  const setGroupFilter = useKdsStore(state => state.setGroupFilter);
   const selectedMenuId = useKdsStore(state => state.selectedMenuId);
   const setSelectedMenuId = useKdsStore(state => state.setSelectedMenuId);
   const addMenuItem = useKdsStore(state => state.addMenuItem);
@@ -632,14 +638,33 @@ export const MenuLibrary: React.FC<{ onClose?: () => void }> = ({ onClose }) => 
   });
 
 
+  const [typeFilter, setTypeFilter] = useState<'latest' | 'member' | 'retail' | 'extra' | 'archived'>('latest');
+
   const filteredMenus = useMemo(() => {
     return menus.filter(menu => {
       const matchSearch = menu.name.toLowerCase().includes(searchTerm.toLowerCase());
       const matchCategory = categoryFilter === 'All' || menu.category === categoryFilter;
-      const matchGroup = groupFilter === 'All' || menu.menu_group === groupFilter;
-      return matchSearch && matchCategory && matchGroup;
+      
+      // Type filtering logic
+      let matchType = true;
+      if (typeFilter === 'member') matchType = menu.menu_group === 'pinto';
+      if (typeFilter === 'retail') matchType = menu.menu_group === 'standard';
+      if (typeFilter === 'extra') matchType = menu.menu_group === 'special';
+      if (typeFilter === 'archived') {
+          // Note: fetchMenuItems currently hides archived items, 
+          // we would need a separate API call to see them, 
+          // but for now we'll handle the UI logic.
+          return false; 
+      }
+
+      return matchSearch && matchCategory && matchType;
+    }).sort((a, b) => {
+      if (typeFilter === 'latest') {
+        return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+      }
+      return 0;
     });
-  }, [menus, searchTerm, categoryFilter, groupFilter]);
+  }, [menus, searchTerm, categoryFilter, typeFilter]);
 
   const handleOpenAdd = React.useCallback(() => {
     setEditingMenuId(null);
@@ -700,13 +725,14 @@ export const MenuLibrary: React.FC<{ onClose?: () => void }> = ({ onClose }) => 
   const handleDelete = React.useCallback(async (e: React.MouseEvent, menu: MenuItem) => {
     e.stopPropagation();
     const result = await Swal.fire({
-      title: 'ยืนยันการลบ?',
-      text: `ต้องการลบ "${menu.name}"?`,
+      title: 'ยืนยันการยกเลิกใช้งาน?',
+      text: `ต้องการเก็บเข้าคลังเมนู (Archive) "${menu.name}"? เมนูนี้จะไม่สามารถเลือกใหม่ได้ แต่ประวัติเดิมจะยังคงอยู่`,
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonText: 'ลบ!',
-      cancelButtonText: 'ยกเลิก',
+      confirmButtonText: 'ยืนยัน, ยกเลิกใช้งาน!',
+      cancelButtonText: 'ปิด',
       cancelButtonColor: '#94a3b8',
+      confirmButtonColor: '#f97316',
       customClass: {
         popup: 'rounded-[2rem]',
         confirmButton: 'rounded-xl',
@@ -716,7 +742,7 @@ export const MenuLibrary: React.FC<{ onClose?: () => void }> = ({ onClose }) => 
 
     if (result.isConfirmed) {
       await deleteMenuItem(menu.id);
-      Swal.fire({ title: 'ลบสำเร็จ!', icon: 'success', timer: 1500, showConfirmButton: false });
+      Swal.fire({ title: 'เก็บเข้าคลังเรียบร้อย!', icon: 'success', timer: 1500, showConfirmButton: false });
     }
   }, [deleteMenuItem]);
 
@@ -750,7 +776,30 @@ export const MenuLibrary: React.FC<{ onClose?: () => void }> = ({ onClose }) => 
           </div>
         </div>
         
-        <div className="space-y-3">
+        <div className="space-y-4">
+          {/* Type Filter Tabs */}
+          <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200">
+            {[
+              { id: 'latest', label: 'ล่าสุด' },
+              { id: 'member', label: 'สมาชิก' },
+              { id: 'retail', label: 'รายย่อย' },
+              { id: 'extra', label: 'สั่งแยก' },
+              { id: 'archived', label: 'คลัง' },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setTypeFilter(tab.id as any)}
+                className={`flex-1 py-2 text-[11px] font-normal uppercase tracking-wider rounded-xl transition-all ${
+                  typeFilter === tab.id 
+                    ? 'bg-white text-emerald-600 shadow-sm ring-1 ring-slate-200' 
+                    : 'text-slate-400 hover:text-slate-600'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
           <div className="relative group">
             <Search className="absolute left-4 top-3.5 text-slate-300 group-focus-within:text-emerald-500" size={18} />
             <input 
@@ -766,10 +815,7 @@ export const MenuLibrary: React.FC<{ onClose?: () => void }> = ({ onClose }) => 
             />
           </div>
           <div className="flex gap-2">
-            <select value={groupFilter} onChange={(e) => setGroupFilter(e.target.value)} className="w-1/3 bg-slate-50 text-slate-600 text-[10px] font-normal uppercase tracking-widest rounded-xl px-3 py-3 outline-none focus:bg-white focus:border-emerald-500 transition-all">
-              <option value="All">ทุกกลุ่ม</option><option value="pinto">ปิ่นโต</option><option value="standard">ทั่วไป</option><option value="special">พิเศษ</option>
-            </select>
-            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="flex-1 bg-slate-50 text-slate-600 text-[10px] font-normal uppercase tracking-widest rounded-xl px-3 py-3 outline-none focus:bg-white focus:border-emerald-500 transition-all">
+            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="w-full bg-slate-50 text-slate-600 text-[10px] font-normal uppercase tracking-widest rounded-xl px-3 py-3 outline-none focus:bg-white focus:border-emerald-500 transition-all">
               <option value="All">ทุกหมวดหมู่</option>
               <option value="ของหวาน">ของหวาน</option>
               <option value="สลัด">สลัด</option>

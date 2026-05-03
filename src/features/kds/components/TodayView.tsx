@@ -55,7 +55,7 @@ export const TodayView: React.FC = () => {
   const menus = useKdsStore(state => state.menus);
   
   // Filters State
-  const [filterType, setFilterType] = useState<'all' | 'member' | 'retail'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'member' | 'retail' | 'extra'>('all');
   const [sortBy, setSortBy] = useState<'priority' | 'latest'>('priority');
   
   // Date State
@@ -81,10 +81,17 @@ export const TodayView: React.FC = () => {
   }, [selectedDate]);
 
   const todayProduction = useMemo(() => {
-    const todaySchedules = filterType === 'retail' ? [] : memberSchedules.filter(s => s.delivery_date === selectedDate);
+    const todaySchedules = memberSchedules.filter(s => {
+      if (s.delivery_date !== selectedDate) return false;
+      if (filterType === 'member') return !s.is_extra_order;
+      if (filterType === 'extra') return s.is_extra_order;
+      if (filterType === 'retail') return false; // Retail comes from tasks
+      return true;
+    });
     
     // Filter tasks (retail orders) for today
-    const todayTasks = filterType === 'member' ? [] : tasks.filter(t => {
+    const todayTasks = tasks.filter(t => {
+      if (filterType === 'member' || filterType === 'extra') return false;
       const taskDate = dayjs(t.created_at).format('YYYY-MM-DD');
       return taskDate === selectedDate;
     });
@@ -352,27 +359,20 @@ export const TodayView: React.FC = () => {
       <div className="p-4 md:p-6 lg:p-10 space-y-8 max-w-full mx-auto print:p-0">
         
         {/* Header Section with Date Navigator */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 print:hidden">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 print:hidden flex-wrap">
           <div className="flex items-center gap-5">
             <div className="w-12 h-12 bg-slate-900 rounded-xl flex items-center justify-center text-white shadow-lg">
               <ChefHat size={28} />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-slate-900 tracking-tight">แผนงานเตรียมอาหาร</h2>
+              <h2 className="text-3xl font-bold text-slate-900 tracking-tight whitespace-nowrap">แผนงานเตรียมอาหาร</h2>
               <p className="text-slate-500 text-xs font-semibold">รายการผลิตประจำวันที่ • {dayjs(selectedDate).locale('th').format('ddddที่ DD MMM YYYY')}</p>
             </div>
           </div>
 
-          <div className="flex items-stretch gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             {/* NEW Filters */}
             <div className="bg-white border border-slate-100 rounded-2xl p-1 flex gap-1 shadow-sm mr-2">
-                <button 
-                  onClick={() => setSortBy(sortBy === 'latest' ? 'priority' : 'latest')}
-                  className={`px-4 py-2 rounded-xl text-[11px] font-bold transition-all ${sortBy === 'latest' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400 hover:text-slate-600'}`}
-                >
-                  ล่าสุด
-                </button>
-                <div className="w-[1px] bg-slate-100 mx-1"></div>
                 <button 
                   onClick={() => setFilterType('member')}
                   className={`px-4 py-2 rounded-xl text-[11px] font-bold transition-all ${filterType === 'member' ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20' : 'text-slate-400 hover:text-slate-600'}`}
@@ -381,9 +381,15 @@ export const TodayView: React.FC = () => {
                 </button>
                 <button 
                   onClick={() => setFilterType('retail')}
-                  className={`px-4 py-2 rounded-xl text-[11px] font-bold transition-all ${filterType === 'retail' ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20' : 'text-slate-400 hover:text-slate-600'}`}
+                  className={`px-4 py-2 rounded-xl text-[11px] font-bold transition-all ${filterType === 'retail' ? 'bg-blue-500 text-white shadow-md shadow-blue-500/20' : 'text-slate-400 hover:text-slate-600'}`}
                 >
                   รายย่อย
+                </button>
+                <button 
+                  onClick={() => setFilterType('extra')}
+                  className={`px-4 py-2 rounded-xl text-[11px] font-bold transition-all ${filterType === 'extra' ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20' : 'text-slate-400 hover:text-slate-600'}`}
+                >
+                  สั่งแยก
                 </button>
                 {filterType !== 'all' && (
                   <button onClick={() => setFilterType('all')} className="px-2 text-slate-300 hover:text-slate-500">
@@ -427,35 +433,35 @@ export const TodayView: React.FC = () => {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 print:hidden">
-            <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
-                <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shrink-0"><Package size={20} /></div>
+            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center text-center gap-4">
+                <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shrink-0 shadow-sm"><Package size={28} /></div>
                 <div>
-                    <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">ยอดผลิตรวม</p>
-                    <h3 className="text-xl font-bold text-slate-900">{totalBoxes} <span className="text-xs font-bold text-slate-400">กล่อง</span></h3>
+                    <p className="text-[12px] uppercase text-slate-400 font-bold mb-1">ยอดผลิตรวม</p>
+                    <h3 className="text-3xl font-black text-slate-900">{totalBoxes} <span className="text-sm font-bold text-slate-400">กล่อง</span></h3>
                 </div>
             </div>
-            <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
-                <div className="w-10 h-10 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center shrink-0"><UtensilsCrossed size={20} /></div>
+            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center text-center gap-4">
+                <div className="w-14 h-14 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center shrink-0 shadow-sm"><UtensilsCrossed size={28} /></div>
                 <div>
-                    <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">ชนิดเมนูอาหาร</p>
-                    <h3 className="text-xl font-bold text-slate-900">
+                    <p className="text-[12px] uppercase text-slate-400 font-bold mb-1">ชนิดเมนูอาหาร</p>
+                    <h3 className="text-3xl font-black text-slate-900">
                         {Object.values(todayProduction.groups).reduce((acc: number, group: any) => acc + Object.keys(group.menus).length, 0)}
-                        <span className="text-xs font-bold text-slate-400"> รายการ</span>
+                        <span className="text-sm font-bold text-slate-400"> รายการ</span>
                     </h3>
                 </div>
             </div>
-            <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
-                <div className="w-10 h-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center shrink-0"><AlertTriangle size={20} /></div>
+            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center text-center gap-4">
+                <div className="w-14 h-14 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center shrink-0 shadow-sm"><AlertTriangle size={28} /></div>
                 <div>
-                    <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">หมายเหตุแพ้อาหาร</p>
-                    <h3 className="text-xl font-bold text-slate-900">{todayProduction.specialNotesCount} <span className="text-xs font-bold text-slate-400">รายการ</span></h3>
+                    <p className="text-[12px] uppercase text-slate-400 font-bold mb-1">หมายเหตุแพ้อาหาร</p>
+                    <h3 className="text-3xl font-black text-slate-900">{todayProduction.specialNotesCount} <span className="text-sm font-bold text-slate-400">รายการ</span></h3>
                 </div>
             </div>
-            <div className="bg-emerald-500 p-5 rounded-2xl shadow-lg flex items-center gap-4">
-                <div className="w-10 h-10 bg-white/20 text-white rounded-xl flex items-center justify-center shrink-0"><CheckCircle2 size={20} /></div>
+            <div className="bg-emerald-500 p-6 rounded-2xl shadow-lg flex flex-col items-center text-center gap-4 border border-emerald-400">
+                <div className="w-14 h-14 bg-white/20 text-white rounded-2xl flex items-center justify-center shrink-0 shadow-sm"><CheckCircle2 size={28} /></div>
                 <div>
-                    <p className="text-[10px] uppercase tracking-widest text-emerald-100 font-bold">สถานะ</p>
-                    <h3 className="text-lg font-bold text-white italic">ระบบพร้อมทำงาน</h3>
+                    <p className="text-[12px] uppercase text-emerald-100 font-bold mb-1">สถานะระบบ</p>
+                    <h3 className="text-xl font-black text-white italic">พร้อมทำงาน</h3>
                 </div>
             </div>
         </div>
@@ -545,16 +551,16 @@ export const TodayView: React.FC = () => {
                                                       <div className="flex items-center gap-2">
                                                       <div className="flex flex-wrap gap-1">
                                                         {(item.isRetail || item.hasExtraOrder) && (
-                                                          <span className="text-[8px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md w-fit text-white shadow-sm bg-slate-900">
+                                                          <span className="text-[11px] font-medium uppercase tracking-widest px-2 py-1 rounded-md w-fit text-white shadow-sm bg-slate-900">
                                                               {item.isRetail ? 'รายย่อย' : 'สั่งแยก'}
                                                           </span>
                                                         )}
-                                                        <span className="text-[8px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded-md w-fit text-white shadow-sm" style={{ backgroundColor: CATEGORY_COLORS[item.category] || '#94A3B8' }}>
+                                                        <span className="text-[11px] font-medium uppercase tracking-widest px-2 py-1 rounded-md w-fit text-white shadow-sm" style={{ backgroundColor: CATEGORY_COLORS[item.category] || '#94A3B8' }}>
                                                             {item.category}
                                                         </span>
                                                       </div>
                                                         {item.kcal && (
-                                                          <span className="text-[8px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">🔋 {item.kcal} kcal</span>
+                                                          <span className="text-[11px] font-normal text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">🔋 {item.kcal} kcal</span>
                                                         )}
                                                         {item.hasNotes && !isDone && (
                                                             <div className="animate-bounce">
@@ -563,16 +569,16 @@ export const TodayView: React.FC = () => {
                                                         )}
                                                         {isDone && <CheckCircle2 size={12} className="text-emerald-500" />}
                                                     </div>
-                                                    <h4 className={`text-[13px] font-medium leading-tight transition-colors line-clamp-2 ${isDone ? 'text-slate-400 line-through' : 'text-slate-900 group-hover:text-emerald-600'}`}>
+                                                    <h4 className={`text-[17px] font-normal leading-tight transition-colors line-clamp-2 ${isDone ? 'text-slate-400 line-through' : 'text-slate-900 group-hover:text-emerald-600'}`}>
                                                         {item.menuName}
                                                     </h4>
                                                     {item.macros && !isDone && (
-                                                      <p className="text-[9px] font-medium text-slate-400">{item.macros}</p>
+                                                      <p className="text-[12px] font-normal text-slate-400">{item.macros}</p>
                                                     )}
                                                 </div>
-                                                <div className={`${isDone ? 'bg-slate-200' : 'bg-slate-900'} text-white px-2 py-1.5 rounded-xl flex flex-col items-center justify-center shrink-0 min-w-[38px] shadow-md transition-colors`}>
-                                                    <span className="text-[7px] font-medium uppercase opacity-50 leading-none">QTY</span>
-                                                    <span className="text-sm font-bold leading-none mt-1">{item.totalQty}</span>
+                                                <div className={`${isDone ? 'bg-slate-200' : 'bg-slate-900'} text-white px-3 py-2 rounded-xl flex flex-col items-center justify-center shrink-0 min-w-[50px] shadow-md transition-colors`}>
+                                                    <span className="text-[10px] font-medium uppercase opacity-60 leading-none">QTY</span>
+                                                    <span className="text-2xl font-bold leading-none mt-1.5">{item.totalQty}</span>
                                                 </div>
                                             </div>
 
@@ -583,13 +589,13 @@ export const TodayView: React.FC = () => {
                                                    {item.orders.map((order: any, oIdx: number) => (
                                                      <div key={oIdx} className={`px-2 py-1.5 rounded-md border border-transparent transition-all ${isDone ? 'bg-slate-50/10' : 'bg-slate-50/30 hover:border-slate-100 hover:bg-white'}`}>
                                                         <div className="flex justify-between items-center gap-2">
-                                                           <span className={`text-[11px] font-medium truncate ${isDone ? 'text-slate-300' : 'text-slate-600'}`}>{order.memberName}</span>
-                                                           <span className={`text-[10px] font-semibold ${isDone ? 'text-slate-200' : 'text-slate-400'}`}>x{order.qty}</span>
+                                                           <span className={`text-[14px] font-normal truncate ${isDone ? 'text-slate-300' : 'text-slate-600'}`}>{order.memberName}</span>
+                                                           <span className={`text-[14px] font-normal ${isDone ? 'text-slate-200' : 'text-slate-400'}`}>x{order.qty}</span>
                                                         </div>
                                                         {order.note && (
                                                           <div className={`mt-1 flex gap-1 items-start p-1.5 rounded-md ${isDone ? 'bg-slate-50' : 'bg-amber-50/50'}`}>
-                                                             <AlertTriangle size={8} className={`${isDone ? 'text-slate-300' : 'text-amber-500'} shrink-0 mt-0.5`} />
-                                                             <p className={`text-[9px] font-medium leading-tight italic truncate ${isDone ? 'text-slate-300' : 'text-amber-700'}`}>
+                                                             <AlertTriangle size={12} className={`${isDone ? 'text-slate-300' : 'text-amber-500'} shrink-0 mt-0.5`} />
+                                                             <p className={`text-[12px] font-normal leading-tight italic truncate ${isDone ? 'text-slate-300' : 'text-amber-700'}`}>
                                                                {order.note}
                                                              </p>
                                                           </div>
@@ -601,7 +607,7 @@ export const TodayView: React.FC = () => {
                                         </div>
 
                                         <div className="p-2 bg-slate-50/10 border-t border-slate-50 flex items-center justify-center">
-                                            <span className={`text-[8px] font-medium uppercase tracking-widest italic ${isDone ? 'text-emerald-500' : 'text-slate-300 group-hover:text-emerald-400'}`}>
+                                            <span className={`text-[11px] font-normal uppercase tracking-widest italic ${isDone ? 'text-emerald-500' : 'text-slate-300 group-hover:text-emerald-400'}`}>
                                                 {isDone ? 'FINISHED' : 'READY'}
                                             </span>
                                         </div>

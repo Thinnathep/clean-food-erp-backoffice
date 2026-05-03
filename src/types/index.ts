@@ -26,6 +26,8 @@ export interface MenuItem {
   tags: string[]; 
   is_available: boolean;
   prep_time_minutes: number;
+  created_at?: string;
+  deleted_at?: string | null;
 }
 
 export interface Member {
