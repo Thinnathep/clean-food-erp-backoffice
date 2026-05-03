@@ -56,7 +56,7 @@ export const TodayView: React.FC = () => {
   
   // Filters State
   const [filterType, setFilterType] = useState<'all' | 'member' | 'retail' | 'extra'>('all');
-  const [sortBy, setSortBy] = useState<'priority' | 'latest'>('priority');
+
   
   // Date State
   const [selectedDate, setSelectedDate] = useState<string>(dayjs().format('YYYY-MM-DD'));
@@ -214,7 +214,7 @@ export const TodayView: React.FC = () => {
     });
 
     return { groups: grouped, specialNotesCount: specialNotes };
-  }, [memberSchedules, tasks, menus, selectedDate, filterType, sortBy]);
+  }, [memberSchedules, tasks, menus, selectedDate, filterType]);
 
   const toggleComplete = async (time: string, menuId: string, actualQty: number) => {
     const key = `${time}-${menuId}`;
