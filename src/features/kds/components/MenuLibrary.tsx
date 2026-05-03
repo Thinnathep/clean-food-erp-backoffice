@@ -638,7 +638,7 @@ export const MenuLibrary: React.FC<{ onClose?: () => void }> = ({ onClose }) => 
   });
 
 
-  const [typeFilter, setTypeFilter] = useState<'latest' | 'member' | 'retail' | 'extra' | 'archived'>('latest');
+  const [typeFilter, setTypeFilter] = useState<'latest' | 'member' | 'retail' | 'extra' | 'archived'>('member');
 
   const filteredMenus = useMemo(() => {
     return menus.filter(menu => {
@@ -780,11 +780,8 @@ export const MenuLibrary: React.FC<{ onClose?: () => void }> = ({ onClose }) => 
           {/* Type Filter Tabs */}
           <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200">
             {[
-              { id: 'latest', label: 'ล่าสุด' },
               { id: 'member', label: 'สมาชิก' },
-              { id: 'retail', label: 'รายย่อย' },
-              { id: 'extra', label: 'สั่งแยก' },
-              { id: 'archived', label: 'คลัง' },
+              { id: 'retail', label: 'เมนูร้าน' },
             ].map((tab) => (
               <button
                 key={tab.id}

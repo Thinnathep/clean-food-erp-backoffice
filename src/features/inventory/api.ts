@@ -168,7 +168,7 @@ export const recordAdjustment = async (adj: Partial<InventoryAdjustment>) => {
 
   // Log transaction
   await supabase.from('erp_inventory_transactions').insert({
-    item_id: adj.item_id,
+    inventory_item_id: adj.item_id,
     type: 'ADJUSTMENT',
     qty_changed: adj.discrepancy,
     location_id: adj.location_id,

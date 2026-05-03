@@ -93,11 +93,11 @@ export const InventoryPage: React.FC = () => {
     
     const adjData = {
       item_id: selectedItemForAdjustment.id,
-      location_id: formData.get('location_id') as string || undefined,
+      location_id: (formData.get('location_id') as string) || null,
       expected_qty: selectedItemForAdjustment.current_stock,
       actual_qty: actualQty,
       discrepancy: actualQty - selectedItemForAdjustment.current_stock,
-      reason: formData.get('reason') as string,
+      reason: (formData.get('reason') as string) || null,
       created_at: new Date().toISOString()
     };
 
@@ -138,13 +138,13 @@ export const InventoryPage: React.FC = () => {
 
     const batchData = {
       inventory_item_id: selectedItemForStockIn.id,
-      location_id: locationId && locationId !== '' ? locationId : null,
+      location_id: (locationId && locationId !== '') ? locationId : null,
       qty: finalQty,
       unit_cost: unitCostPerBase,
-      purchase_unit: selectedUnitId === 'base' ? selectedItemForStockIn.storage_unit : conversions.find(c => c.id === selectedUnitId)?.from_unit,
+      purchase_unit: (selectedUnitId === 'base' ? selectedItemForStockIn.storage_unit : conversions.find(c => c.id === selectedUnitId)?.from_unit) || null,
       purchase_qty: qtyInput,
-      receipt_no: formData.get('receipt_no') as string,
-      supplier_id: supplierId && supplierId !== '' ? supplierId : null,
+      receipt_no: (formData.get('receipt_no') as string) || null,
+      supplier_id: (supplierId && supplierId !== '') ? supplierId : null,
       received_at: new Date().toISOString()
     };
 
@@ -354,7 +354,7 @@ export const InventoryPage: React.FC = () => {
                               >
                                 <ClipboardCheck size={16} />
                                 ตรวจนับ
-                              </button>
+่                              </button>
                            </div>
                         </td>
                       </tr>

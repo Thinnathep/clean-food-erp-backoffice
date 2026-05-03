@@ -205,22 +205,22 @@ export interface RecipeItem {
 export interface InventoryBatch {
   id: string;
   inventory_item_id: string;
-  location_id?: string;
+  location_id: string | null;
   qty: number;
   unit_cost: number;
-  purchase_unit?: string;
-  purchase_qty?: number;
-  receipt_no?: string;
-  supplier_id?: string;
+  purchase_unit: string | null;
+  purchase_qty: number | null;
+  receipt_no: string | null;
+  supplier_id: string | null;
   received_at: string;
 }
 
 export interface Supplier {
   id: string;
   name: string;
-  contact_person?: string;
-  phone?: string;
-  email?: string;
+  contact_person: string | null;
+  phone: string | null;
+  email: string | null;
 }
 
 export interface UnitConversion {
@@ -235,7 +235,7 @@ export interface UnitConversion {
 export interface InventoryLocation {
   id: string;
   name: string;
-  description?: string;
+  description: string | null;
   is_active: boolean;
   created_at: string;
 }
@@ -243,11 +243,11 @@ export interface InventoryLocation {
 export interface InventoryAdjustment {
   id: string;
   item_id: string;
-  location_id?: string;
+  location_id: string | null;
   expected_qty: number;
   actual_qty: number;
   discrepancy: number;
-  reason?: string;
+  reason: string | null;
   adjusted_by?: string;
   created_at: string;
 }
