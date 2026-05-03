@@ -2,6 +2,7 @@ import React, { useMemo, useEffect, useState } from 'react';
 import { ChefHat, CheckCircle2, AlertTriangle, Package, UtensilsCrossed, Printer, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import dayjs from 'dayjs';
 import 'dayjs/locale/th';
+import html2canvas from 'html2canvas';
 import { useKdsStore } from '../../../store/kdsStore';
 import { useAuthStore } from '../../../store/authStore';
 import { closeKitchenSession, updateSchedulesKitchenStatus, updateOrdersKitchenStatus } from '../api';
@@ -56,6 +57,17 @@ export const TodayView: React.FC = () => {
   
   const [filterType, setFilterType] = useState<'all' | 'member' | 'retail' | 'extra'>('all');
   const [selectedDate, setSelectedDate] = useState<string>(dayjs().format('YYYY-MM-DD'));
+  const [printingItem, setPrintingItem] = useState<any>(null);
+  const [confirmingItem, setConfirmingItem] = useState<{time: string, menuId: string, item: any} | null>(null);
+  const [isPrinterEnabled, setIsPrinterEnabled] = useState<boolean>(() => {
+    return localStorage.getItem('kds_printer_enabled') !== 'false';
+  });
+
+  const togglePrinter = () => {
+    const newVal = !isPrinterEnabled;
+    setIsPrinterEnabled(newVal);
+    localStorage.setItem('kds_printer_enabled', String(newVal));
+  };
 
   useEffect(() => {
     loadMemberPlanner(selectedDate, selectedDate);
@@ -214,7 +226,7 @@ export const TodayView: React.FC = () => {
     return { groups: grouped, specialNotesCount: specialNotes };
   }, [memberSchedules, tasks, menus, selectedDate, filterType]);
 
-  const toggleComplete = async (menuId: string, item: any) => {
+  const toggleComplete = async (_time: string, menuId: string, item: any) => {
     const isCurrentlyDone = item.orders.every((o: any) => 
       o.status === 'ready' || o.status === 'done' || o.status === 'เสร็จสิ้น'
     );
@@ -222,8 +234,15 @@ export const TodayView: React.FC = () => {
     const newMemberStatus = isCurrentlyDone ? 'pending' : 'ready';
     const newRetailStatus = isCurrentlyDone ? 'ยืนยันแล้ว' : 'เสร็จสิ้น';
 
-    const memberOrderIds = item.orders.filter((o: any) => o.type === 'member').map((o: any) => o.id);
-    const retailOrderIds = item.orders.filter((o: any) => o.type === 'retail').map((o: any) => o.id);
+    const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+
+    const memberOrderIds = item.orders
+      .filter((o: any) => o.type === 'member' && isUUID(o.id))
+      .map((o: any) => o.id);
+    
+    const retailOrderIds = item.orders
+      .filter((o: any) => o.type === 'retail' && isUUID(o.id))
+      .map((o: any) => o.id);
 
     try {
       const promises = [];
@@ -286,6 +305,18 @@ export const TodayView: React.FC = () => {
     }
   };
 
+  const handleToggleClick = (time: string, menuId: string, item: any) => {
+    const isCurrentlyDone = item.orders.every((o: any) => 
+      o.status === 'ready' || o.status === 'done' || o.status === 'เสร็จสิ้น'
+    );
+
+    if (!isCurrentlyDone) {
+      setConfirmingItem({ time, menuId, item });
+    } else {
+      toggleComplete(time, menuId, item);
+    }
+  };
+
   const totalBoxes = useMemo(() => {
     let total = 0;
     Object.values(todayProduction.groups).forEach((group: any) => {
@@ -302,10 +333,47 @@ export const TodayView: React.FC = () => {
     return `ยอดออเดอร์ทั้งหมด ${totalBoxes} กล่อง จากรายการอาหาร ${totalMenus} ชนิด โดยรอบจัดส่งที่ต้องเร่งมือที่สุดคือ ${busiestShift} (${shifts[0][1].totalRoundQty} กล่อง) ${todayProduction.specialNotesCount > 0 ? `และมีหมายเหตุแพ้อาหาร/คำขอพิเศษที่ต้องระวัง ${todayProduction.specialNotesCount} รายการ` : 'ไม่มีหมายเหตุพิเศษเพิ่มเติม'}`;
   }, [todayProduction, totalBoxes]);
 
-  const handlePrint = () => { window.print(); };
   const changeDate = (days: number) => {
     setSelectedDate(prev => dayjs(prev).add(days, 'day').format('YYYY-MM-DD'));
   };
+
+  const printTicket = async (time: string, item: any) => {
+    if (!isPrinterEnabled) return;
+    
+    let useBrowserPrint = false;
+
+    try {
+      // ค้นหา DOM Element ของภาพจำลองใบเสร็จ
+      const receiptElement = document.getElementById('receipt-preview-capture');
+      if (!receiptElement) throw new Error('Preview element not found');
+      
+      // ถ่ายรูปใบเสร็จด้วยความละเอียด x2
+      const canvas = await html2canvas(receiptElement, { scale: 2 });
+      const base64Image = canvas.toDataURL('image/png');
+
+      // ส่งภาพไปที่ Proxy เพื่อพิมพ์ในโหมด Graphic
+      const response = await fetch('http://localhost:3001/print-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: base64Image })
+      });
+      
+      if (!response.ok) throw new Error('Proxy error');
+      console.log('Direct Image Print Success');
+    } catch (e) {
+      console.warn('Proxy is down or image capture failed, using browser print');
+      useBrowserPrint = true;
+    }
+
+    if (useBrowserPrint) {
+      setPrintingItem({ ...item, timeLabel: time });
+      setTimeout(() => {
+        window.print();
+        setPrintingItem(null);
+      }, 500);
+    }
+  };
+  
   const getDateLabel = () => {
     const diff = dayjs(selectedDate).diff(dayjs().startOf('day'), 'day');
     if (diff === 0) return 'วันนี้';
@@ -358,7 +426,14 @@ export const TodayView: React.FC = () => {
                 </div>
                 <button onClick={() => changeDate(1)} className="p-2.5 hover:bg-slate-50 text-slate-400 hover:text-slate-900 rounded-xl transition-all"><ChevronRight size={18} /></button>
             </div>
-            <button onClick={handlePrint} className="flex items-center gap-2 px-5 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl text-sm font-bold transition-all shadow-lg active:scale-95"><Printer size={16} /> พิมพ์ใบงานครัว</button>
+            <button 
+              onClick={togglePrinter} 
+              className={`flex items-center gap-2 px-4 py-3 rounded-2xl text-sm font-bold transition-all shadow-sm border ${isPrinterEnabled ? 'bg-indigo-50 border-indigo-200 text-indigo-600 hover:bg-indigo-100' : 'bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100'}`}
+              title={isPrinterEnabled ? "ปิดการใช้งานเครื่องปริ้นย่อย" : "เปิดการใช้งานเครื่องปริ้นย่อย"}
+            >
+              <Printer size={16} className={!isPrinterEnabled ? "opacity-50" : ""} />
+              {isPrinterEnabled ? 'เครื่องปริ้น: เปิด' : 'เครื่องปริ้น: ปิด'}
+            </button>
           </div>
         </div>
 
@@ -420,8 +495,11 @@ export const TodayView: React.FC = () => {
                             {Object.entries(group.menus).sort((a: any, b: any) => (CATEGORY_PRIORITY[a[1].category] || 99) - (CATEGORY_PRIORITY[b[1].category] || 99)).map(([menuId, item]: [string, any]) => {
                                 const isDone = item.orders.every((o: any) => o.status === 'ready' || o.status === 'done' || o.status === 'เสร็จสิ้น');
                                 return (
-                                <div key={menuId} onClick={() => toggleComplete(menuId, item)} className={`bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col overflow-hidden hover:shadow-xl transition-all duration-300 group relative cursor-pointer ${isDone ? 'opacity-40 grayscale-[0.5]' : ''}`}>
-                                    <div className="h-1 w-full opacity-60" style={{ backgroundColor: CATEGORY_COLORS[item.category] || '#94A3B8' }}></div>
+                                <div 
+                                  key={menuId} 
+                                  onClick={() => handleToggleClick(time, menuId, item)}
+                                  className={`bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col overflow-hidden hover:shadow-xl transition-all duration-300 group relative cursor-pointer ${isDone ? 'opacity-40 grayscale-[0.5]' : ''}`}
+                                >
                                     <div className="p-3 flex flex-col gap-2.5">
                                         <div className="flex justify-between items-start gap-2">
                                             <div className="flex flex-col gap-1.5">
@@ -437,12 +515,24 @@ export const TodayView: React.FC = () => {
                                                 <h4 className={`text-[17px] font-normal leading-tight transition-colors line-clamp-2 ${isDone ? 'text-slate-400 line-through' : 'text-slate-900 group-hover:text-emerald-600'}`}>{item.menuName}</h4>
                                                 {item.macros && !isDone && <p className="text-[12px] font-normal text-slate-400">{item.macros}</p>}
                                             </div>
-                                            <div className={`${isDone ? 'bg-slate-200' : 'bg-slate-900'} text-white px-3 py-2 rounded-xl flex flex-col items-center justify-center shrink-0 min-w-[50px] shadow-md transition-colors`}><span className="text-[10px] font-medium uppercase opacity-60 leading-none">QTY</span><span className="text-2xl font-bold leading-none mt-1.5">{item.totalQty}</span></div>
+                                            <div className={`${isDone ? 'bg-slate-200' : 'bg-slate-900'} text-white px-3 py-2 rounded-xl flex flex-col items-center justify-center shrink-0 min-w-[50px] shadow-md transition-all group-hover:scale-105`}><span className="text-[10px] font-medium uppercase opacity-60 leading-none">QTY</span><span className="text-2xl font-bold leading-none mt-1.5">{item.totalQty}</span></div>
                                         </div>
                                         <div className="h-[0.5px] bg-slate-100"></div>
                                         <div className="overflow-y-auto custom-scrollbar max-h-[100px]"><div className="space-y-1.5">{item.orders.map((order: any, oIdx: number) => (<div key={oIdx} className={`px-2 py-1.5 rounded-md border border-transparent transition-all ${isDone ? 'bg-slate-50/10' : 'bg-slate-50/30 hover:border-slate-100 hover:bg-white'}`}><div className="flex justify-between items-center gap-2"><span className={`text-[14px] font-normal truncate ${isDone ? 'text-slate-300' : 'text-slate-600'}`}>{order.memberName}</span><span className={`text-[14px] font-normal ${isDone ? 'text-slate-200' : 'text-slate-400'}`}>x{order.qty}</span></div>{order.note && (<div className={`mt-1 flex gap-1 items-start p-1.5 rounded-md ${isDone ? 'bg-slate-50' : 'bg-amber-50/50'}`}><AlertTriangle size={12} className={`${isDone ? 'text-slate-300' : 'text-amber-500'} shrink-0 mt-0.5`} /><p className={`text-[12px] font-normal leading-tight italic truncate ${isDone ? 'text-slate-300' : 'text-amber-700'}`}>{order.note}</p></div>)}</div>))}</div></div>
                                     </div>
-                                    <div className="p-2 bg-slate-50/10 border-t border-slate-50 flex items-center justify-center"><span className={`text-[11px] font-normal uppercase tracking-widest italic ${isDone ? 'text-emerald-500' : 'text-slate-300 group-hover:text-emerald-400'}`}>{isDone ? 'FINISHED' : 'READY'}</span></div>
+                                    <div 
+                                      className="p-2 bg-slate-50/10 border-t border-slate-50 flex items-center justify-center gap-2"
+                                    >
+                                        {isPrinterEnabled && (
+                                          <Printer 
+                                            size={12} 
+                                            className={`transition-colors ${isDone ? 'text-slate-300' : 'text-slate-400'}`}
+                                          />
+                                        )}
+                                        <span className={`text-[11px] font-normal uppercase tracking-widest italic ${isDone ? 'text-emerald-500' : 'text-slate-300 group-hover:text-emerald-400'}`}>
+                                            {isDone ? 'FINISHED' : 'READY'}
+                                        </span>
+                                    </div>
                                 </div>
                             )})}
                         </div>
@@ -451,6 +541,174 @@ export const TodayView: React.FC = () => {
             )}
         </div>
       </div>
+
+      {/* --- Kitchen Ticket Template (Thermal 80mm) --- */}
+      <style>{`
+        @media print {
+          @page { size: 80mm auto; margin: 0; }
+          body * { visibility: hidden; }
+          #kitchen-ticket, #kitchen-ticket * { visibility: visible; }
+          #kitchen-ticket { 
+            position: absolute; 
+            left: 0; 
+            top: 0; 
+            width: 80mm; 
+            padding: 5mm;
+            background: white;
+          }
+          .custom-scrollbar { overflow: visible !important; }
+        }
+      `}</style>
+
+      {printingItem && (
+        <div id="kitchen-ticket" className="hidden print:block font-sans text-black">
+          <div className="text-center border-b border-black pb-1 mb-1">
+            <h2 className="text-sm font-bold uppercase">Kitchen Order</h2>
+            <p className="text-[8px]">{dayjs().format('DD/MM/YYYY HH:mm')}</p>
+          </div>
+          
+          <div className="mb-2">
+            <p className="text-[10px] font-bold">{printingItem.timeLabel}</p>
+          </div>
+
+          <div className="border-y border-black py-2 mb-2 text-center">
+             <h1 className="text-lg font-bold leading-tight mb-1">{printingItem.menuName}</h1>
+             <div className="inline-block bg-black text-white px-4 py-1 rounded text-xl font-bold">
+               QTY: {printingItem.totalQty}
+             </div>
+          </div>
+
+          <div className="space-y-1">
+            {printingItem.orders.map((o: any, i: number) => (
+              <div key={i} className="flex justify-between items-start text-[10px] border-b border-dotted border-slate-300 pb-0.5">
+                <span>{o.memberName}</span>
+                <span className="font-bold">x{o.qty}</span>
+              </div>
+            ))}
+          </div>
+
+          {printingItem.hasNotes && (
+            <div className="mt-2 p-1 bg-slate-100 border-l-2 border-black">
+              {printingItem.orders.filter((o: any) => o.note).map((o: any, i: number) => (
+                <p key={i} className="text-[9px] italic">- {o.note}</p>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-4 text-center text-[8px] opacity-60">
+             <p>ERP KDS SYSTEM</p>
+          </div>
+        </div>
+      )}
+
+      {/* Slip Preview Modal */}
+      {confirmingItem && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8 bg-slate-900/70 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-slate-100 rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col md:flex-row">
+            
+            {/* ซ้าย: เครื่องมือสั่งงาน */}
+            <div className="p-8 md:p-12 flex-1 flex flex-col justify-center bg-white">
+              <div className="flex items-center gap-4 mb-8">
+                <div className="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center"><Printer size={24} /></div>
+                <div>
+                  <h3 className="text-2xl font-black text-slate-900">ตัวอย่างใบสั่งงานครัว</h3>
+                  <p className="text-slate-500 font-medium text-sm">ตรวจสอบความถูกต้องก่อนสั่งพิมพ์</p>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                 <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">เมนูที่จะผลิต</p>
+                    <h2 className="text-2xl font-black text-slate-800 leading-tight mb-2">{confirmingItem.item.menuName}</h2>
+                    <p className="text-sm font-bold text-indigo-600">รอบส่ง: {confirmingItem.time}</p>
+                 </div>
+
+                 <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                  <button 
+                    onClick={() => setConfirmingItem(null)}
+                    className="flex-1 px-6 py-4 rounded-2xl font-bold text-slate-600 hover:bg-slate-100 transition-all border-2 border-slate-200"
+                  >
+                    ยกเลิกการทำรายการ
+                  </button>
+                  <button 
+                    onClick={() => {
+                      if (isPrinterEnabled) {
+                        printTicket(confirmingItem.time, confirmingItem.item);
+                      }
+                      toggleComplete(confirmingItem.time, confirmingItem.menuId, confirmingItem.item);
+                      setConfirmingItem(null);
+                    }}
+                    className={`flex-[1.5] px-6 py-4 rounded-2xl font-bold text-white shadow-xl transition-all flex items-center justify-center gap-3 ${isPrinterEnabled ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/30 hover:shadow-indigo-600/50 hover:-translate-y-1' : 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/30'}`}
+                  >
+                    {isPrinterEnabled && <Printer size={20} />}
+                    {isPrinterEnabled ? 'ยืนยันและสั่งพิมพ์ไปยังครัว' : 'ยืนยันการผลิต (ไม่พิมพ์)'}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* ขวา: ภาพจำลองใบเสร็จ 80mm (Premium Minimalist) */}
+            <div className="bg-slate-900/5 p-8 md:p-12 flex items-center justify-center shrink-0 border-l border-slate-200 relative">
+              
+              <div id="receipt-preview-capture" className="w-[280px] bg-white shadow-[0_20px_40px_-15px_rgba(0,0,0,0.2)] relative font-mono text-slate-900 pt-8 pb-10 transition-transform hover:scale-105 duration-300">
+                {/* รอยหยักด้านบนใบเสร็จ (CSS Gradient) */}
+                <div className="absolute top-0 left-0 right-0 h-[6px] bg-repeat-x" style={{backgroundImage: 'radial-gradient(circle at 50% 0, transparent 3px, white 4px)', backgroundSize: '10px 6px'}}></div>
+
+                <div className="px-6 flex flex-col h-full">
+                   <div className="text-center mb-5">
+                      <h4 className="font-bold text-lg tracking-widest uppercase">KITCHEN TICKET</h4>
+                      <p className="text-[10px] mt-1 text-slate-500 font-semibold">{dayjs().format('DD/MM/YYYY HH:mm')}</p>
+                   </div>
+                   
+                   <div className="border-t-[1.5px] border-dashed border-slate-300 w-full mb-3"></div>
+                   <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest text-center w-full mb-3">Round: {confirmingItem.time}</p>
+                   <div className="border-t-[1.5px] border-dashed border-slate-300 w-full mb-6"></div>
+
+                   <div className="text-center mb-6">
+                      <h3 className="text-2xl font-black mb-3 leading-tight text-slate-800">{confirmingItem.item.menuName}</h3>
+                      <div className="inline-block border-[1.5px] border-slate-900 py-1.5 px-5 rounded">
+                        <p className="text-xl font-black tracking-widest">QTY: {confirmingItem.item.totalQty}</p>
+                      </div>
+                   </div>
+                   
+                   <div className="border-t-[1.5px] border-dashed border-slate-300 w-full mb-4"></div>
+
+                   <div className="mb-6">
+                      <div className="space-y-1">
+                        {confirmingItem.item.orders.map((o: any, i: number) => (
+                          <div key={i} className="flex justify-between items-start text-[13px]">
+                            <span className="flex-1 pr-3 leading-tight">{o.memberName}</span>
+                            <span className="font-bold whitespace-nowrap text-[14px]">x{o.qty}</span>
+                          </div>
+                        ))}
+                      </div>
+                      {confirmingItem.item.hasNotes && (
+                        <div className="mt-2">
+                          {confirmingItem.item.orders.filter((o: any) => o.note).map((o: any, i: number) => (
+                            <p key={i} className="text-[12px] font-semibold italic leading-tight text-slate-600 mb-1 flex gap-2">
+                               <span>*</span> 
+                               <span>{o.note}</span>
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                   </div>
+                   
+                   <div className="border-t-[1.5px] border-dashed border-slate-300 w-full mb-4"></div>
+
+                   <div className="text-center text-[10px] text-slate-400 tracking-widest font-bold">
+                     <p>ERP KDS SYSTEM</p>
+                   </div>
+                </div>
+
+                {/* รอยหยักด้านล่างใบเสร็จ (CSS Gradient) */}
+                <div className="absolute bottom-0 left-0 right-0 h-[6px] bg-repeat-x" style={{backgroundImage: 'radial-gradient(circle at 50% 100%, transparent 3px, white 4px)', backgroundSize: '10px 6px'}}></div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 };
