@@ -1,13 +1,14 @@
 import React, { useMemo, useEffect, useState } from 'react';
-import { ChefHat, CheckCircle2, AlertTriangle, Package, UtensilsCrossed, Printer, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ChefHat, CheckCircle2, AlertTriangle, Package, UtensilsCrossed, ChevronLeft, ChevronRight, X, Printer, Sparkles } from 'lucide-react';
 import dayjs from 'dayjs';
 import 'dayjs/locale/th';
-import html2canvas from 'html2canvas';
 import { useKdsStore } from '../../../store/kdsStore';
 import { useAuthStore } from '../../../store/authStore';
 import { closeKitchenSession, updateSchedulesKitchenStatus, updateOrdersKitchenStatus } from '../api';
 import { supabase } from '../../../config/supabase';
 import Swal from 'sweetalert2';
+import type { MemberMealSchedule, KdsTask } from '../../../types';
 
 const CATEGORY_PRIORITY: Record<string, number> = {
   'ของหวาน': 1,
@@ -57,17 +58,6 @@ export const TodayView: React.FC = () => {
   
   const [filterType, setFilterType] = useState<'all' | 'member' | 'retail' | 'extra'>('all');
   const [selectedDate, setSelectedDate] = useState<string>(dayjs().format('YYYY-MM-DD'));
-  const [printingItem, setPrintingItem] = useState<any>(null);
-  const [confirmingItem, setConfirmingItem] = useState<{time: string, menuId: string, item: any} | null>(null);
-  const [isPrinterEnabled, setIsPrinterEnabled] = useState<boolean>(() => {
-    return localStorage.getItem('kds_printer_enabled') !== 'false';
-  });
-
-  const togglePrinter = () => {
-    const newVal = !isPrinterEnabled;
-    setIsPrinterEnabled(newVal);
-    localStorage.setItem('kds_printer_enabled', String(newVal));
-  };
 
   useEffect(() => {
     loadMemberPlanner(selectedDate, selectedDate);
@@ -126,8 +116,7 @@ export const TodayView: React.FC = () => {
       const memberData = Array.isArray(schedule.members) ? schedule.members[0] : schedule.members;
       const rawTime = (schedule.delivery_time || memberData?.delivery_time || '').trim();
       const timeLabel = getCleanTimeLabel(rawTime);
-      const isExtra = schedule.is_extra_order || false;
-      const menuId = `${schedule.menu_items?.id || 'unknown'}-${isExtra ? 'extra' : 'package'}`;
+      const memberName = memberData?.full_name || 'ไม่ระบุชื่อ';
       
       let category = schedule.menu_items?.category || 'อื่นๆ';
       if (category.includes('ของหวาน')) category = 'ของหวาน';
@@ -138,41 +127,59 @@ export const TodayView: React.FC = () => {
       else if (category.includes('ซุป') || category.includes('ต้ม') || category.includes('แกง')) category = 'ซุป/แกง';
 
       if (!grouped[timeLabel]) {
-        grouped[timeLabel] = { totalRoundQty: 0, menus: {}, categoryStats: {} };
+        grouped[timeLabel] = { totalRoundQty: 0, members: {}, categoryStats: {} };
       }
 
-      if (!grouped[timeLabel].menus[menuId]) {
-        grouped[timeLabel].menus[menuId] = {
-          menuName: schedule.menu_items?.name || 'ไม่ทราบชื่อเมนู',
+      if (!grouped[timeLabel].members[memberName]) {
+        grouped[timeLabel].members[memberName] = {
+          memberName,
           totalQty: 0,
-          category,
+          totalKcal: 0,
+          totalP: 0,
+          totalC: 0,
+          totalF: 0,
           hasNotes: false,
+          hasExtraOrder: false,
           orders: []
         };
       }
 
-      const memberName = memberData?.full_name || 'ไม่ระบุชื่อ';
       if (schedule.notes) {
         specialNotes++;
-        grouped[timeLabel].menus[menuId].hasNotes = true;
+        grouped[timeLabel].members[memberName].hasNotes = true;
       }
 
       if (schedule.is_extra_order) {
-        grouped[timeLabel].menus[menuId].hasExtraOrder = true;
+        grouped[timeLabel].members[memberName].hasExtraOrder = true;
       }
 
       grouped[timeLabel].totalRoundQty += schedule.quantity;
-      grouped[timeLabel].menus[menuId].totalQty += schedule.quantity;
-      grouped[timeLabel].menus[menuId].orders.push({
+      grouped[timeLabel].members[memberName].totalQty += schedule.quantity;
+      
+      const kcal = schedule.menu_items?.calories || 0;
+      const protein = schedule.menu_items?.protein || 0;
+      const carbs = schedule.menu_items?.carbs || 0;
+      const fat = schedule.menu_items?.fat || 0;
+
+      grouped[timeLabel].members[memberName].totalKcal += (kcal * schedule.quantity);
+      grouped[timeLabel].members[memberName].totalP += (protein * schedule.quantity);
+      grouped[timeLabel].members[memberName].totalC += (carbs * schedule.quantity);
+      grouped[timeLabel].members[memberName].totalF += (fat * schedule.quantity);
+
+      grouped[timeLabel].members[memberName].orders.push({
         id: schedule.id,
-        memberName,
+        menuId: schedule.menu_items?.id,
+        menuName: schedule.menu_items?.name || 'ไม่ทราบชื่อเมนู',
+        category,
         qty: schedule.quantity,
         note: schedule.notes || '',
         deliveryTime: rawTime,
         type: 'member',
         status: schedule.kitchen_status,
         isExtra: schedule.is_extra_order || false,
-        createdAt: schedule.created_at || ''
+        createdAt: schedule.created_at || '',
+        kcal,
+        macros: `P:${protein} C:${carbs} F:${fat}`
       });
 
       grouped[timeLabel].categoryStats[category] = (grouped[timeLabel].categoryStats[category] || 0) + schedule.quantity;
@@ -180,6 +187,7 @@ export const TodayView: React.FC = () => {
 
     todayTasks.forEach(task => {
       const timeLabel = 'ออเดอร์สั่งด่วน (Retail)';
+      const memberName = 'ลูกค้ารายย่อย';
       const menuNameRaw = task.menu_name || '';
       const cleanTaskName = menuNameRaw.replace(/\(x\d+\)/g, '').trim();
       const matchedMenu = menus.find(m => m.name.trim() === cleanTaskName) || 
@@ -189,19 +197,16 @@ export const TodayView: React.FC = () => {
       const category = matchedMenu?.category || 'รายย่อย';
 
       if (!grouped[timeLabel]) {
-        grouped[timeLabel] = { totalRoundQty: 0, menus: {}, categoryStats: {} };
+        grouped[timeLabel] = { totalRoundQty: 0, members: {}, categoryStats: {} };
       }
 
-      if (!grouped[timeLabel].menus[menuId]) {
-        grouped[timeLabel].menus[menuId] = {
-          menuName: matchedMenu?.name || menuNameRaw,
+      if (!grouped[timeLabel].members[memberName]) {
+        grouped[timeLabel].members[memberName] = {
+          memberName,
           totalQty: 0,
-          category,
           hasNotes: false,
-          orders: [],
           isRetail: true,
-          kcal: matchedMenu?.calories,
-          macros: matchedMenu ? `P:${matchedMenu.protein} C:${matchedMenu.carbs} F:${matchedMenu.fat}` : null
+          orders: []
         };
       }
 
@@ -209,15 +214,31 @@ export const TodayView: React.FC = () => {
       const qty = qtyMatch ? parseInt(qtyMatch[1]) : 1;
 
       grouped[timeLabel].totalRoundQty += qty;
-      grouped[timeLabel].menus[menuId].totalQty += qty;
-      grouped[timeLabel].menus[menuId].orders.push({
+      grouped[timeLabel].members[memberName].totalQty += qty;
+
+      const kcal = matchedMenu?.calories || 0;
+      const protein = matchedMenu?.protein || 0;
+      const carbs = matchedMenu?.carbs || 0;
+      const fat = matchedMenu?.fat || 0;
+
+      grouped[timeLabel].members[memberName].totalKcal += (kcal * qty);
+      grouped[timeLabel].members[memberName].totalP += (protein * qty);
+      grouped[timeLabel].members[memberName].totalC += (carbs * qty);
+      grouped[timeLabel].members[memberName].totalF += (fat * qty);
+
+      grouped[timeLabel].members[memberName].orders.push({
         id: task.id,
-        memberName: 'ลูกค้ารายย่อย',
+        menuId,
+        menuName: matchedMenu?.name || menuNameRaw,
+        category,
         qty: qty,
         note: '',
         type: 'retail',
         status: task.kitchen_status,
-        createdAt: task.created_at
+        createdAt: task.created_at,
+        isRetail: true,
+        kcal,
+        macros: `P:${protein} C:${carbs} F:${fat}`
       });
 
       grouped[timeLabel].categoryStats[category] = (grouped[timeLabel].categoryStats[category] || 0) + qty;
@@ -226,12 +247,12 @@ export const TodayView: React.FC = () => {
     return { groups: grouped, specialNotesCount: specialNotes };
   }, [memberSchedules, tasks, menus, selectedDate, filterType]);
 
-  const toggleComplete = async (_time: string, menuId: string, item: any) => {
+  const toggleComplete = async (_time: string, _memberId: string, item: any) => {
     const isCurrentlyDone = item.orders.every((o: any) => 
       o.status === 'ready' || o.status === 'done' || o.status === 'เสร็จสิ้น'
     );
     
-    const newMemberStatus = isCurrentlyDone ? 'pending' : 'ready';
+    const newMemberStatus = isCurrentlyDone ? 'pending' : 'done';
     const newRetailStatus = isCurrentlyDone ? 'ยืนยันแล้ว' : 'เสร็จสิ้น';
 
     const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
@@ -244,20 +265,45 @@ export const TodayView: React.FC = () => {
       .filter((o: any) => o.type === 'retail' && isUUID(o.id))
       .map((o: any) => o.id);
 
+    // --- Optimistic Update ---
+    const store = useKdsStore.getState();
+    const newSchedules = store.memberSchedules.map(s => {
+      if (memberOrderIds.includes(s.id)) return { ...s, kitchen_status: newMemberStatus };
+      return s;
+    });
+    const newTasks = store.tasks.map(t => {
+      if (retailOrderIds.includes(t.id)) return { ...t, kitchen_status: newRetailStatus };
+      return t;
+    });
+    useKdsStore.setState({ 
+      memberSchedules: newSchedules as MemberMealSchedule[], 
+      tasks: newTasks as KdsTask[] 
+    });
+    // --------------------------
+
     try {
       const promises = [];
       if (memberOrderIds.length > 0) promises.push(updateSchedulesKitchenStatus(memberOrderIds, newMemberStatus));
       if (retailOrderIds.length > 0) promises.push(updateOrdersKitchenStatus(retailOrderIds, newRetailStatus));
       
       await Promise.all(promises);
-      await Promise.all([loadMemberPlanner(selectedDate, selectedDate), fetchTasks()]);
+      
+      // Update data in background
+      loadMemberPlanner(selectedDate, selectedDate, undefined, true);
+      fetchTasks(true);
 
       if (!isCurrentlyDone) {
         const user = useAuthStore.getState().user;
-        const realMenuId = menuId.includes('-') ? menuId.split('-')[0] : menuId;
-        const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+        
+        // Group orders by menuId to update sessions
+        const menuQuantities: Record<string, number> = {};
+        item.orders.forEach((o: any) => {
+          if (o.menuId && isUUID(o.menuId)) {
+            menuQuantities[o.menuId] = (menuQuantities[o.menuId] || 0) + o.qty;
+          }
+        });
 
-        if (isUUID(realMenuId)) {
+        for (const [realMenuId, qty] of Object.entries(menuQuantities)) {
           const { data: session } = await supabase
             .from('erp_kitchen_sessions')
             .select('id')
@@ -273,7 +319,7 @@ export const TodayView: React.FC = () => {
               .insert({
                 session_date: selectedDate,
                 menu_item_id: realMenuId,
-                planned_qty: item.totalQty
+                planned_qty: qty
               })
               .select()
               .single();
@@ -283,12 +329,12 @@ export const TodayView: React.FC = () => {
           if (targetSessionId) {
             await closeKitchenSession({
               sessionId: targetSessionId,
-              actualQty: item.totalQty,
+              actualQty: qty,
               currentStaffId: user?.id
             });
-            await useKdsStore.getState().loadMasterData();
           }
         }
+        useKdsStore.getState().loadMasterData(true);
       }
 
       Swal.fire({
@@ -305,15 +351,95 @@ export const TodayView: React.FC = () => {
     }
   };
 
-  const handleToggleClick = (time: string, menuId: string, item: any) => {
+  const toggleSingleItem = async (order: any, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const isCurrentlyDone = order.status === 'ready' || order.status === 'done' || order.status === 'เสร็จสิ้น';
+    const newStatus = order.type === 'member' 
+      ? (isCurrentlyDone ? 'pending' : 'done')
+      : (isCurrentlyDone ? 'ยืนยันแล้ว' : 'เสร็จสิ้น');
+
+    // --- Optimistic Update ---
+    const store = useKdsStore.getState();
+    if (order.type === 'member') {
+      const newSchedules = store.memberSchedules.map(s => 
+        s.id === order.id ? { ...s, kitchen_status: newStatus as 'done' | 'pending' | 'cooking' } : s
+      );
+      useKdsStore.setState({ memberSchedules: newSchedules as MemberMealSchedule[] });
+    } else {
+      const newTasks = store.tasks.map(t => 
+        t.id === order.id ? { ...t, kitchen_status: newStatus } : t
+      );
+      useKdsStore.setState({ tasks: newTasks as KdsTask[] });
+    }
+    // --------------------------
+
+    try {
+      if (order.type === 'member') {
+        await updateSchedulesKitchenStatus([order.id], newStatus);
+      } else {
+        await updateOrdersKitchenStatus([order.id], newStatus);
+      }
+      
+      if (!isCurrentlyDone && order.menuId) {
+        const user = useAuthStore.getState().user;
+        const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+        
+        if (isUUID(order.menuId)) {
+          const { data: session } = await supabase
+            .from('erp_kitchen_sessions')
+            .select('id')
+            .eq('session_date', selectedDate)
+            .eq('menu_item_id', order.menuId)
+            .maybeSingle();
+
+          let targetSessionId = session?.id;
+          if (!targetSessionId) {
+            const { data: newSession } = await supabase
+              .from('erp_kitchen_sessions')
+              .insert({ session_date: selectedDate, menu_item_id: order.menuId, planned_qty: order.qty })
+              .select().single();
+            if (newSession) targetSessionId = newSession.id;
+          }
+
+          if (targetSessionId) {
+            await closeKitchenSession({ sessionId: targetSessionId, actualQty: order.qty, currentStaffId: user?.id });
+          }
+        }
+      }
+
+      loadMemberPlanner(selectedDate, selectedDate, undefined, true);
+      fetchTasks(true);
+      useKdsStore.getState().loadMasterData(true);
+    } catch (error: any) {
+      console.error('Toggle single item error:', error);
+      Swal.fire('Error', 'ไม่สามารถเปลี่ยนสถานะได้: ' + error.message, 'error');
+    }
+  };
+
+  const handleToggleClick = async (time: string, memberName: string, item: any, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     const isCurrentlyDone = item.orders.every((o: any) => 
       o.status === 'ready' || o.status === 'done' || o.status === 'เสร็จสิ้น'
     );
 
     if (!isCurrentlyDone) {
-      setConfirmingItem({ time, menuId, item });
+      const result = await Swal.fire({
+        title: 'ยืนยันการจัดเตรียม',
+        html: `ยืนยันการจัดเตรียมอาหารของ <b>${memberName}</b><br/>จำนวน <b>${item.totalQty}</b> กล่อง ใช่หรือไม่?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#10b981',
+        cancelButtonColor: '#94a3b8',
+        confirmButtonText: 'ยืนยัน',
+        cancelButtonText: 'ยกเลิก',
+        reverseButtons: true
+      });
+
+      if (result.isConfirmed) {
+        toggleComplete(time, memberName, item);
+      }
     } else {
-      toggleComplete(time, menuId, item);
+      toggleComplete(time, memberName, item);
     }
   };
 
@@ -329,51 +455,14 @@ export const TodayView: React.FC = () => {
     if (Object.keys(todayProduction.groups).length === 0) return "วันนี้ยังไม่มีรายการผลิตที่ต้องดำเนินการ";
     const shifts = Object.entries(todayProduction.groups).sort((a: any, b: any) => b[1].totalRoundQty - a[1].totalRoundQty);
     const busiestShift = shifts[0][0];
-    const totalMenus = Object.values(todayProduction.groups).reduce((acc: number, g: any) => acc + Object.keys(g.menus).length, 0);
-    return `ยอดออเดอร์ทั้งหมด ${totalBoxes} กล่อง จากรายการอาหาร ${totalMenus} ชนิด โดยรอบจัดส่งที่ต้องเร่งมือที่สุดคือ ${busiestShift} (${shifts[0][1].totalRoundQty} กล่อง) ${todayProduction.specialNotesCount > 0 ? `และมีหมายเหตุแพ้อาหาร/คำขอพิเศษที่ต้องระวัง ${todayProduction.specialNotesCount} รายการ` : 'ไม่มีหมายเหตุพิเศษเพิ่มเติม'}`;
+    const totalMembers = Object.values(todayProduction.groups).reduce((acc: number, g: any) => acc + Object.keys(g.members).length, 0);
+    return `ยอดผลิตรวม ${totalBoxes} กล่อง สำหรับลูกค้า ${totalMembers} ท่าน โดยรอบที่งานเยอะที่สุดคือ ${busiestShift} (${shifts[0][1].totalRoundQty} กล่อง) ${todayProduction.specialNotesCount > 0 ? `และมีคำขอพิเศษ ${todayProduction.specialNotesCount} รายการ` : 'ไม่มีหมายเหตุพิเศษ'}`;
   }, [todayProduction, totalBoxes]);
 
   const changeDate = (days: number) => {
     setSelectedDate(prev => dayjs(prev).add(days, 'day').format('YYYY-MM-DD'));
   };
 
-  const printTicket = async (time: string, item: any) => {
-    if (!isPrinterEnabled) return;
-    
-    let useBrowserPrint = false;
-
-    try {
-      // ค้นหา DOM Element ของภาพจำลองใบเสร็จ
-      const receiptElement = document.getElementById('receipt-preview-capture');
-      if (!receiptElement) throw new Error('Preview element not found');
-      
-      // ถ่ายรูปใบเสร็จด้วยความละเอียด x2
-      const canvas = await html2canvas(receiptElement, { scale: 2 });
-      const base64Image = canvas.toDataURL('image/png');
-
-      // ส่งภาพไปที่ Proxy เพื่อพิมพ์ในโหมด Graphic
-      const response = await fetch('http://localhost:3001/print-image', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: base64Image })
-      });
-      
-      if (!response.ok) throw new Error('Proxy error');
-      console.log('Direct Image Print Success');
-    } catch (e) {
-      console.warn('Proxy is down or image capture failed, using browser print');
-      useBrowserPrint = true;
-    }
-
-    if (useBrowserPrint) {
-      setPrintingItem({ ...item, timeLabel: time });
-      setTimeout(() => {
-        window.print();
-        setPrintingItem(null);
-      }, 500);
-    }
-  };
-  
   const getDateLabel = () => {
     const diff = dayjs(selectedDate).diff(dayjs().startOf('day'), 'day');
     if (diff === 0) return 'วันนี้';
@@ -382,8 +471,120 @@ export const TodayView: React.FC = () => {
     return dayjs(selectedDate).locale('th').format('dddd');
   };
 
+  const [nutritionModal, setNutritionModal] = useState<{ open: boolean; memberName: string; item: any; time: string } | null>(null);
+
+  const handleCopyNutrition = (memberName: string, item: any, time: string) => {
+    const dateStr = dayjs(selectedDate).locale('th').format('DD MMMM YYYY');
+    let text = `📋 ข้อมูลโภชนาการประจำวันที่ ${dateStr}\n`;
+    text += `👤 ลูกค้า: ${memberName}\n`;
+    text += `⏰ รอบ: ${time}\n`;
+    text += `──────────────────\n`;
+    
+    item.orders.forEach((o: any, i: number) => {
+      text += `${i + 1}. ${o.menuName} (x${o.qty})\n`;
+      text += `   🔥 ${o.kcal * o.qty} kcal | ${o.macros}\n`;
+    });
+    
+    text += `──────────────────\n`;
+    text += `📊 ยอดรวมทั้งหมด: ${item.totalKcal} kcal\n`;
+    text += `💪 P:${item.totalP.toFixed(1)} C:${item.totalC.toFixed(1)} F:${item.totalF.toFixed(1)}`;
+
+    navigator.clipboard.writeText(text);
+    Swal.fire({
+      title: 'คัดลอกข้อมูลแล้ว',
+      text: 'คุณสามารถวางข้อมูลโภชนาการได้ทันที',
+      icon: 'success',
+      toast: true,
+      position: 'top-end',
+      timer: 2000,
+      showConfirmButton: false
+    });
+  };
+
   return (
     <div className="flex-1 overflow-y-auto bg-[#F8FAFC] custom-scrollbar print:bg-white print:p-0">
+      {/* Nutrition Modal */}
+      <AnimatePresence>
+        {nutritionModal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-white rounded-[32px] shadow-2xl w-full max-w-md overflow-hidden"
+            >
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900 leading-none">ข้อมูลโภชนาการ</h3>
+                  <p className="text-base font-black text-slate-900 mt-1 uppercase tracking-tight">{nutritionModal.memberName}</p>
+                </div>
+                <button 
+                  onClick={() => setNutritionModal(null)} 
+                  className="p-2 hover:bg-white rounded-xl transition-colors shadow-sm text-slate-400 hover:text-slate-900 active:scale-90"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="p-5 max-h-[50vh] overflow-y-auto space-y-2 custom-scrollbar">
+                {nutritionModal.item.orders.map((o: any, idx: number) => (
+                  <motion.div 
+                    key={idx}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                    className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between gap-3"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-slate-900 text-base truncate">{o.menuName}</p>
+                      <p className="text-[11px] text-slate-500 font-bold uppercase tracking-tight mt-0.5">
+                        🔥 <span className="text-slate-900 font-black">{o.kcal * o.qty}</span> KCAL | {o.macros}
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-center justify-center bg-white px-2.5 py-1 rounded-xl shadow-sm border border-slate-100 min-w-[40px]">
+                      <span className="text-[12px] font-black text-slate-900">x{o.qty}</span>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+              <div className="p-6 bg-slate-900 text-white relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -mr-16 -mt-16" />
+                <div className="flex justify-between items-end mb-6 relative z-10">
+                  <div>
+                    <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">ยอดรวมโภชนาการประจำวัน</p>
+                    <h4 className="text-5xl font-black tracking-tighter">{nutritionModal.item.totalKcal} <span className="text-sm font-bold opacity-30 tracking-normal ml-1">KCAL</span></h4>
+                  </div>
+                  <div className="text-right">
+                    <div className="flex flex-col items-end gap-0.5">
+                        <p className="text-[13px] font-black tracking-widest leading-none">
+                            <span className="text-slate-400">P:</span><span className="text-blue-400">{nutritionModal.item.totalP.toFixed(0)}</span>
+                        </p>
+                        <p className="text-[13px] font-black tracking-widest leading-none">
+                            <span className="text-slate-400">C:</span><span className="text-emerald-400">{nutritionModal.item.totalC.toFixed(0)}</span>
+                        </p>
+                        <p className="text-[13px] font-black tracking-widest leading-none">
+                            <span className="text-slate-400">F:</span><span className="text-amber-400">{nutritionModal.item.totalF.toFixed(0)}</span>
+                        </p>
+                    </div>
+                  </div>
+                </div>
+                <motion.button 
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => handleCopyNutrition(nutritionModal.memberName, nutritionModal.item, nutritionModal.time)}
+                  className="w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-white rounded-2xl font-bold flex items-center justify-center gap-3 transition-all shadow-lg shadow-emerald-500/20"
+                >
+                  <Sparkles size={20} /> คัดลอกข้อมูลสรุป
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div className="hidden print:block mb-8 border-b-4 border-slate-900 pb-4 p-8">
         <h1 className="text-3xl font-bold text-slate-900 uppercase tracking-tighter">ใบสั่งงานผลิตอาหารประจำวัน</h1>
         <div className="flex justify-between mt-6">
@@ -426,14 +627,6 @@ export const TodayView: React.FC = () => {
                 </div>
                 <button onClick={() => changeDate(1)} className="p-2.5 hover:bg-slate-50 text-slate-400 hover:text-slate-900 rounded-xl transition-all"><ChevronRight size={18} /></button>
             </div>
-            <button 
-              onClick={togglePrinter} 
-              className={`flex items-center gap-2 px-4 py-3 rounded-2xl text-sm font-bold transition-all shadow-sm border ${isPrinterEnabled ? 'bg-indigo-50 border-indigo-200 text-indigo-600 hover:bg-indigo-100' : 'bg-slate-50 border-slate-200 text-slate-400 hover:bg-slate-100'}`}
-              title={isPrinterEnabled ? "ปิดการใช้งานเครื่องปริ้นย่อย" : "เปิดการใช้งานเครื่องปริ้นย่อย"}
-            >
-              <Printer size={16} className={!isPrinterEnabled ? "opacity-50" : ""} />
-              {isPrinterEnabled ? 'เครื่องปริ้น: เปิด' : 'เครื่องปริ้น: ปิด'}
-            </button>
           </div>
         </div>
 
@@ -444,7 +637,7 @@ export const TodayView: React.FC = () => {
             </div>
             <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center text-center gap-4">
                 <div className="w-14 h-14 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center shrink-0 shadow-sm"><UtensilsCrossed size={28} /></div>
-                <div><p className="text-[12px] uppercase text-slate-400 font-bold mb-1">ชนิดเมนูอาหาร</p><h3 className="text-3xl font-black text-slate-900">{Object.values(todayProduction.groups).reduce((acc: number, group: any) => acc + Object.keys(group.menus).length, 0)}<span className="text-sm font-bold text-slate-400"> รายการ</span></h3></div>
+                <div><p className="text-[12px] uppercase text-slate-400 font-bold mb-1">จำนวนลูกค้า</p><h3 className="text-3xl font-black text-slate-900">{Object.values(todayProduction.groups).reduce((acc: number, group: any) => acc + Object.keys(group.members).length, 0)}<span className="text-sm font-bold text-slate-400"> ท่าน</span></h3></div>
             </div>
             <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center text-center gap-4">
                 <div className="w-14 h-14 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center shrink-0 shadow-sm"><AlertTriangle size={28} /></div>
@@ -491,47 +684,114 @@ export const TodayView: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
-                            {Object.entries(group.menus).sort((a: any, b: any) => (CATEGORY_PRIORITY[a[1].category] || 99) - (CATEGORY_PRIORITY[b[1].category] || 99)).map(([menuId, item]: [string, any]) => {
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
+                            {Object.entries(group.members).map(([memberName, item]: [string, any]) => {
                                 const isDone = item.orders.every((o: any) => o.status === 'ready' || o.status === 'done' || o.status === 'เสร็จสิ้น');
                                 return (
                                 <div 
-                                  key={menuId} 
-                                  onClick={() => handleToggleClick(time, menuId, item)}
-                                  className={`bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col overflow-hidden hover:shadow-xl transition-all duration-300 group relative cursor-pointer ${isDone ? 'opacity-40 grayscale-[0.5]' : ''}`}
+                                  key={memberName} 
+                                  className={`bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col overflow-hidden hover:shadow-xl transition-all duration-300 group relative ${isDone ? 'border-slate-300 shadow-inner' : ''}`}
                                 >
-                                    <div className="p-3 flex flex-col gap-2.5">
+                                    <div className={`p-4 flex flex-col gap-3 flex-1 ${isDone ? 'opacity-30 grayscale-[0.8]' : ''}`}>
                                         <div className="flex justify-between items-start gap-2">
-                                            <div className="flex flex-col gap-1.5">
-                                                  <div className="flex items-center gap-2">
-                                                  <div className="flex flex-wrap gap-1">
-                                                    {(item.isRetail || item.hasExtraOrder) && <span className="text-[11px] font-medium uppercase tracking-widest px-2 py-1 rounded-md w-fit text-white shadow-sm bg-slate-900">{item.isRetail ? 'รายย่อย' : 'สั่งแยก'}</span>}
-                                                    <span className="text-[11px] font-medium uppercase tracking-widest px-2 py-1 rounded-md w-fit text-white shadow-sm" style={{ backgroundColor: CATEGORY_COLORS[item.category] || '#94A3B8' }}>{item.category}</span>
-                                                  </div>
-                                                    {item.kcal && <span className="text-[11px] font-normal text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">🔋 {item.kcal} kcal</span>}
-                                                    {item.hasNotes && !isDone && <div className="animate-bounce"><AlertTriangle size={12} className="text-red-500 fill-red-50" /></div>}
-                                                    {isDone && <CheckCircle2 size={12} className="text-emerald-500" />}
+                                            <div className="flex flex-col gap-1">
+                                                <div className="flex items-center gap-2">
+                                                    <button 
+                                                      onClick={(e) => handleToggleClick(time, memberName, item, e)}
+                                                      className={`w-6 h-6 rounded-lg flex items-center justify-center transition-all ${isDone ? 'bg-emerald-500 text-white shadow-md shadow-emerald-200' : 'bg-slate-100 text-slate-300 hover:bg-emerald-50 hover:text-emerald-500'}`}
+                                                    >
+                                                        <CheckCircle2 size={16} />
+                                                    </button>
+                                                    {item.isRetail && <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded bg-slate-900 text-white">รายย่อย</span>}
+                                                    {item.hasExtraOrder && <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded bg-orange-500 text-white">สั่งแยก</span>}
+                                                    {item.hasNotes && !isDone && <AlertTriangle size={14} className="text-red-500 animate-pulse" />}
                                                 </div>
-                                                <h4 className={`text-[17px] font-normal leading-tight transition-colors line-clamp-2 ${isDone ? 'text-slate-400 line-through' : 'text-slate-900 group-hover:text-emerald-600'}`}>{item.menuName}</h4>
-                                                {item.macros && !isDone && <p className="text-[12px] font-normal text-slate-400">{item.macros}</p>}
+                                                <h4 className={`text-lg font-bold transition-colors ${isDone ? 'text-slate-400 line-through' : 'text-slate-900 group-hover:text-emerald-600'}`}>{memberName}</h4>
                                             </div>
-                                            <div className={`${isDone ? 'bg-slate-200' : 'bg-slate-900'} text-white px-3 py-2 rounded-xl flex flex-col items-center justify-center shrink-0 min-w-[50px] shadow-md transition-all group-hover:scale-105`}><span className="text-[10px] font-medium uppercase opacity-60 leading-none">QTY</span><span className="text-2xl font-bold leading-none mt-1.5">{item.totalQty}</span></div>
+                                            <div 
+                                              onClick={(e) => handleToggleClick(time, memberName, item, e)}
+                                              className={`cursor-pointer ${isDone ? 'bg-slate-200' : 'bg-slate-900'} text-white px-2.5 py-1.5 rounded-lg flex flex-col items-center justify-center shrink-0 min-w-[40px] shadow-sm transition-all hover:scale-105 active:scale-95`}
+                                            >
+                                                <span className="text-[18px] font-black leading-none">{item.totalQty}</span>
+                                                <span className="text-[8px] font-bold uppercase opacity-60 leading-none mt-1">BOX</span>
+                                            </div>
                                         </div>
-                                        <div className="h-[0.5px] bg-slate-100"></div>
-                                        <div className="overflow-y-auto custom-scrollbar max-h-[100px]"><div className="space-y-1.5">{item.orders.map((order: any, oIdx: number) => (<div key={oIdx} className={`px-2 py-1.5 rounded-md border border-transparent transition-all ${isDone ? 'bg-slate-50/10' : 'bg-slate-50/30 hover:border-slate-100 hover:bg-white'}`}><div className="flex justify-between items-center gap-2"><span className={`text-[14px] font-normal truncate ${isDone ? 'text-slate-300' : 'text-slate-600'}`}>{order.memberName}</span><span className={`text-[14px] font-normal ${isDone ? 'text-slate-200' : 'text-slate-400'}`}>x{order.qty}</span></div>{order.note && (<div className={`mt-1 flex gap-1 items-start p-1.5 rounded-md ${isDone ? 'bg-slate-50' : 'bg-amber-50/50'}`}><AlertTriangle size={12} className={`${isDone ? 'text-slate-300' : 'text-amber-500'} shrink-0 mt-0.5`} /><p className={`text-[12px] font-normal leading-tight italic truncate ${isDone ? 'text-slate-300' : 'text-amber-700'}`}>{order.note}</p></div>)}</div>))}</div></div>
+
+                                        <div className="space-y-2 mt-1">
+                                            {item.orders.map((order: any, oIdx: number) => {
+                                                const orderDone = order.status === 'ready' || order.status === 'done' || order.status === 'เสร็จสิ้น';
+                                                return (
+                                                <div 
+                                                  key={oIdx} 
+                                                  onClick={(e) => toggleSingleItem(order, e)}
+                                                  className={`p-2 rounded-xl border transition-all cursor-pointer ${orderDone ? 'bg-slate-50 border-transparent opacity-60' : 'bg-slate-50 border-slate-100 hover:border-emerald-300 hover:bg-white hover:shadow-sm'}`}
+                                                >
+                                                    <div className="flex justify-between items-start gap-2">
+                                                        <div className="flex-1">
+                                                            <div className="flex items-center gap-1.5 mb-0.5">
+                                                                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[order.category] || '#CBD5E1' }}></span>
+                                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{order.category}</span>
+                                                                {order.isExtra && <span className="text-[9px] font-black bg-orange-100 text-orange-600 px-1 rounded uppercase tracking-widest ml-1">สั่งแยก</span>}
+                                                            </div>
+                                                            <p className={`text-[14px] font-semibold leading-tight ${orderDone ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{order.menuName}</p>
+                                                        </div>
+                                                        <div className="flex flex-col items-end gap-1">
+                                                            <span className={`text-[14px] font-black ${orderDone ? 'text-slate-300' : 'text-slate-900'}`}>x{order.qty}</span>
+                                                            {orderDone && <CheckCircle2 size={12} className="text-emerald-500" />}
+                                                        </div>
+                                                    </div>
+                                                    {order.note && (
+                                                        <div className={`mt-1.5 flex gap-1.5 items-start p-1.5 rounded-lg ${orderDone ? 'bg-slate-100/30' : 'bg-amber-50'}`}>
+                                                            <AlertTriangle size={10} className={`${orderDone ? 'text-slate-200' : 'text-amber-500'} shrink-0 mt-0.5`} />
+                                                            <p className={`text-[11px] font-bold leading-tight italic ${orderDone ? 'text-slate-300' : 'text-amber-700'}`}>{order.note}</p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )})}
+                                        </div>
                                     </div>
+
+                                    <div className="px-4 pb-4 flex flex-col gap-2">
+                                        <div className="flex justify-between items-center pt-2 border-t border-dashed border-slate-100">
+                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.1em]">ข้อมูลโภชนาการรวม</p>
+                                            <span className="text-[11px] font-black text-slate-900 bg-slate-100 px-2 py-0.5 rounded-lg">{item.totalKcal} KCAL</span>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <motion.button 
+                                              whileHover={{ y: -1 }}
+                                              whileTap={{ scale: 0.96 }}
+                                              onClick={(e) => { e.stopPropagation(); window.print(); }}
+                                              className="flex items-center justify-center gap-2 py-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-[10px] font-bold text-slate-600 transition-all border border-slate-100"
+                                            >
+                                                <Printer size={13} /> พิมพ์ใบสั่ง
+                                            </motion.button>
+                                            <motion.button 
+                                              whileHover={{ y: -1 }}
+                                              whileTap={{ scale: 0.96 }}
+                                              onClick={(e) => { e.stopPropagation(); setNutritionModal({ open: true, memberName, item, time }); }}
+                                              className="flex items-center justify-center gap-2 py-2 bg-emerald-50 hover:bg-emerald-100 rounded-xl text-[10px] font-bold text-emerald-600 transition-all border border-emerald-100"
+                                            >
+                                                <Sparkles size={13} /> โภชนาการ
+                                            </motion.button>
+                                        </div>
+                                    </div>
+
                                     <div 
-                                      className="p-2 bg-slate-50/10 border-t border-slate-50 flex items-center justify-center gap-2"
+                                      onClick={(e) => handleToggleClick(time, memberName, item, e)}
+                                      className={`h-12 border-t flex items-center justify-center gap-2 cursor-pointer transition-all ${isDone ? 'bg-slate-800 border-slate-900 hover:bg-slate-700' : 'bg-emerald-50/30 border-emerald-100 hover:bg-emerald-100'}`}
                                     >
-                                        {isPrinterEnabled && (
-                                          <Printer 
-                                            size={12} 
-                                            className={`transition-colors ${isDone ? 'text-slate-300' : 'text-slate-400'}`}
-                                          />
+                                        {isDone ? (
+                                            <>
+                                                <X size={14} className="text-white" />
+                                                <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white">
+                                                    ยกเลิกรายการ (UNDO)
+                                                </span>
+                                            </>
+                                        ) : (
+                                            <span className={`text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600`}>
+                                                ยืนยันแพ็คอาหาร (READY)
+                                            </span>
                                         )}
-                                        <span className={`text-[11px] font-normal uppercase tracking-widest italic ${isDone ? 'text-emerald-500' : 'text-slate-300 group-hover:text-emerald-400'}`}>
-                                            {isDone ? 'FINISHED' : 'READY'}
-                                        </span>
                                     </div>
                                 </div>
                             )})}
@@ -545,170 +805,10 @@ export const TodayView: React.FC = () => {
       {/* --- Kitchen Ticket Template (Thermal 80mm) --- */}
       <style>{`
         @media print {
-          @page { size: 80mm auto; margin: 0; }
-          body * { visibility: hidden; }
-          #kitchen-ticket, #kitchen-ticket * { visibility: visible; }
-          #kitchen-ticket { 
-            position: absolute; 
-            left: 0; 
-            top: 0; 
-            width: 80mm; 
-            padding: 5mm;
-            background: white;
-          }
           .custom-scrollbar { overflow: visible !important; }
         }
       `}</style>
 
-      {printingItem && (
-        <div id="kitchen-ticket" className="hidden print:block font-sans text-black">
-          <div className="text-center border-b border-black pb-1 mb-1">
-            <h2 className="text-sm font-bold uppercase">Kitchen Order</h2>
-            <p className="text-[8px]">{dayjs().format('DD/MM/YYYY HH:mm')}</p>
-          </div>
-          
-          <div className="mb-2">
-            <p className="text-[10px] font-bold">{printingItem.timeLabel}</p>
-          </div>
-
-          <div className="border-y border-black py-2 mb-2 text-center">
-             <h1 className="text-lg font-bold leading-tight mb-1">{printingItem.menuName}</h1>
-             <div className="inline-block bg-black text-white px-4 py-1 rounded text-xl font-bold">
-               QTY: {printingItem.totalQty}
-             </div>
-          </div>
-
-          <div className="space-y-1">
-            {printingItem.orders.map((o: any, i: number) => (
-              <div key={i} className="flex justify-between items-start text-[10px] border-b border-dotted border-slate-300 pb-0.5">
-                <span>{o.memberName}</span>
-                <span className="font-bold">x{o.qty}</span>
-              </div>
-            ))}
-          </div>
-
-          {printingItem.hasNotes && (
-            <div className="mt-2 p-1 bg-slate-100 border-l-2 border-black">
-              {printingItem.orders.filter((o: any) => o.note).map((o: any, i: number) => (
-                <p key={i} className="text-[9px] italic">- {o.note}</p>
-              ))}
-            </div>
-          )}
-
-          <div className="mt-4 text-center text-[8px] opacity-60">
-             <p>ERP KDS SYSTEM</p>
-          </div>
-        </div>
-      )}
-
-      {/* Slip Preview Modal */}
-      {confirmingItem && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8 bg-slate-900/70 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="bg-slate-100 rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col md:flex-row">
-            
-            {/* ซ้าย: เครื่องมือสั่งงาน */}
-            <div className="p-8 md:p-12 flex-1 flex flex-col justify-center bg-white">
-              <div className="flex items-center gap-4 mb-8">
-                <div className="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center"><Printer size={24} /></div>
-                <div>
-                  <h3 className="text-2xl font-black text-slate-900">ตัวอย่างใบสั่งงานครัว</h3>
-                  <p className="text-slate-500 font-medium text-sm">ตรวจสอบความถูกต้องก่อนสั่งพิมพ์</p>
-                </div>
-              </div>
-
-              <div className="space-y-6">
-                 <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100">
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">เมนูที่จะผลิต</p>
-                    <h2 className="text-2xl font-black text-slate-800 leading-tight mb-2">{confirmingItem.item.menuName}</h2>
-                    <p className="text-sm font-bold text-indigo-600">รอบส่ง: {confirmingItem.time}</p>
-                 </div>
-
-                 <div className="flex flex-col sm:flex-row gap-3 pt-4">
-                  <button 
-                    onClick={() => setConfirmingItem(null)}
-                    className="flex-1 px-6 py-4 rounded-2xl font-bold text-slate-600 hover:bg-slate-100 transition-all border-2 border-slate-200"
-                  >
-                    ยกเลิกการทำรายการ
-                  </button>
-                  <button 
-                    onClick={() => {
-                      if (isPrinterEnabled) {
-                        printTicket(confirmingItem.time, confirmingItem.item);
-                      }
-                      toggleComplete(confirmingItem.time, confirmingItem.menuId, confirmingItem.item);
-                      setConfirmingItem(null);
-                    }}
-                    className={`flex-[1.5] px-6 py-4 rounded-2xl font-bold text-white shadow-xl transition-all flex items-center justify-center gap-3 ${isPrinterEnabled ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/30 hover:shadow-indigo-600/50 hover:-translate-y-1' : 'bg-emerald-500 hover:bg-emerald-600 shadow-emerald-500/30'}`}
-                  >
-                    {isPrinterEnabled && <Printer size={20} />}
-                    {isPrinterEnabled ? 'ยืนยันและสั่งพิมพ์ไปยังครัว' : 'ยืนยันการผลิต (ไม่พิมพ์)'}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* ขวา: ภาพจำลองใบเสร็จ 80mm (Premium Minimalist) */}
-            <div className="bg-slate-900/5 p-8 md:p-12 flex items-center justify-center shrink-0 border-l border-slate-200 relative">
-              
-              <div id="receipt-preview-capture" className="w-[280px] bg-white shadow-[0_20px_40px_-15px_rgba(0,0,0,0.2)] relative font-mono text-slate-900 pt-8 pb-10 transition-transform hover:scale-105 duration-300">
-                {/* รอยหยักด้านบนใบเสร็จ (CSS Gradient) */}
-                <div className="absolute top-0 left-0 right-0 h-[6px] bg-repeat-x" style={{backgroundImage: 'radial-gradient(circle at 50% 0, transparent 3px, white 4px)', backgroundSize: '10px 6px'}}></div>
-
-                <div className="px-6 flex flex-col h-full">
-                   <div className="text-center mb-5">
-                      <h4 className="font-bold text-lg tracking-widest uppercase">KITCHEN TICKET</h4>
-                      <p className="text-[10px] mt-1 text-slate-500 font-semibold">{dayjs().format('DD/MM/YYYY HH:mm')}</p>
-                   </div>
-                   
-                   <div className="border-t-[1.5px] border-dashed border-slate-300 w-full mb-3"></div>
-                   <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest text-center w-full mb-3">Round: {confirmingItem.time}</p>
-                   <div className="border-t-[1.5px] border-dashed border-slate-300 w-full mb-6"></div>
-
-                   <div className="text-center mb-6">
-                      <h3 className="text-2xl font-black mb-3 leading-tight text-slate-800">{confirmingItem.item.menuName}</h3>
-                      <div className="inline-block border-[1.5px] border-slate-900 py-1.5 px-5 rounded">
-                        <p className="text-xl font-black tracking-widest">QTY: {confirmingItem.item.totalQty}</p>
-                      </div>
-                   </div>
-                   
-                   <div className="border-t-[1.5px] border-dashed border-slate-300 w-full mb-4"></div>
-
-                   <div className="mb-6">
-                      <div className="space-y-1">
-                        {confirmingItem.item.orders.map((o: any, i: number) => (
-                          <div key={i} className="flex justify-between items-start text-[13px]">
-                            <span className="flex-1 pr-3 leading-tight">{o.memberName}</span>
-                            <span className="font-bold whitespace-nowrap text-[14px]">x{o.qty}</span>
-                          </div>
-                        ))}
-                      </div>
-                      {confirmingItem.item.hasNotes && (
-                        <div className="mt-2">
-                          {confirmingItem.item.orders.filter((o: any) => o.note).map((o: any, i: number) => (
-                            <p key={i} className="text-[12px] font-semibold italic leading-tight text-slate-600 mb-1 flex gap-2">
-                               <span>*</span> 
-                               <span>{o.note}</span>
-                            </p>
-                          ))}
-                        </div>
-                      )}
-                   </div>
-                   
-                   <div className="border-t-[1.5px] border-dashed border-slate-300 w-full mb-4"></div>
-
-                   <div className="text-center text-[10px] text-slate-400 tracking-widest font-bold">
-                     <p>ERP KDS SYSTEM</p>
-                   </div>
-                </div>
-
-                {/* รอยหยักด้านล่างใบเสร็จ (CSS Gradient) */}
-                <div className="absolute bottom-0 left-0 right-0 h-[6px] bg-repeat-x" style={{backgroundImage: 'radial-gradient(circle at 50% 100%, transparent 3px, white 4px)', backgroundSize: '10px 6px'}}></div>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      )}
     </div>
   );
 };

@@ -45,11 +45,11 @@ interface KdsState {
   setIsMenuPanelOpen: (isOpen: boolean) => void;
   
   // Fetchers
-  fetchTasks: () => Promise<void>;
+  fetchTasks: (silent?: boolean) => Promise<void>;
   markTaskAsDone: (orderUuid: string) => Promise<void>;
-  loadMasterData: () => Promise<void>;
+  loadMasterData: (silent?: boolean) => Promise<void>;
   loadGlobalPlanner: (start: string, end: string) => Promise<void>;
-  loadMemberPlanner: (start: string, end: string, packageId?: string) => Promise<void>;
+  loadMemberPlanner: (start: string, end: string, packageId?: string, silent?: boolean) => Promise<void>;
   fetchAllMembers: () => Promise<void>;
   
   // Mutators (Global)
@@ -129,9 +129,9 @@ export const useKdsStore = create<KdsState>()(
       setSelectedPackageId: (id) => set({ selectedPackageId: id }),
       setIsMenuPanelOpen: (isOpen) => set({ isMenuPanelOpen: isOpen }),
 
-      fetchTasks: async () => {
+      fetchTasks: async (silent = false) => {
         try {
-          set({ isLoadingTasks: true, error: null });
+          if (!silent) set({ isLoadingTasks: true, error: null });
           const data = await fetchActiveKdsTasks();
           set({ tasks: data, isLoadingTasks: false });
         } catch (error: any) {
@@ -148,9 +148,9 @@ export const useKdsStore = create<KdsState>()(
         }
       },
       
-      loadMasterData: async () => {
+      loadMasterData: async (silent = false) => {
         try {
-          set({ isLoadingData: true, error: null });
+          if (!silent) set({ isLoadingData: true, error: null });
           const [menusData, packagesData, membersData] = await Promise.all([
             fetchMenuItems(),
             fetchActivePackages(),
@@ -188,9 +188,9 @@ export const useKdsStore = create<KdsState>()(
         }
       },
 
-      loadMemberPlanner: async (startDate, endDate, packageId) => {
+      loadMemberPlanner: async (startDate, endDate, packageId, silent = false) => {
          try {
-           set({ isLoadingPlanner: true, error: null });
+           if (!silent) set({ isLoadingPlanner: true, error: null });
            if (packageId && packageId.toString().startsWith('temp_')) {
              set({ isLoadingPlanner: false });
              return;

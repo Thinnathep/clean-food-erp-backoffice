@@ -13,6 +13,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import dayjs from 'dayjs';
 import 'dayjs/locale/th';
+import Swal from 'sweetalert2';
 
 type TabType = 'dashboard' | 'production' | 'calendar';
 
@@ -389,6 +390,8 @@ function ProductionTab({ dailySummary }: { dailySummary: any[] }) {
   );
 }
 
+
+
 // ─── Calendar Tab ─────────────────────────────────────────────────────────────
 const WEEKDAYS_EN = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
@@ -538,7 +541,7 @@ function CalendarTab({ calendarData, activePackages }: {
 // ─── Main Component ───────────────────────────────────────────────────────────
 export const ProductionSummary: React.FC = () => {
   const { user } = useAuthStore();
-  const { memberSchedules, loadMemberPlanner, loadGlobalPlanner, activePackages } = useKdsStore();
+  const { memberSchedules, loadMemberPlanner, loadGlobalPlanner, activePackages, menus } = useKdsStore();
 
   const [activeTab, setActiveTab] = useState<TabType>('production');
   const [selectedDate, setSelectedDate] = useState(dayjs().add(1, 'day').format('YYYY-MM-DD'));
@@ -641,9 +644,9 @@ export const ProductionSummary: React.FC = () => {
     };
   }, [memberSchedules, currentMonth]);
 
-  const navLabel = activeTab === 'production' ? 'วันที่ผลิต' : 'ประจำเดือน';
+  const navLabel = (activeTab === 'production') ? 'วันที่ดูข้อมูล' : 'ประจำเดือน';
   const navValue =
-    activeTab === 'production'
+    (activeTab === 'production')
       ? dayjs(selectedDate).locale('th').format('D MMMM YYYY')
       : currentMonth.locale('th').format('MMMM YYYY');
 
@@ -690,6 +693,8 @@ export const ProductionSummary: React.FC = () => {
               <ProductionTab dailySummary={dailySummary} />
             </motion.div>
           )}
+
+
 
           {activeTab === 'calendar' && (
             <motion.div key="cal" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
