@@ -32,21 +32,21 @@ const CATEGORY_PRIORITY: Record<string, number> = {
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
-  'ของหวาน': '#EC4899',
-  'ของหวาน/ว่าง': '#EC4899',
-  'สลัด': '#10B981',
-  'ซูวี': '#6366F1',
-  'ซุป': '#F59E0B',
-  'ซุป/แกง': '#F59E0B',
-  'ซุป/ต้ม': '#F59E0B',
-  'ต้ม': '#F59E0B',
-  'แกง': '#EF4444',
-  'แกง/ต้ม': '#EF4444',
-  'เส้น': '#8B5CF6',
-  'เมนูเส้น': '#8B5CF6',
-  'ผัด': '#F97316',
-  'ผัดแห้ง': '#F97316',
-  'เมนูหลัก': '#64748B'
+  'ของหวาน': '#E11D48', // rose-600
+  'ของหวาน/ว่าง': '#E11D48',
+  'สลัด': '#10B981', // emerald-500
+  'ซูวี': '#4F46E5', // indigo-600
+  'ซุป': '#0D9488', // teal-600
+  'ซุป/แกง': '#0D9488',
+  'ซุป/ต้ม': '#0D9488',
+  'ต้ม': '#0D9488',
+  'แกง': '#0D9488',
+  'แกง/ต้ม': '#0D9488',
+  'เส้น': '#D97706', // amber-600
+  'เมนูเส้น': '#D97706',
+  'ผัด': '#EA580C', // orange-600
+  'ผัดแห้ง': '#EA580C',
+  'เมนูหลัก': '#475569' // slate-600
 };
 
 export const TodayView: React.FC = () => {
@@ -521,7 +521,7 @@ export const TodayView: React.FC = () => {
               <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                 <div>
                   <h3 className="text-xl font-bold text-slate-900 leading-none">ข้อมูลโภชนาการ</h3>
-                  <p className="text-base font-black text-slate-900 mt-1 uppercase tracking-tight">{nutritionModal.memberName}</p>
+                  <p className="text-base font-bold text-slate-900 mt-1 uppercase tracking-tight">{nutritionModal.memberName}</p>
                 </div>
                 <button 
                   onClick={() => setNutritionModal(null)} 
@@ -542,7 +542,7 @@ export const TodayView: React.FC = () => {
                     <div className="min-w-0 flex-1">
                       <p className="font-bold text-slate-900 text-base truncate">{o.menuName}</p>
                       <p className="text-[11px] text-slate-500 font-bold uppercase tracking-tight mt-0.5">
-                        🔥 <span className="text-slate-900 font-black">{o.kcal * o.qty}</span> KCAL | {o.macros}
+                        🔥 <span className="text-slate-900 font-bold">{o.kcal * o.qty}</span> KCAL | {o.macros}
                       </p>
                     </div>
                     <div className="flex flex-col items-center justify-center bg-white px-2.5 py-1 rounded-xl shadow-sm border border-slate-100 min-w-[40px]">
@@ -555,18 +555,18 @@ export const TodayView: React.FC = () => {
                 <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -mr-16 -mt-16" />
                 <div className="flex justify-between items-end mb-6 relative z-10">
                   <div>
-                    <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1">ยอดรวมโภชนาการประจำวัน</p>
-                    <h4 className="text-5xl font-black tracking-tighter">{nutritionModal.item.totalKcal} <span className="text-sm font-bold opacity-30 tracking-normal ml-1">KCAL</span></h4>
+                    <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-1">ยอดรวมโภชนาการประจำวัน</p>
+                    <h4 className="text-4xl font-bold tracking-tighter">{nutritionModal.item.totalKcal} <span className="text-sm font-bold opacity-30 tracking-normal ml-1">KCAL</span></h4>
                   </div>
                   <div className="text-right">
                     <div className="flex flex-col items-end gap-0.5">
-                        <p className="text-[13px] font-black tracking-widest leading-none">
+                        <p className="text-[13px] font-bold tracking-widest leading-none">
                             <span className="text-slate-400">P:</span><span className="text-blue-400">{nutritionModal.item.totalP.toFixed(0)}</span>
                         </p>
-                        <p className="text-[13px] font-black tracking-widest leading-none">
+                        <p className="text-[13px] font-bold tracking-widest leading-none">
                             <span className="text-slate-400">C:</span><span className="text-emerald-400">{nutritionModal.item.totalC.toFixed(0)}</span>
                         </p>
-                        <p className="text-[13px] font-black tracking-widest leading-none">
+                        <p className="text-[13px] font-bold tracking-widest leading-none">
                             <span className="text-slate-400">F:</span><span className="text-amber-400">{nutritionModal.item.totalF.toFixed(0)}</span>
                         </p>
                     </div>
@@ -685,39 +685,44 @@ export const TodayView: React.FC = () => {
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
-                            {Object.entries(group.members).map(([memberName, item]: [string, any]) => {
+                            {Object.entries(group.members)
+                                .sort(([a], [b]) => a.localeCompare(b, 'th'))
+                                .map(([memberName, item]: [string, any]) => {
                                 const isDone = item.orders.every((o: any) => o.status === 'ready' || o.status === 'done' || o.status === 'เสร็จสิ้น');
                                 return (
                                 <div 
                                   key={memberName} 
                                   className={`bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col overflow-hidden hover:shadow-xl transition-all duration-300 group relative ${isDone ? 'border-slate-300 shadow-inner' : ''}`}
                                 >
-                                    <div className={`p-4 flex flex-col gap-3 flex-1 ${isDone ? 'opacity-30 grayscale-[0.8]' : ''}`}>
-                                        <div className="flex justify-between items-start gap-2">
-                                            <div className="flex flex-col gap-1">
-                                                <div className="flex items-center gap-2">
-                                                    <button 
-                                                      onClick={(e) => handleToggleClick(time, memberName, item, e)}
-                                                      className={`w-6 h-6 rounded-lg flex items-center justify-center transition-all ${isDone ? 'bg-emerald-500 text-white shadow-md shadow-emerald-200' : 'bg-slate-100 text-slate-300 hover:bg-emerald-50 hover:text-emerald-500'}`}
-                                                    >
-                                                        <CheckCircle2 size={16} />
-                                                    </button>
-                                                    {item.isRetail && <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded bg-slate-900 text-white">รายย่อย</span>}
-                                                    {item.hasExtraOrder && <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded bg-orange-500 text-white">สั่งแยก</span>}
-                                                    {item.hasNotes && !isDone && <AlertTriangle size={14} className="text-red-500 animate-pulse" />}
-                                                </div>
-                                                <h4 className={`text-lg font-bold transition-colors ${isDone ? 'text-slate-400 line-through' : 'text-slate-900 group-hover:text-emerald-600'}`}>{memberName}</h4>
+                                    {/* Header Section (Always Prominent) */}
+                                    <div className="p-4 pb-0 flex justify-between items-start gap-2 relative z-10">
+                                        <div className="flex flex-col gap-2">
+                                            <div className="flex items-center gap-2">
+                                                <motion.button 
+                                                  whileTap={{ scale: 0.9 }}
+                                                  onClick={(e) => handleToggleClick(time, memberName, item, e)}
+                                                  className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all shadow-md ${isDone ? 'bg-emerald-500 text-white shadow-emerald-500/40' : 'bg-emerald-50 text-emerald-500 hover:bg-emerald-100 border border-emerald-100'}`}
+                                                >
+                                                    <CheckCircle2 size={22} strokeWidth={2} />
+                                                </motion.button>
+                                                {item.isRetail && <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded bg-slate-900 text-white shadow-sm">รายย่อย</span>}
+                                                {item.hasExtraOrder && <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded bg-orange-500 text-white shadow-sm">สั่งแยก</span>}
+                                                {item.hasNotes && !isDone && <AlertTriangle size={16} className="text-red-500 animate-pulse" />}
                                             </div>
-                                            <div 
-                                              onClick={(e) => handleToggleClick(time, memberName, item, e)}
-                                              className={`cursor-pointer ${isDone ? 'bg-slate-200' : 'bg-slate-900'} text-white px-2.5 py-1.5 rounded-lg flex flex-col items-center justify-center shrink-0 min-w-[40px] shadow-sm transition-all hover:scale-105 active:scale-95`}
-                                            >
-                                                <span className="text-[18px] font-black leading-none">{item.totalQty}</span>
-                                                <span className="text-[8px] font-bold uppercase opacity-60 leading-none mt-1">BOX</span>
-                                            </div>
+                                            <h4 className={`text-lg font-semibold transition-colors ${isDone ? 'text-slate-400 line-through' : 'text-slate-900 group-hover:text-emerald-600'}`}>{memberName}</h4>
                                         </div>
+                                        <div 
+                                          onClick={(e) => handleToggleClick(time, memberName, item, e)}
+                                          className={`cursor-pointer ${isDone ? 'bg-slate-300' : 'bg-slate-900'} text-white px-2.5 py-2 rounded-xl flex flex-col items-center justify-center shrink-0 min-w-[44px] shadow-lg transition-all hover:scale-105 active:scale-95`}
+                                        >
+                                            <span className="text-[20px] font-bold leading-none">{item.totalQty}</span>
+                                            <span className="text-[8px] font-bold uppercase opacity-60 leading-none mt-1">BOX</span>
+                                        </div>
+                                    </div>
 
-                                        <div className="space-y-2 mt-1">
+                                    {/* Content Section (Faded when Done) */}
+                                    <div className={`px-4 pt-3 flex flex-col gap-3 flex-1 ${isDone ? 'opacity-25 grayscale-[1]' : ''}`}>
+                                        <div className="space-y-2">
                                             {item.orders.map((order: any, oIdx: number) => {
                                                 const orderDone = order.status === 'ready' || order.status === 'done' || order.status === 'เสร็จสิ้น';
                                                 return (
@@ -730,13 +735,13 @@ export const TodayView: React.FC = () => {
                                                         <div className="flex-1">
                                                             <div className="flex items-center gap-1.5 mb-0.5">
                                                                 <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[order.category] || '#CBD5E1' }}></span>
-                                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{order.category}</span>
+                                                                <span className="text-[11px] font-semibold text-slate-900 uppercase tracking-tight">{order.category}</span>
                                                                 {order.isExtra && <span className="text-[9px] font-black bg-orange-100 text-orange-600 px-1 rounded uppercase tracking-widest ml-1">สั่งแยก</span>}
                                                             </div>
-                                                            <p className={`text-[14px] font-semibold leading-tight ${orderDone ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{order.menuName}</p>
+                                                            <p className={`text-[14px] font-medium leading-tight ${orderDone ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{order.menuName}</p>
                                                         </div>
                                                         <div className="flex flex-col items-end gap-1">
-                                                            <span className={`text-[14px] font-black ${orderDone ? 'text-slate-300' : 'text-slate-900'}`}>x{order.qty}</span>
+                                                            <span className={`text-[14px] font-bold ${orderDone ? 'text-slate-300' : 'text-slate-900'}`}>x{order.qty}</span>
                                                             {orderDone && <CheckCircle2 size={12} className="text-emerald-500" />}
                                                         </div>
                                                     </div>
@@ -753,8 +758,8 @@ export const TodayView: React.FC = () => {
 
                                     <div className="px-4 pb-4 flex flex-col gap-2">
                                         <div className="flex justify-between items-center pt-2 border-t border-dashed border-slate-100">
-                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.1em]">ข้อมูลโภชนาการรวม</p>
-                                            <span className="text-[11px] font-black text-slate-900 bg-slate-100 px-2 py-0.5 rounded-lg">{item.totalKcal} KCAL</span>
+                                            <p className="text-[9px] font-bold text-slate-900 uppercase tracking-[0.1em]">ข้อมูลโภชนาการรวม</p>
+                                            <span className="text-[11px] font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded-lg">{item.totalKcal} KCAL</span>
                                         </div>
                                         <div className="grid grid-cols-2 gap-2">
                                             <motion.button 
@@ -783,12 +788,12 @@ export const TodayView: React.FC = () => {
                                         {isDone ? (
                                             <>
                                                 <X size={14} className="text-white" />
-                                                <span className="text-[11px] font-black uppercase tracking-[0.2em] text-white">
+                                                <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-white">
                                                     ยกเลิกรายการ (UNDO)
                                                 </span>
                                             </>
                                         ) : (
-                                            <span className={`text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600`}>
+                                            <span className={`text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-600`}>
                                                 ยืนยันแพ็คอาหาร (READY)
                                             </span>
                                         )}

@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useKdsStore } from '../../../store/kdsStore';
 import { useAuthStore } from '../../../store/authStore';
 import {
-  UtensilsCrossed, Clock, ChevronLeft, ChevronRight, Package, BarChart3,
+  UtensilsCrossed, ChevronLeft, ChevronRight, Package, BarChart3,
   Calendar as CalendarIcon, Printer,
   User, Sparkles, AlertCircle, TrendingUp, ChefHat
 } from 'lucide-react';
@@ -71,29 +71,55 @@ function TabNav({ active, onChange, canViewDashboard }: {
 
 /** Date / month navigator */
 function DateNav({
-  label, value, onPrev, onNext, onToday, isDark = false, onPrint
+  label, value, onPrev, onNext, onToday, isDark = false, onPrint,
+  filterType, onFilterChange
 }: {
   label: string; value: string;
   onPrev: () => void; onNext: () => void; onToday?: () => void;
   isDark?: boolean; onPrint?: () => void;
+  filterType?: 'day' | 'month'; onFilterChange?: (t: 'day' | 'month') => void;
 }) {
   return (
     <div className="flex items-stretch gap-2">
+      {filterType && onFilterChange && (
+        <div className="flex bg-slate-100 p-1 rounded-xl items-center border border-slate-200">
+          <button
+            onClick={() => onFilterChange('day')}
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              filterType === 'day' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            วันนี้
+          </button>
+          <button
+            onClick={() => onFilterChange('month')}
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              filterType === 'month' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            รวมทั้งหมด
+          </button>
+        </div>
+      )}
+
       {onToday && (
         <button
-          onClick={onToday}
+          onClick={() => {
+            if (onFilterChange) onFilterChange('day');
+            onToday();
+          }}
           className={`px-6 py-2.5 rounded-xl border text-xs font-bold transition-all active:scale-95 flex items-center justify-center ${
             isDark 
               ? 'border-slate-700 bg-slate-800/60 text-slate-400 hover:text-white hover:bg-slate-700' 
               : 'border-slate-200 bg-white text-slate-500 hover:text-slate-900 hover:bg-slate-50 shadow-sm'
           }`}
         >
-          วันนี้
+          กลับวันนี้
         </button>
       )}
 
       <div className={`flex items-center rounded-xl border overflow-hidden ${
-        isDark ? 'border-slate-700 bg-slate-800/60' : 'border-slate-200 bg-white'
+        isDark ? 'border-slate-700 bg-slate-800/60' : 'border-slate-200 bg-white shadow-sm'
       }`}>
         <button
           onClick={onPrev}
@@ -118,7 +144,7 @@ function DateNav({
         <motion.button
           whileTap={{ scale: 0.95 }}
           onClick={onPrint}
-          className="p-2.5 bg-slate-900 text-white rounded-xl hover:bg-slate-700 transition-colors"
+          className="px-3 bg-slate-900 text-white rounded-xl hover:bg-slate-700 transition-colors flex items-center justify-center"
           title="พิมพ์รายงาน"
         >
           <Printer size={16} />
@@ -151,67 +177,100 @@ function KpiCard({ label, value, icon: Icon, color }: {
 
 /** Single production card */
 function ProductionCard({ item, idx }: { item: any; idx: number }) {
+  const [showAll, setShowAll] = useState(false);
+  const displayMembers = showAll ? item.members : item.members.slice(0, 5);
+  const hasMore = item.members.length > 5;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: idx * 0.06 }}
-      className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden"
+      className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-shadow group"
     >
       {/* Card header */}
-      <div className="p-5 border-b border-slate-50 flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 bg-slate-900 text-white rounded-xl flex items-center justify-center shrink-0">
-            <UtensilsCrossed size={18} />
+      {/* Enhanced Header */}
+      <div className="p-3 bg-white border-b border-slate-100 flex items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 mb-0.5">
+            <span className={`px-1.5 py-0.5 rounded text-white text-[8px] font-black uppercase tracking-widest ${
+              item.category === 'ของหวาน' ? 'bg-rose-500' :
+              item.category === 'เส้น' ? 'bg-amber-500' :
+              item.category === 'ผัด' ? 'bg-orange-500' :
+              item.category === 'สลัด' ? 'bg-emerald-500' :
+              item.category === 'ซูวี' ? 'bg-indigo-500' :
+              item.category === 'ซุป/แกง' ? 'bg-teal-500' :
+              'bg-slate-700'
+            }`}>{item.category}</span>
+            <h4 className="font-bold text-sm text-slate-900 leading-tight truncate">{item.name}</h4>
           </div>
-          <div className="min-w-0">
-            <h4 className="font-bold text-slate-900 text-lg leading-tight truncate">{item.name}</h4>
-            <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">เมนูประจำวัน</p>
+          <div className="flex gap-1.5 mt-1 overflow-x-auto no-scrollbar">
+            {Object.entries(item.rounds).map(([round, count]: [string, any]) => {
+              const displayRound = 
+                round === 'รอบเช้า' ? '11:00 - 13:00' :
+                round === 'รอบเย็น' ? '15:00 - 17:00' :
+                round;
+              return (
+                <span key={round} className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 whitespace-nowrap">
+                  {displayRound}: {count}
+                </span>
+              );
+            })}
           </div>
         </div>
-        {/* Total badge */}
-        <div className="shrink-0 text-right">
-          <span className="inline-flex items-baseline gap-1 bg-emerald-50 px-3 py-1 rounded-xl border border-emerald-100">
-            <span className="text-3xl font-black text-emerald-600 leading-none">{item.total}</span>
-            <span className="text-sm font-bold text-emerald-500">กล่อง</span>
-          </span>
+        <div className="bg-emerald-50 text-emerald-600 border border-emerald-100 px-3 py-1 rounded-xl shadow-sm shrink-0 flex flex-col items-center justify-center min-w-[50px]">
+          <span className="text-xl font-black leading-none">{item.total}</span>
+          <div className="flex flex-col items-center -mt-0.5">
+            <span className="text-[8px] font-black uppercase opacity-60">BOX</span>
+            <span className="text-[7px] font-bold text-slate-400">({item.members.length} ท่าน)</span>
+          </div>
         </div>
       </div>
 
-      {/* Round breakdown */}
-      <div className="p-5 grid grid-cols-2 gap-3">
-        {Object.entries(item.rounds).map(([round, count]: [string, any]) => (
-          <div key={round} className="bg-slate-50 rounded-xl p-3.5 border border-slate-100">
-            <div className="flex items-center gap-2 mb-2">
-              <Clock size={14} className="text-blue-500 shrink-0" />
-              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">{round}</p>
-            </div>
-            <p className="text-2xl font-bold text-slate-800">
-              {count}<span className="text-sm font-medium text-slate-400 ml-1">boxes</span>
-            </p>
-          </div>
-        ))}
-      </div>
-
-      {/* Special notes */}
-      {item.notes.length > 0 && (
-        <div className="px-5 pb-5">
-          <div className="bg-rose-50 rounded-xl p-3.5 border border-rose-100">
-            <div className="flex items-center gap-2 mb-2.5">
-              <AlertCircle size={13} className="text-rose-500" />
-              <span className="text-[10px] font-black text-rose-600 uppercase tracking-wider">หมายเหตุพิเศษ</span>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              {item.notes.map((note: any, i: number) => (
-                <div key={i} className="flex items-center justify-between text-xs">
-                  <span className="text-rose-700 font-medium">{note.text}</span>
-                  <span className="bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{note.count}</span>
+      {/* Member List (Filling space) */}
+      <div className="p-3 flex-1 flex flex-col bg-slate-50/20">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+          {displayMembers.map((m: any, i: number) => {
+            const displayRound = 
+              m.round === 'รอบเช้า' ? '11:00 - 13:00' :
+              m.round === 'รอบเย็น' ? '15:00 - 17:00' :
+              m.round;
+            return (
+              <div key={i} className={`flex items-center justify-between px-3 py-1.5 bg-white border rounded-lg shadow-sm transition-colors ${m.note ? 'border-amber-100 bg-amber-50/20' : 'border-slate-100'}`}>
+                <div className="min-w-0 flex-1 mr-2">
+                  <p className={`text-[13px] font-semibold truncate ${m.note ? 'text-amber-900' : 'text-slate-800'}`}>{m.name}</p>
+                  <p className="text-[9px] text-slate-400 font-medium">{displayRound}</p>
                 </div>
-              ))}
-            </div>
-          </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {m.note && <AlertCircle size={11} className="text-amber-500 animate-pulse" />}
+                  <span className="text-[13px] font-black text-slate-900">x{m.qty}</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
-      )}
+        
+        {hasMore && (
+          <button 
+            onClick={() => setShowAll(!showAll)}
+            className="w-full py-1.5 text-[10px] font-bold text-blue-500 hover:bg-blue-50 border border-dashed border-blue-200 rounded-lg mt-2 transition-colors"
+          >
+            {showAll ? 'ย่อรายการ' : `ดูเพิ่มอีก ${item.members.length - 5} ท่าน`}
+          </button>
+        )}
+
+        {/* Notes (Readability Focused) */}
+        {item.notes.length > 0 && (
+          <div className="mt-3 pt-2 border-t border-slate-100 flex flex-wrap gap-1.5">
+            {item.notes.map((note: any, i: number) => (
+              <div key={i} className="flex items-center gap-1.5 bg-rose-50 text-rose-600 px-2 py-1 rounded-lg border border-rose-100 text-[10px] font-bold">
+                <span>{note.text}</span>
+                <span className="bg-rose-100/50 px-1 rounded text-[9px]">{note.count}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </motion.div>
   );
 }
@@ -381,7 +440,7 @@ function ProductionTab({ dailySummary }: { dailySummary: any[] }) {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {dailySummary.map((item, idx) => (
         <ProductionCard key={idx} item={item} idx={idx} />
       ))}
@@ -545,20 +604,20 @@ export const ProductionSummary: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('production');
   const [selectedDate, setSelectedDate] = useState(dayjs().add(1, 'day').format('YYYY-MM-DD'));
   const [currentMonth, setCurrentMonth] = useState(dayjs().startOf('month'));
+  const [filterType, setFilterType] = useState<'day' | 'month'>('day');
 
   const canViewDashboard = user?.role === 'ADMIN';
 
-  // Load data
   useEffect(() => {
-    if (activeTab === 'dashboard' || activeTab === 'calendar') {
-      const start = currentMonth.format('YYYY-MM-DD');
+    if (activeTab === 'dashboard' || activeTab === 'calendar' || (activeTab === 'production' && filterType === 'month')) {
+      const start = currentMonth.startOf('month').format('YYYY-MM-DD');
       const end = currentMonth.endOf('month').format('YYYY-MM-DD');
       loadMemberPlanner(start, end);
     } else {
       loadMemberPlanner(selectedDate, selectedDate);
       loadGlobalPlanner(selectedDate, selectedDate);
     }
-  }, [selectedDate, activeTab, currentMonth, loadMemberPlanner, loadGlobalPlanner]);
+  }, [selectedDate, activeTab, currentMonth, filterType, loadMemberPlanner, loadGlobalPlanner]);
 
   // Navigation
   const handlePrev = () => {
@@ -589,20 +648,41 @@ export const ProductionSummary: React.FC = () => {
   const dailySummary = useMemo(() => {
     const summary: Record<string, any> = {};
     memberSchedules
-      .filter(s => s.delivery_date === selectedDate)
+      .filter(s => {
+        if (filterType === 'day') return s.delivery_date === selectedDate;
+        return dayjs(s.delivery_date).isSame(currentMonth, 'month');
+      })
       .forEach(s => {
         const id = s.menu_item_id;
         if (!summary[id]) {
+          let category = s.menu_items?.category || 'อื่นๆ';
+          if (category.includes('ของหวาน')) category = 'ของหวาน';
+          else if (category.includes('เส้น')) category = 'เส้น';
+          else if (category.includes('ผัด')) category = 'ผัด';
+          else if (category.includes('สลัด')) category = 'สลัด';
+          else if (category.includes('ซูวี')) category = 'ซูวี';
+          else if (category.includes('ซุป') || category.includes('ต้ม') || category.includes('แกง')) category = 'ซุป/แกง';
+
           summary[id] = {
             name: s.menu_items?.name || 'Unknown',
+            category: category,
             total: 0,
             rounds: {},
             notes: [],
+            members: [],
           };
         }
         summary[id].total += s.quantity;
-        const round = s.delivery_time || 'ไม่ระบุ';
+        const round = s.delivery_time || 'รอบปกติ';
         summary[id].rounds[round] = (summary[id].rounds[round] || 0) + s.quantity;
+        
+        summary[id].members.push({
+          name: (s as any).members?.full_name || 'ลูกค้าทั่วไป',
+          qty: s.quantity,
+          note: s.notes,
+          round: round
+        });
+
         if (s.notes) {
           const existing = summary[id].notes.find((n: any) => n.text === s.notes);
           if (existing) existing.count += s.quantity;
@@ -673,8 +753,10 @@ export const ProductionSummary: React.FC = () => {
           value={navValue}
           onPrev={handlePrev}
           onNext={handleNext}
-          onToday={handleToday}
+          onToday={activeTab === 'production' ? handleToday : undefined}
           onPrint={activeTab === 'production' ? () => window.print() : undefined}
+          filterType={activeTab === 'production' ? filterType : undefined}
+          onFilterChange={activeTab === 'production' ? setFilterType : undefined}
         />
       </div>
 
