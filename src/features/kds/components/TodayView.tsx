@@ -8,7 +8,11 @@ import { useAuthStore } from '../../../store/authStore';
 import { closeKitchenSession, updateSchedulesKitchenStatus, updateOrdersKitchenStatus } from '../api';
 import { supabase } from '../../../config/supabase';
 import Swal from 'sweetalert2';
+import { toast } from 'sonner';
+import { useAutoAnimate } from '@formkit/auto-animate/react';
+import { cn } from '../../../lib/utils';
 import type { MemberMealSchedule, KdsTask } from '../../../types';
+
 
 const CATEGORY_PRIORITY: Record<string, number> = {
   'ของหวาน': 1,
@@ -56,8 +60,11 @@ export const TodayView: React.FC = () => {
   const fetchTasks = useKdsStore(state => state.fetchTasks);
   const menus = useKdsStore(state => state.menus);
   
+  const [parent] = useAutoAnimate();
+  
   const [filterType, setFilterType] = useState<'all' | 'member' | 'retail' | 'extra'>('all');
   const [selectedDate, setSelectedDate] = useState<string>(dayjs().format('YYYY-MM-DD'));
+
 
   useEffect(() => {
     loadMemberPlanner(selectedDate, selectedDate);
@@ -348,15 +355,11 @@ export const TodayView: React.FC = () => {
         useKdsStore.getState().loadMasterData(true);
       }
 
-      Swal.fire({
-        title: isCurrentlyDone ? 'ยกเลิกสถานะสำเร็จ' : 'บันทึกสถานะเสร็จสิ้น',
-        icon: 'success',
-        toast: true,
-        position: 'top-end',
-        timer: 2000,
-        showConfirmButton: false
+      toast.success(isCurrentlyDone ? 'ยกเลิกสถานะสำเร็จ' : 'บันทึกสถานะเสร็จสิ้น', {
+        description: !isCurrentlyDone ? `จัดเตรียมอาหารของ ${item.memberName} เรียบร้อยแล้ว` : undefined,
       });
     } catch (error: any) {
+
       console.error('Toggle status error:', error);
       Swal.fire('Error', 'ไม่สามารถเปลี่ยนสถานะได้: ' + error.message, 'error');
     }
@@ -501,16 +504,11 @@ export const TodayView: React.FC = () => {
     text += `💪 P:${Math.max(0, item.totalP).toFixed(1)} C:${Math.max(0, item.totalC).toFixed(1)} F:${Math.max(0, item.totalF).toFixed(1)}`;
 
     navigator.clipboard.writeText(text);
-    Swal.fire({
-      title: 'คัดลอกข้อมูลแล้ว',
-      text: 'คุณสามารถวางข้อมูลโภชนาการได้ทันที',
-      icon: 'success',
-      toast: true,
-      position: 'top-end',
-      timer: 2000,
-      showConfirmButton: false
+    toast.success('คัดลอกข้อมูลแล้ว', {
+      description: 'คุณสามารถวางข้อมูลโภชนาการได้ทันที'
     });
   };
+
 
   return (
     <div className="flex-1 overflow-y-auto bg-[#F8FAFC] custom-scrollbar print:bg-white print:p-0">
@@ -624,11 +622,36 @@ export const TodayView: React.FC = () => {
 
           <div className="flex flex-wrap items-center gap-3">
             <div className="bg-white border border-slate-100 rounded-2xl p-1 flex gap-1 shadow-sm mr-2">
-                <button onClick={() => setFilterType('member')} className={`px-4 py-2 rounded-xl text-[11px] font-bold transition-all ${filterType === 'member' ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20' : 'text-slate-400 hover:text-slate-600'}`}>สมาชิก</button>
-                <button onClick={() => setFilterType('retail')} className={`px-4 py-2 rounded-xl text-[11px] font-bold transition-all ${filterType === 'retail' ? 'bg-blue-500 text-white shadow-md shadow-blue-500/20' : 'text-slate-400 hover:text-slate-600'}`}>รายย่อย</button>
-                <button onClick={() => setFilterType('extra')} className={`px-4 py-2 rounded-xl text-[11px] font-bold transition-all ${filterType === 'extra' ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20' : 'text-slate-400 hover:text-slate-600'}`}>สั่งแยก</button>
+                <button 
+                  onClick={() => setFilterType('member')} 
+                  className={cn(
+                    "px-4 py-2 rounded-xl text-[11px] font-bold transition-all",
+                    filterType === 'member' ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/20" : "text-slate-400 hover:text-slate-600"
+                  )}
+                >
+                  สมาชิก
+                </button>
+                <button 
+                  onClick={() => setFilterType('retail')} 
+                  className={cn(
+                    "px-4 py-2 rounded-xl text-[11px] font-bold transition-all",
+                    filterType === 'retail' ? "bg-blue-500 text-white shadow-md shadow-blue-500/20" : "text-slate-400 hover:text-slate-600"
+                  )}
+                >
+                  รายย่อย
+                </button>
+                <button 
+                  onClick={() => setFilterType('extra')} 
+                  className={cn(
+                    "px-4 py-2 rounded-xl text-[11px] font-bold transition-all",
+                    filterType === 'extra' ? "bg-orange-500 text-white shadow-md shadow-orange-500/20" : "text-slate-400 hover:text-slate-600"
+                  )}
+                >
+                  สั่งแยก
+                </button>
                 {filterType !== 'all' && <button onClick={() => setFilterType('all')} className="px-2 text-slate-300 hover:text-slate-500"><X size={14} /></button>}
             </div>
+
             <button onClick={() => setSelectedDate(dayjs().format('YYYY-MM-DD'))} className="px-6 py-3 bg-white border border-slate-100 rounded-2xl text-xs font-bold text-indigo-500 hover:text-indigo-600 hover:bg-slate-50 transition-all shadow-sm flex items-center justify-center active:scale-95">วันนี้</button>
             <div className="bg-white border border-slate-100 rounded-2xl p-1.5 flex items-center shadow-sm">
                 <button onClick={() => changeDate(-1)} className="p-2.5 hover:bg-slate-50 text-slate-400 hover:text-slate-900 rounded-xl transition-all"><ChevronLeft size={18} /></button>
@@ -695,7 +718,8 @@ export const TodayView: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
+                        <div ref={parent} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
+
                             {Object.entries(group.members)
                                 .sort(([a], [b]) => a.localeCompare(b, 'th'))
                                 .map(([memberName, item]: [string, any]) => {

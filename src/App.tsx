@@ -9,6 +9,8 @@ import { IngredientMasterPage } from './features/inventory/components/Ingredient
 import { Login } from './features/auth/Login';
 import { useAuthStore } from './store/authStore';
 import { supabase } from './config/supabase';
+import { Toaster } from 'sonner';
+
 
 // Re-saved to ensure all imports are matched correctly
 
@@ -76,7 +78,9 @@ function App() {
 
   return (
     <BrowserRouter>
+      <Toaster richColors closeButton position="top-right" />
       <Routes>
+
         <Route path="/login" element={isAuthenticated ? <Navigate to="/kds" replace /> : <Login />} />
         
         <Route path="/" element={<Navigate to="/kds" replace />} />
