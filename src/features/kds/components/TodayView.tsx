@@ -166,6 +166,12 @@ export const TodayView: React.FC = () => {
         carbs -= 23;
       }
 
+      // Ensure values are not negative
+      kcal = Math.max(0, kcal);
+      carbs = Math.max(0, carbs);
+      protein = Math.max(0, protein);
+      fat = Math.max(0, fat);
+
       grouped[timeLabel].members[memberName].totalKcal += (kcal * schedule.quantity);
       grouped[timeLabel].members[memberName].totalP += (protein * schedule.quantity);
       grouped[timeLabel].members[memberName].totalC += (carbs * schedule.quantity);
@@ -221,10 +227,10 @@ export const TodayView: React.FC = () => {
       grouped[timeLabel].totalRoundQty += qty;
       grouped[timeLabel].members[memberName].totalQty += qty;
 
-      const kcal = matchedMenu?.calories || 0;
-      const protein = matchedMenu?.protein || 0;
-      const carbs = matchedMenu?.carbs || 0;
-      const fat = matchedMenu?.fat || 0;
+      const kcal = Math.max(0, matchedMenu?.calories || 0);
+      const protein = Math.max(0, matchedMenu?.protein || 0);
+      const carbs = Math.max(0, matchedMenu?.carbs || 0);
+      const fat = Math.max(0, matchedMenu?.fat || 0);
 
       grouped[timeLabel].members[memberName].totalKcal += (kcal * qty);
       grouped[timeLabel].members[memberName].totalP += (protein * qty);
@@ -491,8 +497,8 @@ export const TodayView: React.FC = () => {
     });
     
     text += `──────────────────\n`;
-    text += `📊 ยอดรวมทั้งหมด: ${item.totalKcal} kcal\n`;
-    text += `💪 P:${item.totalP.toFixed(1)} C:${item.totalC.toFixed(1)} F:${item.totalF.toFixed(1)}`;
+    text += `📊 ยอดรวมทั้งหมด: ${Math.max(0, item.totalKcal)} kcal\n`;
+    text += `💪 P:${Math.max(0, item.totalP).toFixed(1)} C:${Math.max(0, item.totalC).toFixed(1)} F:${Math.max(0, item.totalF).toFixed(1)}`;
 
     navigator.clipboard.writeText(text);
     Swal.fire({
@@ -566,13 +572,13 @@ export const TodayView: React.FC = () => {
                   <div className="text-right">
                     <div className="flex flex-col items-end gap-0.5">
                         <p className="text-[13px] font-bold tracking-widest leading-none">
-                            <span className="text-slate-400">P:</span><span className="text-blue-400">{nutritionModal.item.totalP.toFixed(0)}</span>
+                            <span className="text-slate-400">P:</span><span className="text-blue-400">{Math.max(0, nutritionModal.item.totalP).toFixed(0)}</span>
                         </p>
                         <p className="text-[13px] font-bold tracking-widest leading-none">
-                            <span className="text-slate-400">C:</span><span className="text-emerald-400">{nutritionModal.item.totalC.toFixed(0)}</span>
+                            <span className="text-slate-400">C:</span><span className="text-emerald-400">{Math.max(0, nutritionModal.item.totalC).toFixed(0)}</span>
                         </p>
                         <p className="text-[13px] font-bold tracking-widest leading-none">
-                            <span className="text-slate-400">F:</span><span className="text-amber-400">{nutritionModal.item.totalF.toFixed(0)}</span>
+                            <span className="text-slate-400">F:</span><span className="text-amber-400">{Math.max(0, nutritionModal.item.totalF).toFixed(0)}</span>
                         </p>
                     </div>
                   </div>
@@ -764,7 +770,7 @@ export const TodayView: React.FC = () => {
                                     <div className="px-4 pb-4 flex flex-col gap-2">
                                         <div className="flex justify-between items-center pt-2 border-t border-dashed border-slate-100">
                                             <p className="text-[9px] font-bold text-slate-900 uppercase tracking-[0.1em]">ข้อมูลโภชนาการรวม</p>
-                                            <span className="text-[11px] font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded-lg">{item.totalKcal} KCAL</span>
+                                            <span className="text-[11px] font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded-lg">{Math.max(0, item.totalKcal)} KCAL</span>
                                         </div>
                                         <div className="grid grid-cols-2 gap-2">
                                             <motion.button 
