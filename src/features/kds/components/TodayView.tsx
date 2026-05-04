@@ -10,7 +10,7 @@ import { supabase } from '../../../config/supabase';
 import Swal from 'sweetalert2';
 import { toast } from 'sonner';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
-import { cn } from '../../../lib/utils';
+import { cn, isUUID } from '../../../lib/utils';
 import type { MemberMealSchedule, KdsTask } from '../../../types';
 
 
@@ -286,7 +286,7 @@ export const TodayView: React.FC = () => {
     const newMemberStatus = isCurrentlyDone ? 'pending' : 'done';
     const newRetailStatus = isCurrentlyDone ? 'ยืนยันแล้ว' : 'เสร็จสิ้น';
 
-    const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+
 
     const memberOrderIds = item.orders
       .filter((o: any) => o.type === 'member' && isUUID(o.id))
@@ -409,7 +409,7 @@ export const TodayView: React.FC = () => {
       
       if (!isCurrentlyDone && order.menuId) {
         const user = useAuthStore.getState().user;
-        const isUUID = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+
         
         if (isUUID(order.menuId)) {
           const { data: session } = await supabase
