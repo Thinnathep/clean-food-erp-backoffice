@@ -62,7 +62,8 @@ export const TodayView: React.FC = () => {
   
   const [parent] = useAutoAnimate();
   
-  const [filterType, setFilterType] = useState<'all' | 'member' | 'retail' | 'extra'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'member' | 'retail' | 'extra' | 'menu'>('all');
+
   const [selectedDate, setSelectedDate] = useState<string>(dayjs().format('YYYY-MM-DD'));
 
 
@@ -97,6 +98,7 @@ export const TodayView: React.FC = () => {
       if (filterType === 'retail') return false;
       return true;
     });
+
     
     const todayTasks = tasks.filter(t => {
       if (filterType === 'member' || filterType === 'extra') return false;
@@ -124,8 +126,11 @@ export const TodayView: React.FC = () => {
       const rawTime = (schedule.delivery_time || memberData?.delivery_time || '').trim();
       const timeLabel = getCleanTimeLabel(rawTime);
       const memberName = memberData?.full_name || 'ไม่ระบุชื่อ';
+      const menuName = schedule.menu_items?.name || 'ไม่ทราบชื่อเมนู';
+      const groupKey = filterType === 'menu' ? menuName : memberName;
       
       let category = schedule.menu_items?.category || 'อื่นๆ';
+      // ... (category simplification logic)
       if (category.includes('ของหวาน')) category = 'ของหวาน';
       else if (category.includes('เส้น')) category = 'เส้น';
       else if (category.includes('ผัด')) category = 'ผัด';
@@ -137,9 +142,9 @@ export const TodayView: React.FC = () => {
         grouped[timeLabel] = { totalRoundQty: 0, members: {}, categoryStats: {} };
       }
 
-      if (!grouped[timeLabel].members[memberName]) {
-        grouped[timeLabel].members[memberName] = {
-          memberName,
+      if (!grouped[timeLabel].members[groupKey]) {
+        grouped[timeLabel].members[groupKey] = {
+          memberName: groupKey,
           totalQty: 0,
           totalKcal: 0,
           totalP: 0,
@@ -151,17 +156,20 @@ export const TodayView: React.FC = () => {
         };
       }
 
+
       if (schedule.notes) {
         specialNotes++;
-        grouped[timeLabel].members[memberName].hasNotes = true;
+        grouped[timeLabel].members[groupKey].hasNotes = true;
       }
 
+
       if (schedule.is_extra_order) {
-        grouped[timeLabel].members[memberName].hasExtraOrder = true;
+        grouped[timeLabel].members[groupKey].hasExtraOrder = true;
       }
 
       grouped[timeLabel].totalRoundQty += schedule.quantity;
-      grouped[timeLabel].members[memberName].totalQty += schedule.quantity;
+      grouped[timeLabel].members[groupKey].totalQty += schedule.quantity;
+
       
       let kcal = schedule.menu_items?.calories || 0;
       let protein = schedule.menu_items?.protein || 0;
@@ -179,16 +187,17 @@ export const TodayView: React.FC = () => {
       protein = Math.max(0, protein);
       fat = Math.max(0, fat);
 
-      grouped[timeLabel].members[memberName].totalKcal += (kcal * schedule.quantity);
-      grouped[timeLabel].members[memberName].totalP += (protein * schedule.quantity);
-      grouped[timeLabel].members[memberName].totalC += (carbs * schedule.quantity);
-      grouped[timeLabel].members[memberName].totalF += (fat * schedule.quantity);
+      grouped[timeLabel].members[groupKey].totalKcal += (kcal * schedule.quantity);
+      grouped[timeLabel].members[groupKey].totalP += (protein * schedule.quantity);
+      grouped[timeLabel].members[groupKey].totalC += (carbs * schedule.quantity);
+      grouped[timeLabel].members[groupKey].totalF += (fat * schedule.quantity);
 
-      grouped[timeLabel].members[memberName].orders.push({
+      grouped[timeLabel].members[groupKey].orders.push({
         id: schedule.id,
         menuId: schedule.menu_items?.id,
-        menuName: schedule.menu_items?.name || 'ไม่ทราบชื่อเมนู',
+        menuName: filterType === 'menu' ? memberName : menuName,
         category,
+
         qty: schedule.quantity,
         note: schedule.notes || '',
         deliveryTime: rawTime,
@@ -218,9 +227,14 @@ export const TodayView: React.FC = () => {
         grouped[timeLabel] = { totalRoundQty: 0, members: {}, categoryStats: {} };
       }
 
-      if (!grouped[timeLabel].members[memberName]) {
-        grouped[timeLabel].members[memberName] = {
-          memberName,
+      const qtyMatch = menuNameRaw.match(/\(x(\d+)\)/);
+      const qty = qtyMatch ? parseInt(qtyMatch[1]) : 1;
+      const groupKey = filterType === 'menu' ? (matchedMenu?.name || menuNameRaw) : memberName;
+
+
+      if (!grouped[timeLabel].members[groupKey]) {
+        grouped[timeLabel].members[groupKey] = {
+          memberName: groupKey,
           totalQty: 0,
           hasNotes: false,
           isRetail: true,
@@ -228,27 +242,26 @@ export const TodayView: React.FC = () => {
         };
       }
 
-      const qtyMatch = menuNameRaw.match(/\(x(\d+)\)/);
-      const qty = qtyMatch ? parseInt(qtyMatch[1]) : 1;
-
       grouped[timeLabel].totalRoundQty += qty;
-      grouped[timeLabel].members[memberName].totalQty += qty;
+      grouped[timeLabel].members[groupKey].totalQty += qty;
+
 
       const kcal = Math.max(0, matchedMenu?.calories || 0);
       const protein = Math.max(0, matchedMenu?.protein || 0);
       const carbs = Math.max(0, matchedMenu?.carbs || 0);
       const fat = Math.max(0, matchedMenu?.fat || 0);
 
-      grouped[timeLabel].members[memberName].totalKcal += (kcal * qty);
-      grouped[timeLabel].members[memberName].totalP += (protein * qty);
-      grouped[timeLabel].members[memberName].totalC += (carbs * qty);
-      grouped[timeLabel].members[memberName].totalF += (fat * qty);
+      grouped[timeLabel].members[groupKey].totalKcal += (kcal * qty);
+      grouped[timeLabel].members[groupKey].totalP += (protein * qty);
+      grouped[timeLabel].members[groupKey].totalC += (carbs * qty);
+      grouped[timeLabel].members[groupKey].totalF += (fat * qty);
 
-      grouped[timeLabel].members[memberName].orders.push({
+      grouped[timeLabel].members[groupKey].orders.push({
         id: task.id,
         menuId,
-        menuName: matchedMenu?.name || menuNameRaw,
+        menuName: filterType === 'menu' ? memberName : (matchedMenu?.name || menuNameRaw),
         category,
+
         qty: qty,
         note: '',
         type: 'retail',
@@ -623,6 +636,15 @@ export const TodayView: React.FC = () => {
           <div className="flex flex-wrap items-center gap-3">
             <div className="bg-white border border-slate-100 rounded-2xl p-1 flex gap-1 shadow-sm mr-2">
                 <button 
+                  onClick={() => setFilterType('menu')} 
+                  className={cn(
+                    "px-4 py-2 rounded-xl text-[11px] font-bold transition-all",
+                    filterType === 'menu' ? "bg-slate-900 text-white shadow-md shadow-slate-900/20" : "text-slate-400 hover:text-slate-600"
+                  )}
+                >
+                  เมนู
+                </button>
+                <button 
                   onClick={() => setFilterType('member')} 
                   className={cn(
                     "px-4 py-2 rounded-xl text-[11px] font-bold transition-all",
@@ -631,6 +653,7 @@ export const TodayView: React.FC = () => {
                 >
                   สมาชิก
                 </button>
+
                 <button 
                   onClick={() => setFilterType('retail')} 
                   className={cn(
