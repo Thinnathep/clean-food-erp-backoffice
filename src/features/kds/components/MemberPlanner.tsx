@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   ChevronLeft, ChevronRight, MessageSquare, Plus, User, X, Clock, Save, 
-  UtensilsCrossed, Copy, Clipboard, Search, FileText, Trash2, MapPin
+  UtensilsCrossed, Copy, Clipboard as ClipboardIcon, Search, FileText, Trash2, MapPin, Pin
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import dayjs from 'dayjs';
 import Swal from 'sweetalert2';
 import { supabase } from '../../../config/supabase';
@@ -13,11 +14,14 @@ import { fetchMemberSchedules } from '../../../features/kds/api';
 import type { MemberMealSchedule, PintoPackage } from '../../../types';
 
 export const MemberPlanner: React.FC = () => {
+  // Authentication & Role
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'ADMIN';
+
+  // Navigation State
   const [currentWeekStart, setCurrentWeekStart] = useState(dayjs().startOf('isoWeek' as any).toDate());
   
-  // Modal State
+  // Modal State: Meal Editing
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSlot, setEditingSlot] = useState<{
     scheduleId: string | null;
@@ -29,12 +33,15 @@ export const MemberPlanner: React.FC = () => {
     notes: string;
     isExtraOrder: boolean;
     orderType: 'subscription' | 'a-la-carte';
+    isNoRice: boolean;
   } | null>(null);
   
+  // Modal State: Profile & Package
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [memberUpdates, setMemberUpdates] = useState<any>(null);
   const [packageUpdates, setPackageUpdates] = useState<{package_name: string, meals_total: number} | null>(null);
 
+  // Modal State: New Package
   const [isAddPackageModalOpen, setIsAddPackageModalOpen] = useState(false);
   const [newPackage, setNewPackage] = useState({
     member_id: '',
@@ -44,12 +51,14 @@ export const MemberPlanner: React.FC = () => {
     end_date: dayjs().add(7, 'day').format('YYYY-MM-DD')
   });
 
+  // Search & Filter State
   const [menuSearch, setMenuSearch] = useState('');
   const [sidebarSearchQuery, setSidebarSearchQuery] = useState('');
   const [sidebarSortBy, setSidebarSortBy] = useState<'latest' | 'name'>('latest');
   const [sidebarFilterType, setSidebarFilterType] = useState<'all' | 'member' | 'retail'>('all');
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
 
+  // Macros Summary State
   const [isMacrosModalOpen, setIsMacrosModalOpen] = useState(false);
   const [macrosContent, setMacrosContent] = useState<{
     date: string,
@@ -57,6 +66,7 @@ export const MemberPlanner: React.FC = () => {
     totals: {kcal: number, protein: number, carbs: number, fat: number},
     formattedText: string
   } | null>(null);
+
 
   const menus = useKdsStore(state => state.menus);
   const activePackages = useKdsStore(state => state.activePackages);
@@ -107,7 +117,9 @@ export const MemberPlanner: React.FC = () => {
       const menu = s.menu_items;
       if (menu) {
         const qty = s.quantity || 1;
-        const mealMacros = {
+        const isNoRice = s.notes?.includes('[ไม่รับข้าว]');
+        
+        let mealMacros = {
           name: menu.name,
           kcal: (menu.calories || 0) * qty,
           protein: (menu.protein || 0) * qty,
@@ -115,17 +127,28 @@ export const MemberPlanner: React.FC = () => {
           fat: (menu.fat || 0) * qty,
           qty
         };
+
+        // 🍚 ❌ 🥦🥕✅ Nutritional Adjustment: No Rice + Extra Veg
+        // Rice (100g): -130 kcal, -28g carbs, -2.7g protein
+        // Veg (60g): +22 kcal, +4.9g carbs, +1.1g protein
+        if (isNoRice) {
+          mealMacros.kcal = Math.max(0, mealMacros.kcal - 130 + 22);
+          mealMacros.carbs = Math.max(0, mealMacros.carbs - 28 + 4.9);
+          mealMacros.protein = Math.max(0, mealMacros.protein - 2.7 + 1.1);
+          mealMacros.name = `[ไม่รับข้าว] ${mealMacros.name}`;
+        }
+
         totals.kcal += mealMacros.kcal;
         totals.protein += mealMacros.protein;
         totals.carbs += mealMacros.carbs;
         totals.fat += mealMacros.fat;
         meals.push(mealMacros);
-        menuSummary += `🍱 มื้อที่ ${idx + 1}: ${menu.name} (${mealMacros.kcal} kcal)\n`;
+        menuSummary += `🍱 มื้อที่ ${idx + 1}: ${mealMacros.name} (${mealMacros.kcal.toFixed(0)} kcal)\n`;
       }
     });
 
     const displayDate = dayjs(date).locale('th').format('DD MMMM YYYY');
-    const formattedText = `📊 *สรุปสารอาหารประจำวันที่ ${displayDate}*\n${menuSummary}---\n🔥 *พลังงานรวม:* ${totals.kcal} kcal\n🍗 *โปรตีน:* ${totals.protein}g | 🍚 *คาร์บ:* ${totals.carbs}g | 🥑 *ไขมัน:* ${totals.fat}g`;
+    const formattedText = `📊 *สรุปสารอาหารประจำวันที่ ${displayDate}*\n${menuSummary}---\n🔥 *พลังงานรวม:* ${totals.kcal.toFixed(0)} kcal\n🍗 *โปรตีน:* ${totals.protein.toFixed(1)}g | 🍚 *คาร์บ:* ${totals.carbs.toFixed(1)}g | 🥑 *ไขมัน:* ${totals.fat.toFixed(1)}g`;
 
     setMacrosContent({
       date: displayDate,
@@ -137,15 +160,20 @@ export const MemberPlanner: React.FC = () => {
   };
 
   const filteredPackages = useMemo(() => {
-    // 1. Start with members who have active packages
+    // 1. Optimized lookup map
+    const schedulesByPkg = memberSchedules.reduce((acc, s) => {
+      if (!acc[s.package_id]) acc[s.package_id] = [];
+      acc[s.package_id].push(s);
+      return acc;
+    }, {} as Record<string, MemberMealSchedule[]>);
+
+    // 2. Identify retail members
     const packageMembersIds = new Set(activePackages.map(p => p.member_id));
-    
-    // 2. Get retail members who don't have active packages but we might want to plan for
     const retailMembersWithoutPackages = members.filter(m => 
       m.member_type === 'retail' && !packageMembersIds.has(m.id)
     );
 
-    // 3. Create virtual package objects for retail members to fit existing UI
+    // 3. Create virtual packages
     const virtualRetailPackages: PintoPackage[] = retailMembersWithoutPackages.map(m => ({
       id: `retail_${m.id}`,
       member_id: m.id,
@@ -161,21 +189,37 @@ export const MemberPlanner: React.FC = () => {
       created_at: m.created_at || new Date().toISOString()
     }));
 
+    // 4. Combine and filter
     return [...activePackages, ...virtualRetailPackages]
       .filter(pkg => {
         const member = Array.isArray(pkg.members) ? pkg.members[0] : pkg.members;
         const name = member?.full_name || '';
         const matchesSearch = name.toLowerCase().includes(sidebarSearchQuery.toLowerCase());
         
-        if (sidebarFilterType === 'member') {
-          return matchesSearch && member?.member_type !== 'retail';
-        }
-        if (sidebarFilterType === 'retail') {
-          return matchesSearch && member?.member_type === 'retail';
-        }
+        if (sidebarFilterType === 'member') return matchesSearch && member?.member_type !== 'retail';
+        if (sidebarFilterType === 'retail') return matchesSearch && member?.member_type === 'retail';
         return matchesSearch;
       })
       .sort((a, b) => {
+        const aSchedules = schedulesByPkg[a.id] || [];
+        const bSchedules = schedulesByPkg[b.id] || [];
+        
+        const aPlanned = aSchedules.filter(s => !s.is_extra_order).reduce((sum, s) => sum + (s.quantity || 1), 0);
+        const bPlanned = bSchedules.filter(s => !s.is_extra_order).reduce((sum, s) => sum + (s.quantity || 1), 0);
+        
+        const aRem = (a.meals_total || 0) - aPlanned;
+        const bRem = (b.meals_total || 0) - bPlanned;
+        
+        const today = dayjs().startOf('day');
+        const aHasUpcoming = aSchedules.some(s => !dayjs(s.delivery_date).isBefore(today));
+        const bHasUpcoming = bSchedules.some(s => !dayjs(s.delivery_date).isBefore(today));
+        
+        const aIsActive = aRem > 0 || aHasUpcoming;
+        const bIsActive = bRem > 0 || bHasUpcoming;
+        
+        if (aIsActive && !bIsActive) return -1;
+        if (!aIsActive && bIsActive) return 1;
+
         if (sidebarSortBy === 'name') {
           const nameA = (Array.isArray(a.members) ? a.members[0]?.full_name : a.members?.full_name) || '';
           const nameB = (Array.isArray(b.members) ? b.members[0]?.full_name : b.members?.full_name) || '';
@@ -186,7 +230,7 @@ export const MemberPlanner: React.FC = () => {
           return dateB - dateA;
         }
       });
-  }, [activePackages, sidebarSearchQuery, sidebarSortBy, sidebarFilterType, members]);
+  }, [activePackages, sidebarSearchQuery, sidebarSortBy, sidebarFilterType, members, memberSchedules]);
 
   const selectedPackage = filteredPackages.find(p => p.id === selectedPackageId);
 
@@ -221,9 +265,10 @@ export const MemberPlanner: React.FC = () => {
         menuId: existingSchedule.menu_item_id,
         qty: existingSchedule.quantity || 1,
         deliveryTime: existingSchedule.delivery_time || '',
-        notes: existingSchedule.notes || '',
+        notes: (existingSchedule.notes || '').replace('[ไม่รับข้าว] ', '').replace('[ไม่รับข้าว]', '').trim(),
         isExtraOrder: existingSchedule.is_extra_order || false,
-        orderType: existingSchedule.meal_order_type || 'subscription'
+        orderType: existingSchedule.meal_order_type || 'subscription',
+        isNoRice: existingSchedule.notes?.includes('[ไม่รับข้าว]') || false
       });
     } else {
       const currentSchedules = getSchedulesForDate(date);
@@ -246,7 +291,8 @@ export const MemberPlanner: React.FC = () => {
         deliveryTime: '',
         notes: '',
         isExtraOrder: false,
-        orderType: 'subscription'
+        orderType: 'subscription',
+        isNoRice: false
       });
     }
     setIsModalOpen(true);
@@ -268,7 +314,7 @@ export const MemberPlanner: React.FC = () => {
       editingSlot.menuId,
       editingSlot.qty,
       editingSlot.deliveryTime,
-      editingSlot.notes,
+      editingSlot.isNoRice ? `[ไม่รับข้าว] ${editingSlot.notes}`.trim() : editingSlot.notes,
       editingSlot.isExtraOrder,
       editingSlot.orderType
     );
@@ -508,7 +554,7 @@ export const MemberPlanner: React.FC = () => {
               </div>
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto p-2 space-y-1">
+          <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
             {filteredPackages.length === 0 && (
                <div className="text-center p-6 text-slate-400 text-xs font-normal">ไม่พบข้อมูลลูกค้า</div>
             )}
@@ -524,76 +570,97 @@ export const MemberPlanner: React.FC = () => {
               return acc;
             }, {})).map((group: any) => (
               <div key={group.member.id} className="mb-3">
-                <div className="px-3 py-1 text-sm font-normal text-slate-900 flex items-center gap-2 border-b border-slate-100 mb-1">
-                  <User size={14} className="text-emerald-500" /> {group.member.full_name}
+                <div className="px-3 py-1.5 text-base font-medium text-slate-900 flex items-center gap-2 border-b border-slate-100 mb-1">
+                  <User size={16} className="text-emerald-500" /> {group.member.full_name}
                 </div>
                 <div className="space-y-1">
-                  {group.packages.map((pkg: any) => (
-                    <div 
-                      key={pkg.id} 
-                      onClick={() => setSelectedPackageId(pkg.id)}
-                      className={`p-3 rounded-xl cursor-pointer transition-all border ${
-                        selectedPackageId === pkg.id 
-                          ? 'bg-emerald-50 border-emerald-500 shadow-sm' 
-                          : 'bg-white border-transparent hover:bg-slate-50 hover:border-slate-100'
-                      }`}
-                    >
-                      <div className="flex justify-between items-center gap-2">
-                        <p className={`text-sm font-normal truncate ${selectedPackageId === pkg.id ? 'text-emerald-700' : 'text-slate-800'}`}>
-                          {pkg.package_name}
-                        </p>
-                        <span className={`text-[11px] font-normal px-2 py-1 rounded-lg whitespace-nowrap ${
-                          (() => {
-                            const currentPkgSchedules = memberSchedules.filter(s => s.package_id === pkg.id);
-                            const member = Array.isArray(pkg.members) ? pkg.members[0] : pkg.members;
-                            const isRetailMember = member?.member_type === 'retail' || pkg.id.toString().startsWith('retail_');
-                            
-                            // If it's a retail member or virtual package
-                            if (isRetailMember) {
-                              const activeOrders = currentPkgSchedules.filter(s => 
-                                dayjs(s.delivery_date).isSame(dayjs(), 'day') || dayjs(s.delivery_date).isAfter(dayjs(), 'day')
-                              ).reduce((sum, s) => sum + (s.quantity || 1), 0);
-                              
-                              return activeOrders > 0 
-                                ? 'bg-orange-500 text-white border border-orange-600 shadow-sm' 
-                                : 'bg-slate-100 text-slate-400 border border-slate-200';
-                            }
+                  {group.packages.map((pkg: any) => {
+                    const pkgSchedules = memberSchedules.filter(s => s.package_id === pkg.id);
+                    const subSchedules = pkgSchedules.filter(s => !s.is_extra_order);
+                    const planned = subSchedules.reduce((sum, s) => sum + (s.quantity || 1), 0);
+                    const rem = (pkg.meals_total || 0) - planned;
+                    const today = dayjs().startOf('day');
+                    const hasUpcoming = pkgSchedules.some(s => !dayjs(s.delivery_date).isBefore(today));
+                    const isPinned = rem > 0 || hasUpcoming;
 
-                            // Original Member Logic
-                            const totalSubscriptionPlanned = currentPkgSchedules
-                              .filter(s => !s.is_extra_order)
-                              .reduce((sum, s) => sum + (s.quantity || 1), 0);
-                            const rem = (pkg?.meals_total || 0) - totalSubscriptionPlanned;
-                            
-                            if (rem < 0) return 'bg-red-500 text-white border border-red-600';
-                            if (rem < 3) return 'bg-red-50 text-red-600 border border-red-100 animate-pulse';
-                            
-                            if (pkg.meals_total === 14 || pkg.meals_total === 15) return 'bg-emerald-50 text-emerald-600 border border-emerald-100';
-                            if (pkg.meals_total === 28 || pkg.meals_total === 30) return 'bg-blue-50 text-blue-600 border border-blue-100';
-                            if (pkg.meals_total === 60 || pkg.meals_total === 62) return 'bg-purple-50 text-purple-600 border border-purple-100';
-                            
-                            return 'bg-slate-100 text-slate-700 border border-slate-200';
-                          })()
-                        }`}>
-                          {(() => {
-                            const currentPkgSchedules = memberSchedules.filter(s => s.package_id === pkg.id);
-                            const member = Array.isArray(pkg.members) ? pkg.members[0] : pkg.members;
-                            const isRetailMember = member?.member_type === 'retail' || pkg.id.toString().startsWith('retail_');
+                    const member = Array.isArray(pkg.members) ? pkg.members[0] : pkg.members;
+                    const isRetail = member?.member_type === 'retail' || pkg.id.toString().startsWith('retail_');
 
-                            if (isRetailMember) {
-                              const activeOrders = currentPkgSchedules.filter(s => 
-                                dayjs(s.delivery_date).isSame(dayjs(), 'day') || dayjs(s.delivery_date).isAfter(dayjs(), 'day')
-                              ).reduce((sum, s) => sum + (s.quantity || 1), 0);
-                              return activeOrders > 0 ? `สั่งไว้ ${activeOrders} มื้อ` : 'ไม่มีออเดอร์';
-                            }
-                            
-                            const totalSubscriptionPlanned = currentPkgSchedules.filter(s => !s.is_extra_order).reduce((sum, s) => sum + (s.quantity || 1), 0);
-                            return `เหลือ ${(pkg.meals_total || 0) - totalSubscriptionPlanned} มื้อ`;
-                          })()}
-                        </span>
+                    let statusBadgeClass = 'bg-slate-100 text-slate-700 border border-slate-200';
+                    let statusText = `เหลือ ${rem} มื้อ`;
+
+                    if (isRetail) {
+                      const activeOrders = pkgSchedules.filter(s => !dayjs(s.delivery_date).isBefore(today)).reduce((sum, s) => sum + (s.quantity || 1), 0);
+                      statusBadgeClass = activeOrders > 0 ? 'bg-orange-500 text-white border border-orange-600 shadow-sm' : 'bg-slate-100 text-slate-400 border border-slate-200';
+                      statusText = activeOrders > 0 ? `สั่งไว้ ${activeOrders} มื้อ` : 'ไม่มีออเดอร์';
+                    } else if (rem < 0) {
+                      statusBadgeClass = 'bg-red-500 text-white border border-red-600';
+                    } else if (rem === 0) {
+                      statusBadgeClass = 'bg-slate-50 text-slate-400 border border-slate-100';
+                    } else if (rem < 3) {
+                      statusBadgeClass = 'bg-red-50 text-red-600 border border-red-100 animate-pulse';
+                    } else if (pkg.meals_total === 14 || pkg.meals_total === 15) {
+                      statusBadgeClass = 'bg-emerald-50 text-emerald-600 border border-emerald-100';
+                    } else if (pkg.meals_total === 28 || pkg.meals_total === 30) {
+                      statusBadgeClass = 'bg-blue-50 text-blue-600 border border-blue-100';
+                    } else if (pkg.meals_total === 60 || pkg.meals_total === 62) {
+                      statusBadgeClass = 'bg-purple-50 text-purple-600 border border-purple-100';
+                    }
+
+                    return (
+                      <div 
+                        key={pkg.id} 
+                        onClick={() => setSelectedPackageId(pkg.id)}
+                        className={`p-3 rounded-xl cursor-pointer transition-all border relative overflow-hidden group ${
+                          selectedPackageId === pkg.id 
+                            ? 'bg-emerald-50 border-emerald-500 shadow-md ring-1 ring-emerald-500/20' 
+                            : isPinned 
+                              ? 'bg-white border-emerald-100 shadow-sm'
+                              : 'bg-white border-transparent hover:bg-slate-50'
+                        }`}
+                      >
+                        {/* Status Indicator Bar */}
+                        {isPinned && (
+                          <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                        )}
+                        
+                        <div className="flex justify-between items-center gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              {isPinned && (
+                                <motion.div 
+                                  initial={{ scale: 0, rotate: -45 }}
+                                  animate={{ scale: 1, rotate: 0 }}
+                                  className="bg-emerald-500 text-white p-1 rounded-lg shadow-sm shadow-emerald-500/20 shrink-0"
+                                >
+                                  <Pin size={10} fill="white" />
+                                </motion.div>
+                              )}
+                              <p className={`text-[15px] font-medium truncate ${selectedPackageId === pkg.id ? 'text-emerald-700' : 'text-slate-800'}`}>
+                                {pkg.package_name}
+                              </p>
+                            </div>
+                            {rem > 0 && subSchedules.length > 0 && (
+                              <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
+                                <span>สิ้นสุดประมาณ:</span>
+                                <span className="text-blue-500 font-bold">
+                                  {(() => {
+                                    const lastPlannedDate = subSchedules.reduce((max, s) => dayjs(s.delivery_date).isAfter(max) ? dayjs(s.delivery_date) : max, dayjs('1900-01-01'));
+                                    const mealsPerWeek = subSchedules.length > 7 ? 14 : 10;
+                                    const daysLeft = Math.ceil(rem / (mealsPerWeek / 7));
+                                    return lastPlannedDate.add(daysLeft, 'day').format('DD/MM/YYYY');
+                                  })()}
+                                </span>
+                              </p>
+                            )}
+                          </div>
+                          <span className={`text-[13px] font-medium px-2.5 py-1.5 rounded-lg whitespace-nowrap shadow-sm border ${statusBadgeClass}`}>
+                            {statusText}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             ))}
@@ -738,7 +805,7 @@ export const MemberPlanner: React.FC = () => {
                                 title="วางเมนูที่คัดลอกมา"
                                 className="p-1.5 bg-emerald-500 text-white rounded-lg shadow-sm hover:bg-emerald-600 transition-all animate-pulse"
                               >
-                                <Clipboard size={14} />
+                                <ClipboardIcon size={14} />
                               </button>
                             )}
                           </div>
@@ -859,7 +926,7 @@ export const MemberPlanner: React.FC = () => {
                   </button>
                </div>
                
-               <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8 max-h-[75vh] overflow-y-auto custom-scrollbar">
+               <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8 max-h-[85vh] overflow-y-auto custom-scrollbar">
                   <div className="space-y-6">
                     <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-4">
                       <h4 className="text-sm font-normal text-slate-900 border-b border-slate-200 pb-2 flex items-center gap-2">
@@ -1010,7 +1077,7 @@ export const MemberPlanner: React.FC = () => {
 
                      <div className="bg-purple-50/50 p-6 rounded-2xl border border-purple-100 space-y-4">
                        <h4 className="text-sm font-normal text-slate-900 border-b border-purple-200 pb-2 flex items-center gap-2">
-                         <Clipboard size={16} className="text-purple-500" /> จัดการแพ็กเกจ (Package Details)
+                         <ClipboardIcon size={16} className="text-purple-500" /> จัดการแพ็กเกจ (Package Details)
                        </h4>
 
                        <div className="flex flex-wrap gap-2">
@@ -1133,9 +1200,22 @@ export const MemberPlanner: React.FC = () => {
       )}
 
       {/* Simplified Meal Detail Modal */}
-      {isModalOpen && editingSlot && (
-        <div className="fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-fade-in border border-slate-200">
+      <AnimatePresence>
+        {isModalOpen && editingSlot && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsModalOpen(false)}
+              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden border border-slate-200 relative z-10"
+            >
                <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                   <h3 className="text-lg font-normal text-slate-800 flex items-center gap-2">
                     <UtensilsCrossed className="text-emerald-500" /> จัดการตารางอาหาร
@@ -1145,7 +1225,7 @@ export const MemberPlanner: React.FC = () => {
                   </button>
                </div>
                
-               <div className="p-6 space-y-4">
+               <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
                   {/* Member Summary in Modal */}
                   <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
                     <div className="flex items-center gap-3">
@@ -1186,19 +1266,51 @@ export const MemberPlanner: React.FC = () => {
                         <UtensilsCrossed size={20} />
                       </div>
                       <div>
-                        <p className="text-sm font-normal text-slate-800">
+                        <p className="text-sm font-semibold text-slate-800">
                           {menus.find(m => m.id === editingSlot.menuId)?.name || 'กรุณาเลือกรายการเมนูอาหารที่ต้องการ'}
                         </p>
-                        <p className="text-[10px] font-normal text-emerald-500 uppercase">
-                          {editingSlot.mealType === 'meal_1' ? 'มื้อเช้า' : editingSlot.mealType === 'meal_2' ? 'มื้อเที่ยง' : `มื้อ ${editingSlot.mealType.split('_')[1]}`}
-                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <p className="text-[10px] font-bold text-emerald-500 uppercase">
+                            {editingSlot.mealType === 'meal_1' ? 'มื้อเช้า' : editingSlot.mealType === 'meal_2' ? 'มื้อเที่ยง' : `มื้อ ${editingSlot.mealType.split('_')[1]}`}
+                          </p>
+                          {(() => {
+                            const m = menus.find(menu => menu.id === editingSlot.menuId);
+                            if (!m) return null;
+                            const kcal = editingSlot.isNoRice ? (m.calories || 0) - 108 : (m.calories || 0);
+                            const carbs = editingSlot.isNoRice ? (m.carbs || 0) - 23 : (m.carbs || 0);
+                            return (
+                              <span className="text-[10px] font-bold text-slate-400">
+                                • 🔥 {kcal} kcal | C: {carbs}g
+                              </span>
+                            );
+                          })()}
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Menu Picker (Quick Search) */}
-                  <div>
-                    <label className="block text-xs font-normal text-slate-700 uppercase tracking-widest mb-2">ค้นหาและเลือกเมนู</label>
+                    {/* No Rice Toggle */}
+                    <div 
+                      onClick={() => setEditingSlot({...editingSlot, isNoRice: !editingSlot.isNoRice})}
+                      className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between group ${editingSlot.isNoRice ? 'bg-emerald-50 border-emerald-500' : 'bg-white border-slate-100 hover:border-slate-200'}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${editingSlot.isNoRice ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'}`}>
+                          {editingSlot.isNoRice ? <span className="text-lg">🥦</span> : <span className="text-lg">🍚</span>}
+                        </div>
+                        <div>
+                          <p className={`text-sm font-bold ${editingSlot.isNoRice ? 'text-emerald-700' : 'text-slate-700'}`}>ไม่รับข้าว (เปลี่ยนเป็นผัก)</p>
+                          <p className="text-[10px] font-medium text-slate-400">-108 kcal | -23g Carbs</p>
+                        </div>
+                      </div>
+                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${editingSlot.isNoRice ? 'border-emerald-500 bg-emerald-500' : 'border-slate-200'}`}>
+                        {editingSlot.isNoRice && <Plus size={14} className="text-white rotate-45" />}
+                      </div>
+                    </div>
+
+                    {/* Menu Picker (Quick Search) */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 ml-1">ค้นหาและเลือกเมนู</label>
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                       <input 
@@ -1257,8 +1369,9 @@ export const MemberPlanner: React.FC = () => {
                        <input 
                          type="number" 
                          min="1"
-                         value={editingSlot.qty}
-                         onChange={(e) => setEditingSlot({...editingSlot!, qty: parseInt(e.target.value) || 1})}
+                         value={editingSlot.qty || ''}
+                         onFocus={(e) => e.target.select()}
+                         onChange={(e) => setEditingSlot({...editingSlot!, qty: Math.round(Number(e.target.value)) || 1})}
                          className="w-full p-3 bg-white border border-slate-300 rounded-xl text-sm font-normal text-slate-800 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
                        />
                     </div>
@@ -1302,13 +1415,14 @@ export const MemberPlanner: React.FC = () => {
                     </button>
                   </div>
                </div>
-            </div>
-        </div>
-      )}
+             </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
       {/* Add New Package Modal */}
       {isAddPackageModalOpen && (
         <div className="fixed inset-0 bg-slate-900/40 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
-           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200">
+           <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden border border-slate-200">
                <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                   <h3 className="text-xl font-normal text-slate-800">เปิดโปรโมชั่นปิ่นโตใหม่</h3>
                   <button onClick={() => setIsAddPackageModalOpen(false)} className="text-slate-400 hover:text-slate-700 transition-colors">
@@ -1316,7 +1430,7 @@ export const MemberPlanner: React.FC = () => {
                   </button>
                </div>
                
-               <div className="p-8 space-y-6">
+               <div className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar">
                   <div>
                     <label className="block text-[10px] font-normal text-slate-500 uppercase tracking-widest mb-2">ค้นหา/เลือกชื่อลูกค้า (Existing Member)</label>
                     <div className="space-y-2">
@@ -1395,7 +1509,8 @@ export const MemberPlanner: React.FC = () => {
                       <input 
                         type="number"
                         value={newPackage.meals_total}
-                        onChange={(e) => setNewPackage({...newPackage, meals_total: parseInt(e.target.value) || 0})}
+                        onFocus={(e) => e.target.select()}
+                        onChange={(e) => setNewPackage({...newPackage, meals_total: Math.round(Number(e.target.value)) || 0})}
                         className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-normal text-slate-800 focus:border-emerald-500 outline-none"
                       />
                     </div>

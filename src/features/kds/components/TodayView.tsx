@@ -156,10 +156,15 @@ export const TodayView: React.FC = () => {
       grouped[timeLabel].totalRoundQty += schedule.quantity;
       grouped[timeLabel].members[memberName].totalQty += schedule.quantity;
       
-      const kcal = schedule.menu_items?.calories || 0;
-      const protein = schedule.menu_items?.protein || 0;
-      const carbs = schedule.menu_items?.carbs || 0;
-      const fat = schedule.menu_items?.fat || 0;
+      let kcal = schedule.menu_items?.calories || 0;
+      let protein = schedule.menu_items?.protein || 0;
+      let carbs = schedule.menu_items?.carbs || 0;
+      let fat = schedule.menu_items?.fat || 0;
+
+      if (schedule.notes?.includes('[ไม่รับข้าว]')) {
+        kcal -= 108;
+        carbs -= 23;
+      }
 
       grouped[timeLabel].members[memberName].totalKcal += (kcal * schedule.quantity);
       grouped[timeLabel].members[memberName].totalP += (protein * schedule.quantity);

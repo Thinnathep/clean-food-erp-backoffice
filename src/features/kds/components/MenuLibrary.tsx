@@ -393,8 +393,9 @@ const MenuFormModal = memo(({
                         <label className="block text-[10px] font-normal text-slate-400 uppercase tracking-widest mb-2 ml-1">แคลอรี่ (kcal)</label>
                         <input 
                           type="number" 
-                          value={formState.calories}
-                          onChange={(e) => !isViewOnly && setFormState({...formState, calories: Number(e.target.value)})}
+                          value={formState.calories || ''}
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => !isViewOnly && setFormState({...formState, calories: Math.round(Number(e.target.value))})}
                           readOnly={isViewOnly}
                           className={`w-full px-5 py-4 bg-slate-50 border border-transparent rounded-[1.25rem] text-sm font-normal outline-none transition-all ${!isViewOnly ? 'focus:bg-white focus:border-emerald-500' : 'cursor-default opacity-70'}`}
                           placeholder="0"
@@ -404,8 +405,9 @@ const MenuFormModal = memo(({
                         <label className="block text-[10px] font-normal text-slate-400 uppercase tracking-widest mb-2 ml-1">โปรตีน (g)</label>
                         <input 
                           type="number" 
-                          value={formState.protein}
-                          onChange={(e) => !isViewOnly && setFormState({...formState, protein: Number(e.target.value)})}
+                          value={formState.protein || ''}
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => !isViewOnly && setFormState({...formState, protein: Math.round(Number(e.target.value))})}
                           readOnly={isViewOnly}
                           className={`w-full px-5 py-4 bg-slate-50 border border-transparent rounded-[1.25rem] text-sm font-normal outline-none transition-all ${!isViewOnly ? 'focus:bg-white focus:border-emerald-500' : 'cursor-default opacity-70'}`}
                           placeholder="0"
@@ -418,8 +420,9 @@ const MenuFormModal = memo(({
                         <label className="block text-[10px] font-normal text-slate-400 uppercase tracking-widest mb-2 ml-1">คาร์บ (g)</label>
                         <input 
                           type="number" 
-                          value={formState.carbs}
-                          onChange={(e) => !isViewOnly && setFormState({...formState, carbs: Number(e.target.value)})}
+                          value={formState.carbs || ''}
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => !isViewOnly && setFormState({...formState, carbs: Math.round(Number(e.target.value))})}
                           readOnly={isViewOnly}
                           className={`w-full px-5 py-4 bg-slate-50 border border-transparent rounded-[1.25rem] text-sm font-normal outline-none transition-all ${!isViewOnly ? 'focus:bg-white focus:border-emerald-500' : 'cursor-default opacity-70'}`}
                           placeholder="0"
@@ -429,8 +432,9 @@ const MenuFormModal = memo(({
                         <label className="block text-[10px] font-normal text-slate-400 uppercase tracking-widest mb-2 ml-1">ไขมัน (g)</label>
                         <input 
                           type="number" 
-                          value={formState.fat}
-                          onChange={(e) => !isViewOnly && setFormState({...formState, fat: Number(e.target.value)})}
+                          value={formState.fat || ''}
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => !isViewOnly && setFormState({...formState, fat: Math.round(Number(e.target.value))})}
                           readOnly={isViewOnly}
                           className={`w-full px-5 py-4 bg-slate-50 border border-transparent rounded-[1.25rem] text-sm font-normal outline-none transition-all ${!isViewOnly ? 'focus:bg-white focus:border-emerald-500' : 'cursor-default opacity-70'}`}
                           placeholder="0"
@@ -541,6 +545,7 @@ const MenuFormModal = memo(({
                                  <input 
                                    type="number" 
                                    value={newRecipe.qty || ''} 
+                                   onFocus={(e) => e.target.select()}
                                    onChange={(e) => setNewRecipe({...newRecipe, qty: Number(e.target.value)})}
                                    className="w-full px-5 py-4 bg-white rounded-2xl text-lg font-semibold outline-none border-2 border-slate-100 focus:border-emerald-500 shadow-sm transition-all placeholder:font-normal placeholder:text-slate-300"
                                    placeholder="เช่น 500"
@@ -562,6 +567,7 @@ const MenuFormModal = memo(({
                                  <input 
                                    type="number" 
                                    value={newRecipe.yield || ''} 
+                                   onFocus={(e) => e.target.select()}
                                    onChange={(e) => setNewRecipe({...newRecipe, yield: Number(e.target.value)})}
                                    className="w-full px-5 py-4 bg-white rounded-2xl text-lg font-semibold outline-none border-2 border-slate-100 focus:border-emerald-500 shadow-sm transition-all"
                                    placeholder="100"
