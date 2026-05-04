@@ -13,7 +13,6 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import dayjs from 'dayjs';
 import 'dayjs/locale/th';
-import Swal from 'sweetalert2';
 
 type TabType = 'dashboard' | 'production' | 'calendar';
 
@@ -541,7 +540,7 @@ function CalendarTab({ calendarData, activePackages }: {
 // ─── Main Component ───────────────────────────────────────────────────────────
 export const ProductionSummary: React.FC = () => {
   const { user } = useAuthStore();
-  const { memberSchedules, loadMemberPlanner, loadGlobalPlanner, activePackages, menus } = useKdsStore();
+  const { memberSchedules, loadMemberPlanner, loadGlobalPlanner, activePackages } = useKdsStore();
 
   const [activeTab, setActiveTab] = useState<TabType>('production');
   const [selectedDate, setSelectedDate] = useState(dayjs().add(1, 'day').format('YYYY-MM-DD'));
