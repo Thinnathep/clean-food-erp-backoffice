@@ -910,8 +910,8 @@ export const MemberPlanner: React.FC = () => {
 
       {isProfileModalOpen && memberUpdates && (
         <div className="fixed inset-0 bg-slate-900/40 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
-           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden border border-slate-200">
-               <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden border border-slate-200">
+               <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
                   <div className="flex items-center gap-4">
                      <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
                         <User size={24} />
@@ -926,7 +926,7 @@ export const MemberPlanner: React.FC = () => {
                   </button>
                </div>
                
-               <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8 max-h-[85vh] overflow-y-auto custom-scrollbar">
+               <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8 flex-1 overflow-y-auto custom-scrollbar">
                   <div className="space-y-6">
                     <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-4">
                       <h4 className="text-sm font-normal text-slate-900 border-b border-slate-200 pb-2 flex items-center gap-2">
@@ -1121,6 +1121,36 @@ export const MemberPlanner: React.FC = () => {
                          >
                            + โปรฯ 1 เดือน (62 มื้อ)
                          </button>
+                         <button 
+                           type="button"
+                           onClick={() => {
+                             setPackageUpdates({ package_name: '- โปรโมชั่น เพิ่มกล้าม 14 วัน (60+2 มื้อ) = ฿7,399', meals_total: 62 });
+                             setMemberUpdates({ ...memberUpdates, member_type: 'member' });
+                           }}
+                           className="px-3 py-1.5 bg-white border border-slate-700 text-slate-700 rounded-lg text-[10px] font-bold hover:bg-slate-700 hover:text-white transition-all shadow-sm"
+                         >
+                           + เพิ่มกล้าม 14 วัน (62 มื้อ)
+                         </button>
+                         <button 
+                           type="button"
+                           onClick={() => {
+                             setPackageUpdates({ package_name: '- โปรโมชั่น เพิ่มกล้าม 1 เดือน (120+4 มื้อ) = ฿14,490', meals_total: 124 });
+                             setMemberUpdates({ ...memberUpdates, member_type: 'member' });
+                           }}
+                           className="px-3 py-1.5 bg-white border border-slate-900 text-slate-900 rounded-lg text-[10px] font-bold hover:bg-slate-900 hover:text-white transition-all shadow-sm"
+                         >
+                           + เพิ่มกล้าม 1 เดือน (124 มื้อ)
+                         </button>
+                         <button 
+                           type="button"
+                           onClick={() => {
+                             setPackageUpdates({ package_name: '- โปรโมชั่น เพิ่มกล้าม 1 เดือน กับข้าวอย่างเดียว (120+4 มื้อ) = ฿12,499', meals_total: 124 });
+                             setMemberUpdates({ ...memberUpdates, member_type: 'member' });
+                           }}
+                           className="px-3 py-1.5 bg-white border border-rose-600 text-rose-600 rounded-lg text-[10px] font-bold hover:bg-rose-600 hover:text-white transition-all shadow-sm"
+                         >
+                           + เพิ่มกล้าม 1 ด. ไม่รับข้าว
+                         </button>
                        </div>
 
                        <div>
@@ -1185,7 +1215,7 @@ export const MemberPlanner: React.FC = () => {
                   </div>
                </div>
                
-               <div className="px-8 py-6 bg-slate-50 border-t border-slate-100 flex justify-end">
+               <div className="px-8 py-6 bg-slate-50 border-t border-slate-100 flex justify-end shrink-0">
                     <button 
                     onClick={handleSaveProfile}
                     disabled={isLoadingData}
@@ -1492,6 +1522,27 @@ export const MemberPlanner: React.FC = () => {
                             meals_total: 62,
                             end_date: dayjs(newPackage.start_date).add(30, 'day').format('YYYY-MM-DD')
                           });
+                        } else if (val === 'muscle14days') {
+                          setNewPackage({
+                            ...newPackage,
+                            package_name: '- โปรโมชั่น เพิ่มกล้าม 14 วัน (60+2 มื้อ) = ฿7,399',
+                            meals_total: 62,
+                            end_date: dayjs(newPackage.start_date).add(14, 'day').format('YYYY-MM-DD')
+                          });
+                        } else if (val === 'muscle30days') {
+                          setNewPackage({
+                            ...newPackage,
+                            package_name: '- โปรโมชั่น เพิ่มกล้าม 1 เดือน (120+4 มื้อ) = ฿14,490',
+                            meals_total: 124,
+                            end_date: dayjs(newPackage.start_date).add(30, 'day').format('YYYY-MM-DD')
+                          });
+                        } else if (val === 'muscle30days_norice') {
+                          setNewPackage({
+                            ...newPackage,
+                            package_name: '- โปรโมชั่น เพิ่มกล้าม 1 เดือน กับข้าวอย่างเดียว (120+4 มื้อ) = ฿12,499',
+                            meals_total: 124,
+                            end_date: dayjs(newPackage.start_date).add(30, 'day').format('YYYY-MM-DD')
+                          });
                         }
                       }}
                       className="w-full p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-sm font-normal text-emerald-800 focus:border-emerald-500 outline-none"
@@ -1500,6 +1551,9 @@ export const MemberPlanner: React.FC = () => {
                       <option value="7days">ผูกปิ่นโต 7 วัน (14+1 มื้อ)</option>
                       <option value="14days">ผูกปิ่นโต 14 วัน (28+2 มื้อ)</option>
                       <option value="30days">ผูกปิ่นโต 1 เดือน (60+2 มื้อ)</option>
+                      <option value="muscle14days">โปรโมชั่น เพิ่มกล้าม 14 วัน (60+2 มื้อ) ฿7,399</option>
+                      <option value="muscle30days">โปรโมชั่น เพิ่มกล้าม 1 เดือน (120+4 มื้อ) ฿14,490</option>
+                      <option value="muscle30days_norice">โปรโมชั่น เพิ่มกล้าม 1 เดือน (กับข้าวอย่างเดียว 120+4 มื้อ) ฿12,499</option>
                     </select>
                   </div>
 

@@ -10,19 +10,14 @@ import { Login } from './features/auth/Login';
 import { useAuthStore } from './store/authStore';
 import { supabase } from './config/supabase';
 import { Toaster } from 'sonner';
+import { FinanceDashboard } from './features/finance/components/FinanceDashboard';
+import { MenuManagement } from './features/menu/components/MenuManagement';
+import { LogisticsDashboard } from './features/logistics/components/LogisticsDashboard';
 
 
 // Re-saved to ensure all imports are matched correctly
 
-// Placeholder Pages
-const PlaceholderPage: React.FC<{ title: string }> = ({ title }) => (
-  <div className="flex items-center justify-center h-full">
-    <div className="text-center opacity-50 p-6">
-      <h2 className="text-2xl font-normal text-slate-800">{title}</h2>
-      <p className="text-slate-500 font-normal mt-2">กำลังอยู่ในช่วงการพัฒนา</p>
-    </div>
-  </div>
-);
+// Re-saved to ensure all imports are matched correctly
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated } = useAuthStore();
@@ -92,12 +87,12 @@ function App() {
         <Route path="/inventory/stock" element={<ProtectedRoute><MainLayout><InventoryPage /></MainLayout></ProtectedRoute>} />
         <Route path="/inventory" element={<Navigate to="/inventory/stock" replace />} />
         
-        <Route path="/menu/member" element={<ProtectedRoute><MainLayout><PlaceholderPage title="จัดการเมนูสำหรับสมาชิก" /></MainLayout></ProtectedRoute>} />
-        <Route path="/menu/retail" element={<ProtectedRoute><MainLayout><PlaceholderPage title="จัดการเมนูร้านค้า (หน้าร้าน)" /></MainLayout></ProtectedRoute>} />
+        <Route path="/menu/member" element={<ProtectedRoute><MainLayout><MenuManagement type="member" /></MainLayout></ProtectedRoute>} />
+        <Route path="/menu/retail" element={<ProtectedRoute><MainLayout><MenuManagement type="retail" /></MainLayout></ProtectedRoute>} />
         <Route path="/menu" element={<Navigate to="/menu/member" replace />} />
 
-        <Route path="/finance" element={<ProtectedRoute><MainLayout><PlaceholderPage title="ระบบบัญชีและการเงิน" /></MainLayout></ProtectedRoute>} />
-        <Route path="/logistics" element={<ProtectedRoute><MainLayout><PlaceholderPage title="ระบบจัดการไรเดอร์ส่งอาหาร" /></MainLayout></ProtectedRoute>} />
+        <Route path="/finance" element={<ProtectedRoute><MainLayout><FinanceDashboard /></MainLayout></ProtectedRoute>} />
+        <Route path="/logistics" element={<ProtectedRoute><MainLayout><LogisticsDashboard /></MainLayout></ProtectedRoute>} />
 
       </Routes>
     </BrowserRouter>

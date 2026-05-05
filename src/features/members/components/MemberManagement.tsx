@@ -853,6 +853,27 @@ export const MemberManagement: React.FC = () => {
                             meals_total: 62,
                             end_date: dayjs(newPackage.start_date).add(30, 'day').format('YYYY-MM-DD')
                           });
+                        } else if (val === 'muscle14days') {
+                          setNewPackage({
+                            ...newPackage,
+                            package_name: '- โปรโมชั่น เพิ่มกล้าม 14 วัน (60+2 มื้อ) = ฿7,399',
+                            meals_total: 62,
+                            end_date: dayjs(newPackage.start_date).add(14, 'day').format('YYYY-MM-DD')
+                          });
+                        } else if (val === 'muscle30days') {
+                          setNewPackage({
+                            ...newPackage,
+                            package_name: '- โปรโมชั่น เพิ่มกล้าม 1 เดือน (120+4 มื้อ) = ฿14,490',
+                            meals_total: 124,
+                            end_date: dayjs(newPackage.start_date).add(30, 'day').format('YYYY-MM-DD')
+                          });
+                        } else if (val === 'muscle30days_norice') {
+                          setNewPackage({
+                            ...newPackage,
+                            package_name: '- โปรโมชั่น เพิ่มกล้าม 1 เดือน กับข้าวอย่างเดียว (120+4 มื้อ) = ฿12,499',
+                            meals_total: 124,
+                            end_date: dayjs(newPackage.start_date).add(30, 'day').format('YYYY-MM-DD')
+                          });
                         }
                       }}
                       className="w-full p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-sm font-normal text-emerald-800 focus:border-emerald-500 outline-none"
@@ -861,6 +882,9 @@ export const MemberManagement: React.FC = () => {
                       <option value="7days">ผูกปิ่นโต 7 วัน (14+1 มื้อ)</option>
                       <option value="14days">ผูกปิ่นโต 14 วัน (28+2 มื้อ)</option>
                       <option value="30days">ผูกปิ่นโต 1 เดือน (60+2 มื้อ)</option>
+                      <option value="muscle14days">โปรโมชั่น เพิ่มกล้าม 14 วัน (60+2 มื้อ) ฿7,399</option>
+                      <option value="muscle30days">โปรโมชั่น เพิ่มกล้าม 1 เดือน (120+4 มื้อ) ฿14,490</option>
+                      <option value="muscle30days_norice">โปรโมชั่น เพิ่มกล้าม 1 เดือน (กับข้าวอย่างเดียว 120+4 มื้อ) ฿12,499</option>
                     </select>
                   </div>
 

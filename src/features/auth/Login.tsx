@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuthStore } from '../../store/authStore';
-import { Lock, Mail, Loader2 } from 'lucide-react';
+import { Lock, Mail, Loader2, Info } from 'lucide-react';
+import { supabase } from '../../config/supabase';
 
 export const Login: React.FC = () => {
   const { login } = useAuthStore();
@@ -8,6 +9,28 @@ export const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
+  const handleResetPassword = async () => {
+    if (!email) {
+      setError('กรุณากรอกอีเมลเพื่อรีเซ็ตรหัสผ่าน');
+      return;
+    }
+    setIsLoading(true);
+    setError('');
+    setSuccessMsg('');
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + '/reset-password',
+      });
+      if (error) throw error;
+      setSuccessMsg('ส่งลิงก์รีเซ็ตรหัสผ่านไปยังอีเมลของคุณแล้ว โปรดตรวจสอบกล่องจดหมาย');
+    } catch (err: any) {
+      setError(err.message || 'รีเซ็ตรหัสผ่านไม่สำเร็จ');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,6 +66,13 @@ export const Login: React.FC = () => {
             {error}
           </div>
         )}
+        
+        {successMsg && (
+          <div className="bg-emerald-50 text-emerald-600 text-sm font-normal p-4 rounded-xl mb-6 border border-emerald-100 text-center flex items-center justify-center gap-2">
+            <Info size={16} />
+            {successMsg}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
@@ -73,6 +103,17 @@ export const Login: React.FC = () => {
                 required
               />
             </div>
+          </div>
+
+          <div className="flex items-center justify-end">
+            <button 
+              type="button" 
+              onClick={handleResetPassword}
+              disabled={isLoading}
+              className="text-xs text-emerald-600 hover:text-emerald-700 font-medium transition-colors"
+            >
+              ลืมรหัสผ่าน?
+            </button>
           </div>
 
           <button 

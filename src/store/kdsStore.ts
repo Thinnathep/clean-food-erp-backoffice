@@ -520,8 +520,13 @@ export const useKdsStore = create<KdsState>()(
                   .update({ meals_remaining: newRemaining })
                   .eq('id', targetPackage.id);
                 if (error) throw new Error(error.message);
+                
+                set(state => ({
+                  activePackages: state.activePackages.map(p => 
+                    p.id === targetPackage.id ? { ...p, meals_remaining: newRemaining } : p
+                  )
+                }));
               }
-              await get().loadMasterData();
             }
             
             set(state => ({
