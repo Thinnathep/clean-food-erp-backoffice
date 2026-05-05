@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../config/supabase';
-import { useAuthStore } from '../../../store/authStore';
 import dayjs from 'dayjs';
 import { Wallet, TrendingUp, TrendingDown, Plus, Trash2, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
 
 export const FinanceDashboard: React.FC = () => {
-  const { user } = useAuthStore();
   const [transactions, setTransactions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
