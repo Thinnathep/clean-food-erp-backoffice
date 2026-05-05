@@ -94,8 +94,16 @@ export default function MenuPanel({ weekStart, weekPlanId }: Props) {
                 value={localSearch}
                 onChange={e => setLocalSearch(e.target.value)}
                 placeholder="ค้นหาเมนูอาหาร..."
-                style={{ width: '100%', padding: '12px 12px 12px 40px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', color: '#1e293b', fontSize: '13px', fontWeight: 600, outline: 'none', transition: 'all 0.2s' }}
+                style={{ width: '100%', padding: '12px 36px 12px 40px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', color: '#1e293b', fontSize: '13px', fontWeight: 600, outline: 'none', transition: 'all 0.2s' }}
               />
+              {localSearch && (
+                <button 
+                  onClick={() => setLocalSearch('')}
+                  style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <X size={14} />
+                </button>
+              )}
             </div>
 
             {/* Category filter */}

@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { 
   Truck, MapPin, Navigation, Clock, CheckCircle2, AlertCircle, 
   Users, DollarSign, Search, Filter, Calendar, ChevronRight,
-  Package, User, Plus
+  Package, User, Plus, X
 } from 'lucide-react';
 import dayjs from 'dayjs';
 
@@ -113,8 +113,16 @@ export const LogisticsDashboard: React.FC = () => {
               placeholder={activeTab === 'deliveries' ? "ค้นหาหมายเลขออเดอร์หรือที่อยู่..." : "ค้นหาชื่อไรเดอร์..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-blue-500/10 transition-all"
+              className="w-full pl-12 pr-10 py-3 bg-slate-50 border-none rounded-2xl text-sm focus:ring-2 focus:ring-blue-500/10 transition-all"
             />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            )}
           </div>
           
           <div className="flex items-center gap-3">

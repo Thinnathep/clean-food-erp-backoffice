@@ -814,8 +814,19 @@ export const MenuLibrary: React.FC<{ onClose?: () => void }> = ({ onClose }) => 
                 setSearchTerm(val);
               }}
               placeholder="ค้นหาเมนูอาหาร..."
-              className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-transparent rounded-2xl text-sm font-normal focus:bg-white focus:border-emerald-500 outline-none transition-all placeholder:text-slate-400"
+              className="w-full pl-12 pr-10 py-3.5 bg-slate-50 border border-transparent rounded-2xl text-sm font-normal focus:bg-white focus:border-emerald-500 outline-none transition-all placeholder:text-slate-400"
             />
+            {localSearchTerm && (
+              <button 
+                onClick={() => {
+                  setLocalSearchTerm('');
+                  setSearchTerm('');
+                }}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            )}
           </div>
           <div className="flex gap-2">
             <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className="w-full bg-slate-50 text-slate-600 text-[10px] font-normal uppercase tracking-widest rounded-xl px-3 py-3 outline-none focus:bg-white focus:border-emerald-500 transition-all">

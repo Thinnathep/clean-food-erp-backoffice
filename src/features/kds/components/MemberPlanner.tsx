@@ -525,8 +525,16 @@ export const MemberPlanner: React.FC = () => {
                   placeholder="ค้นหาชื่อลูกค้า..."
                   value={sidebarSearchQuery}
                   onChange={(e) => setSidebarSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-normal focus:border-emerald-500 outline-none transition-all"
+                  className="w-full pl-9 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-normal focus:border-emerald-500 outline-none transition-all"
                 />
+                {sidebarSearchQuery && (
+                  <button 
+                    onClick={() => setSidebarSearchQuery('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    <X size={12} />
+                  </button>
+                )}
               </div>
               <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200 gap-1">
                 <button 
@@ -1348,8 +1356,16 @@ export const MemberPlanner: React.FC = () => {
                         placeholder="พิมพ์ชื่อเมนู..."
                         value={menuSearch}
                         onChange={(e) => setMenuSearch(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-normal focus:border-emerald-500 outline-none"
+                        className="w-full pl-10 pr-10 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-normal focus:border-emerald-500 outline-none"
                       />
+                      {menuSearch && (
+                        <button 
+                          onClick={() => setMenuSearch('')}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                        >
+                          <X size={16} />
+                        </button>
+                      )}
                     </div>
                     {menuSearch && (
                       <div className="mt-2 max-h-40 overflow-y-auto border border-slate-200 rounded-xl bg-white shadow-inner">
@@ -1471,8 +1487,16 @@ export const MemberPlanner: React.FC = () => {
                           placeholder="พิมพ์ชื่อหรือเบอร์โทรเพื่อค้นหา..."
                           value={memberSearchQuery}
                           onChange={(e) => setMemberSearchQuery(e.target.value)}
-                          className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-normal focus:border-emerald-500 outline-none"
+                          className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-normal focus:border-emerald-500 outline-none"
                         />
+                        {memberSearchQuery && (
+                          <button 
+                            onClick={() => setMemberSearchQuery('')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
                       </div>
                       <select 
                         value={newPackage.member_id}

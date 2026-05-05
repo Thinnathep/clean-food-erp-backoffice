@@ -196,8 +196,16 @@ export const IngredientMasterPage: React.FC = () => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="ค้นหาวัตถุดิบ..."
-              className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-transparent rounded-2xl text-sm outline-none focus:bg-white focus:border-emerald-500 transition-all placeholder:text-slate-300"
+              className="w-full pl-12 pr-10 py-3 bg-slate-50 border border-transparent rounded-2xl text-sm outline-none focus:bg-white focus:border-emerald-500 transition-all placeholder:text-slate-300"
             />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            )}
           </div>
 
           <div className="relative group w-full md:w-48">

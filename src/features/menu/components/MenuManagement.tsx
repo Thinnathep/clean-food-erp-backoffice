@@ -224,8 +224,16 @@ export const MenuManagement: React.FC<MenuManagementProps> = ({ type }) => {
                   placeholder="ค้นหาเมนู..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 bg-white border border-slate-100 rounded-2xl text-sm focus:border-emerald-500 transition-all outline-none shadow-sm"
+                  className="w-full pl-12 pr-10 py-3 bg-white border border-slate-100 rounded-2xl text-sm focus:border-emerald-500 transition-all outline-none shadow-sm"
                 />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 transition-colors"
+                  >
+                    <X size={16} />
+                  </button>
+                )}
               </div>
               
               <div className="flex items-center gap-2 bg-white p-1.5 rounded-2xl shadow-sm border border-slate-100">
