@@ -110,62 +110,6 @@ export const MemberPlanner: React.FC = () => {
   const handleNextWeek = () => setCurrentWeekStart(dayjs(currentWeekStart).add(1, 'week').toDate());
 
 
-  const copyDailyMacros = (date: string) => {
-    const daySchedules = getSchedulesForDate(date);
-    if (daySchedules.length === 0) {
-      Swal.fire({ icon: 'info', title: 'ไม่มีรายการอาหาร', text: 'กรุณาเพิ่มเมนูก่อนคัดลอกสรุปสารอาหาร' });
-      return;
-    }
-
-    let totals = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
-    let meals: any[] = [];
-    let menuSummary = '';
-
-    daySchedules.forEach((s, idx) => {
-      const menu = s.menu_items;
-      if (menu) {
-        const qty = s.quantity || 1;
-        const isNoRice = s.notes?.includes('[ไม่รับข้าว]');
-        
-        let mealMacros = {
-          name: menu.name,
-          kcal: (menu.calories || 0) * qty,
-          protein: (menu.protein || 0) * qty,
-          carbs: (menu.carbs || 0) * qty,
-          fat: (menu.fat || 0) * qty,
-          qty
-        };
-
-        // 🍚 ❌ 🥦🥕✅ Nutritional Adjustment: No Rice + Extra Veg
-        // Rice (100g): -130 kcal, -28g carbs, -2.7g protein
-        // Veg (60g): +22 kcal, +4.9g carbs, +1.1g protein
-        if (isNoRice) {
-          mealMacros.kcal = Math.max(0, mealMacros.kcal - 130 + 22);
-          mealMacros.carbs = Math.max(0, mealMacros.carbs - 28 + 4.9);
-          mealMacros.protein = Math.max(0, mealMacros.protein - 2.7 + 1.1);
-          mealMacros.name = `[ไม่รับข้าว] ${mealMacros.name}`;
-        }
-
-        totals.kcal += mealMacros.kcal;
-        totals.protein += mealMacros.protein;
-        totals.carbs += mealMacros.carbs;
-        totals.fat += mealMacros.fat;
-        meals.push(mealMacros);
-        menuSummary += `🍱 มื้อที่ ${idx + 1}: ${mealMacros.name} (${mealMacros.kcal.toFixed(0)} kcal)\n`;
-      }
-    });
-
-    const displayDate = dayjs(date).locale('th').format('DD MMMM YYYY');
-    const formattedText = `📊 *สรุปสารอาหารประจำวันที่ ${displayDate}*\n${menuSummary}---\n🔥 *พลังงานรวม:* ${totals.kcal.toFixed(0)} kcal\n🍗 *โปรตีน:* ${totals.protein.toFixed(1)}g | 🍚 *คาร์บ:* ${totals.carbs.toFixed(1)}g | 🥑 *ไขมัน:* ${totals.fat.toFixed(1)}g`;
-
-    setMacrosContent({
-      date: displayDate,
-      meals,
-      totals,
-      formattedText
-    });
-    setIsMacrosModalOpen(true);
-  };
 
   const filteredPackages = useMemo(() => {
     // 1. Optimized lookup map
