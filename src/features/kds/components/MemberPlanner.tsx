@@ -59,14 +59,6 @@ export const MemberPlanner: React.FC = () => {
   const [sidebarSortBy, setSidebarSortBy] = useState<'latest' | 'name'>('latest');
   const [sidebarFilterType, setSidebarFilterType] = useState<'all' | 'member' | 'retail'>('all');
 
-  // Macros Summary State
-  const [isMacrosModalOpen, setIsMacrosModalOpen] = useState(false);
-  const [macrosContent, setMacrosContent] = useState<{
-    date: string,
-    meals: any[],
-    totals: {kcal: number, protein: number, carbs: number, fat: number},
-    formattedText: string
-  } | null>(null);
 
 
   const menus = useKdsStore(state => state.menus);
@@ -1059,88 +1051,6 @@ export const MemberPlanner: React.FC = () => {
         </div>
       )}
 
-      {isMacrosModalOpen && macrosContent && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-           <motion.div 
-             initial={{ opacity: 0, scale: 0.95, y: 20 }}
-             animate={{ opacity: 1, scale: 1, y: 0 }}
-             className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden"
-           >
-              <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-indigo-50/50">
-                 <div>
-                   <h3 className="text-xl font-normal text-slate-900 flex items-center gap-2">
-                     <UtensilsCrossed className="text-indigo-500" /> สรุปสารอาหาร (Macros)
-                   </h3>
-                   <p className="text-slate-500 text-xs font-normal mt-1">ประจำวันที่ {macrosContent.date}</p>
-                 </div>
-                 <button onClick={() => setIsMacrosModalOpen(false)} className="p-2 hover:bg-white rounded-full transition-all text-slate-400 shadow-sm border border-transparent hover:border-slate-100"><X size={20} /></button>
-              </div>
-              
-              <div className="p-8 space-y-6">
-                <div className="grid grid-cols-4 gap-4">
-                  <div className="bg-orange-50 p-3 rounded-2xl border border-orange-100 text-center">
-                    <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">Kcal</p>
-                    <p className="text-xl font-bold text-orange-600">{macrosContent.totals.kcal.toFixed(0)}</p>
-                  </div>
-                  <div className="bg-red-50 p-3 rounded-2xl border border-red-100 text-center">
-                    <p className="text-[10px] font-bold text-red-400 uppercase tracking-widest mb-1">Protein</p>
-                    <p className="text-xl font-bold text-red-600">{macrosContent.totals.protein.toFixed(1)}g</p>
-                  </div>
-                  <div className="bg-blue-50 p-3 rounded-2xl border border-blue-100 text-center">
-                    <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-1">Carbs</p>
-                    <p className="text-xl font-bold text-blue-600">{macrosContent.totals.carbs.toFixed(1)}g</p>
-                  </div>
-                  <div className="bg-yellow-50 p-3 rounded-2xl border border-yellow-100 text-center">
-                    <p className="text-[10px] font-bold text-yellow-400 uppercase tracking-widest mb-1">Fat</p>
-                    <p className="text-xl font-bold text-yellow-600">{macrosContent.totals.fat.toFixed(1)}g</p>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">รายการเมนูวันนี้</label>
-                  <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-2">
-                    {macrosContent.meals.map((m, i) => (
-                      <div key={i} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
-                        <span className="text-xs font-normal text-slate-700 truncate max-w-[200px]">{m.name}</span>
-                        <span className="text-[10px] font-bold text-slate-400">{m.kcal.toFixed(0)} kcal</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">ข้อความสำหรับส่งให้ลูกค้า</label>
-                  <div className="relative group">
-                    <textarea 
-                      readOnly
-                      rows={5}
-                      value={macrosContent.formattedText}
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-[11px] font-normal leading-relaxed text-slate-600 resize-none focus:outline-none"
-                    />
-                    <button 
-                      onClick={() => {
-                        navigator.clipboard.writeText(macrosContent.formattedText);
-                        Swal.fire({ icon: 'success', title: 'คัดลอกแล้ว', toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
-                      }}
-                      className="absolute right-3 bottom-3 bg-white text-indigo-600 p-2 rounded-xl shadow-md border border-indigo-100 hover:bg-indigo-50 transition-all flex items-center gap-1.5 text-[11px] font-bold"
-                    >
-                      <Copy size={14} /> คัดลอกข้อความ
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="px-8 py-6 bg-slate-50/50 border-t border-slate-100">
-                 <button 
-                   onClick={() => setIsMacrosModalOpen(false)}
-                   className="w-full px-6 py-3 bg-slate-800 text-white rounded-xl text-sm font-normal hover:bg-slate-900 transition-all shadow-lg shadow-slate-800/20"
-                 >
-                   ปิดหน้าต่าง
-                 </button>
-              </div>
-           </motion.div>
-        </div>
-      )}
 
       {isModalOpen && editingSlot && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
