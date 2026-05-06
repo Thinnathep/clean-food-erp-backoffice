@@ -3,7 +3,7 @@ import {
   Users, Search, Plus, User, Phone, MapPin, 
   Calendar, ChevronRight, ChevronLeft, Edit3, 
   X, Save, Clock, Package, 
-  CheckCircle2, AlertCircle, Trash2
+  CheckCircle2, AlertCircle, Trash2, ShieldAlert
 } from 'lucide-react';
 import { useKdsStore } from '../../../store/kdsStore';
 import dayjs from 'dayjs';
@@ -16,7 +16,7 @@ export const MemberManagement: React.FC = () => {
     members, activePackages, isLoadingData, 
     loadMasterData, addNewMember, updateMemberProfile, 
     addPintoPackage, cancelPintoPackage,
-    createQuickRetailOrder, menus
+    createQuickRetailOrder, banMember, unbanMember, menus
   } = useKdsStore();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -338,6 +338,7 @@ export const MemberManagement: React.FC = () => {
                   <p className="text-sm font-normal text-slate-800 truncate">{member.full_name}</p>
                   <p className="text-[11px] font-normal text-slate-500 mt-0.5">{member.phone}</p>
                 </div>
+                {member.is_banned && <ShieldAlert size={16} className="text-red-500 animate-pulse" />}
                 <ChevronRight size={16} className={selectedMemberId === member.id ? 'text-emerald-500' : 'text-slate-300'} />
               </div>
             </div>
@@ -380,9 +381,40 @@ export const MemberManagement: React.FC = () => {
                <div className="flex-1 min-w-0 space-y-3">
                   <div className="flex items-center flex-wrap gap-4">
                     <h1 className="text-3xl font-normal text-slate-900 tracking-tight">{selectedMember.full_name}</h1>
-                    <span className="px-4 py-1.5 bg-emerald-100 text-emerald-700 text-xs font-normal uppercase tracking-widest rounded-full border border-emerald-200">
-                      Active Member
-                    </span>
+                     {selectedMember.is_banned ? (
+                       <span className="px-4 py-1.5 bg-red-100 text-red-700 text-xs font-bold uppercase tracking-widest rounded-full border border-red-200 flex items-center gap-2 animate-pulse">
+                         <ShieldAlert size={14} /> BANNED / BLACKLIST
+                       </span>
+                     ) : (
+                       <div className="flex items-center gap-2">
+                         <span className="px-4 py-1.5 bg-emerald-100 text-emerald-700 text-xs font-normal uppercase tracking-widest rounded-full border border-emerald-200">
+                           Active Member
+                         </span>
+                         <button 
+                           onClick={async () => {
+                             const { value: reason } = await Swal.fire({
+                               title: 'ระงับสมาชิก',
+                               input: 'textarea',
+                               inputLabel: 'ระบุเหตุผลในการระงับ (Blacklist)',
+                               inputPlaceholder: 'เช่น ลูกค้าสร้างความวุ่นวาย...',
+                               inputValidator: (value) => {
+                                 if (!value) {
+                                   return 'กรุณาระบุเหตุผลในการระงับ';
+                                 }
+                               },
+                               showCancelButton: true,
+                               confirmButtonText: 'ยืนยันการระงับ',
+                               cancelButtonText: 'ยกเลิก',
+                               confirmButtonColor: '#ef4444',
+                             });
+                             if (reason) await banMember(selectedMember.id, reason);
+                           }}
+                           className="text-red-500 hover:text-red-700 text-xs font-normal flex items-center gap-1 ml-2 transition-all"
+                         >
+                           <ShieldAlert size={14} /> (ระงับ)
+                         </button>
+                       </div>
+                     )}
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4 pt-2">
@@ -417,7 +449,66 @@ export const MemberManagement: React.FC = () => {
                   >
                     <Edit3 size={18} /> แก้ไขข้อมูลโปรไฟล์
                   </button>
-               </div>
+                  
+                  {!selectedMember.is_banned ? (
+                    <button 
+                      onClick={async () => {
+                        const { value: reason } = await Swal.fire({
+                          title: 'ระงับสมาชิก',
+                          input: 'textarea',
+                          inputLabel: 'ระบุเหตุผลในการระงับ (Blacklist)',
+                          inputPlaceholder: 'เช่น ลูกค้าสร้างความวุ่นวาย, เรียกร้องเกินจริง...',
+                          showCancelButton: true,
+                          confirmButtonText: 'ยืนยันการระงับ',
+                          cancelButtonText: 'ยกเลิก',
+                          confirmButtonColor: '#ef4444',
+                        });
+
+                        if (reason) {
+                          await banMember(selectedMember.id, reason);
+                        }
+                      }}
+                      className="w-full md:w-auto px-6 py-3 bg-white text-red-600 border-2 border-red-100 rounded-2xl text-sm font-bold hover:bg-red-600 hover:text-white hover:border-red-600 transition-all shadow-sm flex items-center justify-center gap-2 group"
+                    >
+                      <ShieldAlert size={18} className="group-hover:animate-bounce" /> ระงับสมาชิก (Ban)
+                    </button>
+                  ) : (
+                    <div className="w-full md:w-auto px-6 py-3 bg-red-50 text-red-700 rounded-2xl text-sm font-normal flex flex-col gap-3 border border-red-200">
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2 font-bold text-red-600">
+                          <ShieldAlert size={18} /> ถูกระงับการใช้งาน
+                        </div>
+                        <div className="text-xs opacity-70">เหตุผล: {selectedMember.ban_reason}</div>
+                      </div>
+                      
+                      <button 
+                        onClick={async () => {
+                          const { value: reason } = await Swal.fire({
+                            title: 'ยกเลิกการระงับสมาชิก',
+                            input: 'textarea',
+                            inputLabel: 'ระบุเหตุผลในการปลดแบน',
+                            inputPlaceholder: 'เช่น ลูกค้าปรับปรุงตัวแล้ว, ตกลงกันได้แล้ว...',
+                            inputValidator: (value) => {
+                              if (!value) {
+                                return 'กรุณาระบุเหตุผลในการปลดแบนด้วยครับ';
+                              }
+                            },
+                            showCancelButton: true,
+                            confirmButtonText: 'ยืนยันการปลดแบน',
+                            confirmButtonColor: '#10b981',
+                          });
+
+                          if (reason) {
+                            await unbanMember(selectedMember.id, reason);
+                          }
+                        }}
+                        className="w-full py-2 bg-white border border-emerald-200 text-emerald-600 rounded-xl text-xs font-bold hover:bg-emerald-600 hover:text-white transition-all flex items-center justify-center gap-2"
+                      >
+                        <CheckCircle2 size={14} /> ปลดแบนสมาชิก
+                      </button>
+                    </div>
+                  )}
+                </div>
             </div>
 
             {/* Content Tabs/Sections */}

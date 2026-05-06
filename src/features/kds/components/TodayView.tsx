@@ -92,17 +92,30 @@ export const TodayView: React.FC = () => {
 
   const todayProduction = useMemo(() => {
     const todaySchedules = memberSchedules.filter(s => {
+      const member = Array.isArray(s.members) ? s.members[0] : s.members;
+      if (member?.is_banned) return false;
+      
       if (s.delivery_date !== selectedDate) return false;
-      if (filterType === 'member') return !s.is_extra_order;
+      
+      // If filtering specifically for extras
       if (filterType === 'extra') return s.is_extra_order;
+      
+      // If filtering for retail, we skip schedules
       if (filterType === 'retail') return false;
+      
+      // For 'all', 'menu', 'member', we show both regular and extras
       return true;
     });
 
-    
     const todayTasks = tasks.filter(t => {
-      if (filterType === 'member' || filterType === 'extra') return false;
-      return dayjs(t.created_at).format('YYYY-MM-DD') === selectedDate;
+      const isOnDate = dayjs(t.created_at).format('YYYY-MM-DD') === selectedDate;
+      if (!isOnDate) return false;
+
+      // In 'extra' view, we only show schedules, not retail tasks
+      if (filterType === 'extra') return false;
+      
+      // In other views (all, menu, member, retail), we show retail tasks
+      return true;
     });
 
     const grouped: Record<string, any> = {};
@@ -482,8 +495,17 @@ export const TodayView: React.FC = () => {
     if (Object.keys(todayProduction.groups).length === 0) return "วันนี้ยังไม่มีรายการผลิตที่ต้องดำเนินการ";
     const shifts = Object.entries(todayProduction.groups).sort((a: any, b: any) => b[1].totalRoundQty - a[1].totalRoundQty);
     const busiestShift = shifts[0][0];
-    const totalMembers = Object.values(todayProduction.groups).reduce((acc: number, g: any) => acc + Object.keys(g.members).length, 0);
-    return `ยอดผลิตรวม ${totalBoxes} กล่อง สำหรับลูกค้า ${totalMembers} ท่าน โดยรอบที่งานเยอะที่สุดคือ ${busiestShift} (${shifts[0][1].totalRoundQty} กล่อง) ${todayProduction.specialNotesCount > 0 ? `และมีคำขอพิเศษ ${todayProduction.specialNotesCount} รายการ` : 'ไม่มีหมายเหตุพิเศษ'}`;
+    
+    const allUniqueKeys = new Set<string>();
+    Object.values(todayProduction.groups).forEach((timeGroup: any) => {
+      Object.keys(timeGroup.members).forEach(key => allUniqueKeys.add(key));
+    });
+    
+    const totalUniqueCount = allUniqueKeys.size;
+    const unitLabel = filterType === 'menu' ? 'เมนู' : 'ลูกค้า';
+    const unitSuffix = filterType === 'menu' ? 'รายการ' : 'ท่าน';
+
+    return `ยอดผลิตรวม ${totalBoxes} กล่อง สำหรับ${unitLabel} ${totalUniqueCount} ${unitSuffix} โดยรอบที่งานเยอะที่สุดคือ ${busiestShift} (${shifts[0][1].totalRoundQty} กล่อง) ${todayProduction.specialNotesCount > 0 ? `และมีคำขอพิเศษ ${todayProduction.specialNotesCount} รายการ` : 'ไม่มีหมายเหตุพิเศษ'}`;
   }, [todayProduction, totalBoxes]);
 
   const changeDate = (days: number) => {
@@ -694,7 +716,19 @@ export const TodayView: React.FC = () => {
             </div>
             <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center text-center gap-4">
                 <div className="w-14 h-14 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center shrink-0 shadow-sm"><UtensilsCrossed size={28} /></div>
-                <div><p className="text-[12px] uppercase text-slate-400 font-bold mb-1">จำนวนลูกค้า</p><h3 className="text-3xl font-black text-slate-900">{Object.values(todayProduction.groups).reduce((acc: number, group: any) => acc + Object.keys(group.members).length, 0)}<span className="text-sm font-bold text-slate-400"> ท่าน</span></h3></div>
+                <div>
+                  <p className="text-[12px] uppercase text-slate-400 font-bold mb-1">{filterType === 'menu' ? 'จำนวนเมนู' : 'จำนวนลูกค้า'}</p>
+                  <h3 className="text-3xl font-black text-slate-900">
+                    {(() => {
+                      const allKeys = new Set();
+                      Object.values(todayProduction.groups).forEach((tg: any) => {
+                        Object.keys(tg.members).forEach(k => allKeys.add(k));
+                      });
+                      return allKeys.size;
+                    })()}
+                    <span className="text-sm font-bold text-slate-400"> {filterType === 'menu' ? 'รายการ' : 'ท่าน'}</span>
+                  </h3>
+                </div>
             </div>
             <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center text-center gap-4">
                 <div className="w-14 h-14 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center shrink-0 shadow-sm"><AlertTriangle size={28} /></div>

@@ -13,6 +13,13 @@ CREATE TABLE public.erp_audit_logs (
   CONSTRAINT erp_audit_logs_pkey PRIMARY KEY (id),
   CONSTRAINT erp_audit_logs_changed_by_fkey FOREIGN KEY (changed_by) REFERENCES public.erp_staff(id)
 );
+CREATE TABLE public.erp_blacklist (
+  phone text NOT NULL,
+  full_name text,
+  reason text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT erp_blacklist_pkey PRIMARY KEY (phone)
+);
 CREATE TABLE public.erp_deliveries (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   order_id text NOT NULL,
@@ -86,25 +93,37 @@ CREATE TABLE public.erp_financial_transactions (
   CONSTRAINT fk_financial_approved_by FOREIGN KEY (approved_by) REFERENCES public.erp_staff(id),
   CONSTRAINT fk_financial_order FOREIGN KEY (order_id) REFERENCES public.orders(order_id)
 );
+CREATE TABLE public.erp_inventory_adjustments (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  inventory_item_id uuid NOT NULL,
+  location_id uuid,
+  expected_qty numeric NOT NULL,
+  actual_qty numeric NOT NULL,
+  discrepancy numeric DEFAULT (actual_qty - expected_qty),
+  reason text,
+  adjusted_by uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT erp_inventory_adjustments_pkey PRIMARY KEY (id),
+  CONSTRAINT fk_adj_item FOREIGN KEY (inventory_item_id) REFERENCES public.erp_inventory_items(id),
+  CONSTRAINT fk_adj_location FOREIGN KEY (location_id) REFERENCES public.erp_inventory_locations(id),
+  CONSTRAINT fk_adj_staff FOREIGN KEY (adjusted_by) REFERENCES public.erp_staff(id)
+);
 CREATE TABLE public.erp_inventory_batches (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  item_id uuid NOT NULL,
+  inventory_item_id uuid,
+  location_id uuid,
+  qty numeric NOT NULL,
+  unit_cost numeric NOT NULL,
+  purchase_unit text,
+  purchase_qty numeric,
+  receipt_no text,
   supplier_id uuid,
-  receipt_no text NOT NULL,
-  quantity numeric NOT NULL,
-  purchase_date date,
-  expiry_date date,
-  created_by uuid,
+  received_at timestamp with time zone DEFAULT now(),
   created_at timestamp with time zone DEFAULT now(),
-  deleted_at timestamp with time zone,
-  total_cost numeric NOT NULL DEFAULT 0.00,
-  unit_cost numeric DEFAULT 0.00,
-  is_expired boolean DEFAULT false,
-  notes text,
   CONSTRAINT erp_inventory_batches_pkey PRIMARY KEY (id),
-  CONSTRAINT erp_inventory_batches_item_id_fkey FOREIGN KEY (item_id) REFERENCES public.erp_inventory_items(id),
-  CONSTRAINT erp_inventory_batches_supplier_id_fkey FOREIGN KEY (supplier_id) REFERENCES public.erp_suppliers(id),
-  CONSTRAINT erp_inventory_batches_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.erp_staff(id)
+  CONSTRAINT erp_inventory_batches_inventory_item_id_fkey FOREIGN KEY (inventory_item_id) REFERENCES public.erp_inventory_items(id),
+  CONSTRAINT erp_inventory_batches_location_id_fkey FOREIGN KEY (location_id) REFERENCES public.erp_inventory_locations(id),
+  CONSTRAINT erp_inventory_batches_supplier_id_fkey FOREIGN KEY (supplier_id) REFERENCES public.erp_suppliers(id)
 );
 CREATE TABLE public.erp_inventory_items (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -129,17 +148,27 @@ CREATE TABLE public.erp_inventory_items (
   CONSTRAINT erp_inv_items_default_supplier_fkey FOREIGN KEY (default_supplier_id) REFERENCES public.erp_suppliers(id),
   CONSTRAINT fk_inventory_default_supplier FOREIGN KEY (default_supplier_id) REFERENCES public.erp_suppliers(id)
 );
+CREATE TABLE public.erp_inventory_locations (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  description text,
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT erp_inventory_locations_pkey PRIMARY KEY (id)
+);
 CREATE TABLE public.erp_inventory_transactions (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  item_id uuid NOT NULL,
+  inventory_item_id uuid NOT NULL,
   type text NOT NULL,
   qty_changed numeric NOT NULL,
   reason text,
   created_by uuid,
   created_at timestamp with time zone DEFAULT now(),
+  location_id uuid,
   CONSTRAINT erp_inventory_transactions_pkey PRIMARY KEY (id),
-  CONSTRAINT fk_inventory_tx_item FOREIGN KEY (item_id) REFERENCES public.erp_inventory_items(id),
-  CONSTRAINT fk_inventory_tx_staff FOREIGN KEY (created_by) REFERENCES public.erp_staff(id)
+  CONSTRAINT fk_inventory_tx_item FOREIGN KEY (inventory_item_id) REFERENCES public.erp_inventory_items(id),
+  CONSTRAINT fk_inventory_tx_staff FOREIGN KEY (created_by) REFERENCES public.erp_staff(id),
+  CONSTRAINT fk_inventory_tx_location FOREIGN KEY (location_id) REFERENCES public.erp_inventory_locations(id)
 );
 CREATE TABLE public.erp_kds_tasks (
   order_id text NOT NULL,
@@ -150,6 +179,26 @@ CREATE TABLE public.erp_kds_tasks (
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT erp_kds_tasks_pkey PRIMARY KEY (order_id),
   CONSTRAINT fk_kds_order FOREIGN KEY (order_id) REFERENCES public.orders(order_id)
+);
+CREATE TABLE public.erp_kitchen_checklist (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  category text NOT NULL,
+  item_name text NOT NULL,
+  is_checked boolean DEFAULT false,
+  updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
+  target_date date DEFAULT CURRENT_DATE,
+  target_time text,
+  location text,
+  vendor text,
+  notes text,
+  CONSTRAINT erp_kitchen_checklist_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.erp_kitchen_checklist_master (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  category text NOT NULL,
+  item_name text NOT NULL,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT erp_kitchen_checklist_master_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.erp_kitchen_sessions (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -171,6 +220,16 @@ CREATE TABLE public.erp_kitchen_sessions (
   CONSTRAINT fk_kitchen_menu FOREIGN KEY (menu_item_id) REFERENCES public.menu_items(id),
   CONSTRAINT fk_kitchen_opened_by FOREIGN KEY (opened_by) REFERENCES public.erp_staff(id),
   CONSTRAINT fk_kitchen_closed_by FOREIGN KEY (closed_by) REFERENCES public.erp_staff(id)
+);
+CREATE TABLE public.erp_member_ban_logs (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  member_id uuid,
+  action text NOT NULL,
+  reason text,
+  created_by uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT erp_member_ban_logs_pkey PRIMARY KEY (id),
+  CONSTRAINT erp_member_ban_logs_member_id_fkey FOREIGN KEY (member_id) REFERENCES public.members(id)
 );
 CREATE TABLE public.erp_member_meal_schedules (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -288,6 +347,16 @@ CREATE TABLE public.erp_system_configs (
   CONSTRAINT erp_system_configs_pkey PRIMARY KEY (key),
   CONSTRAINT erp_system_configs_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES public.erp_staff(id)
 );
+CREATE TABLE public.erp_unit_conversions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  item_id uuid NOT NULL,
+  from_unit text NOT NULL,
+  to_unit text NOT NULL,
+  conversion_factor numeric NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT erp_unit_conversions_pkey PRIMARY KEY (id),
+  CONSTRAINT fk_conversion_item FOREIGN KEY (item_id) REFERENCES public.erp_inventory_items(id)
+);
 CREATE TABLE public.erp_vehicle_logs (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   rider_id uuid NOT NULL,
@@ -375,6 +444,9 @@ CREATE TABLE public.members (
   occupation text,
   food_preferences jsonb DEFAULT '[]'::jsonb,
   member_type text DEFAULT 'retail'::text,
+  is_banned boolean DEFAULT false,
+  ban_reason text,
+  banned_at timestamp with time zone,
   CONSTRAINT members_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.menu_items (

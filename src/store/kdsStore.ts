@@ -11,6 +11,8 @@ import {
   fetchMembers, createPintoPackage, deletePintoPackage,
   createRetailOrder
 } from '../features/kds/api';
+import { fetchChecklistByDate, upsertChecklistItem, deleteChecklistItem, fetchMasterChecklist, addMasterItemsToDaily, addToMaster, updateMasterItem, deleteMasterItem, fetchChecklistDates, clearDailyChecklist } from '../features/kds/checklistApi';
+import type { ChecklistItem, MasterChecklistItem } from '../features/kds/checklistApi';
 
 interface KdsState {
   tasks: KdsTask[];
@@ -67,7 +69,8 @@ interface KdsState {
     time: string, 
     notes: string,
     isExtraOrder?: boolean,
-    orderType?: 'subscription' | 'a-la-carte'
+    orderType?: 'subscription' | 'a-la-carte',
+    boxSize?: string
   ) => Promise<void>;
   updateMemberNote: (scheduleId: string, note: string) => Promise<void>;
   removeMemberSlot: (scheduleId: string) => Promise<void>;
@@ -89,6 +92,8 @@ interface KdsState {
     quantity: number, 
     notes?: string 
   }) => Promise<void>;
+  banMember: (id: string, reason: string) => Promise<void>;
+  unbanMember: (id: string, reason: string) => Promise<void>;
   
   // Draft System
   saveMemberSchedules: () => Promise<void>;
@@ -99,6 +104,28 @@ interface KdsState {
   copyDayPlan: (date: string) => void;
   pasteDayPlan: (targetDate: string, pkgId: string, memberId: string) => Promise<void>;
   clearDayPlan: (date: string, pkgId: string) => Promise<void>;
+  clearCopiedPlan: () => void;
+
+  // Checklist
+  checklist: ChecklistItem[];
+  checklistDate: string;
+  setChecklistDate: (date: string) => void;
+  fetchChecklist: (date: string) => Promise<void>;
+  saveChecklistItem: (item: Partial<ChecklistItem>) => Promise<void>;
+  removeChecklistItem: (id: string) => Promise<void>;
+  
+  // Master & Daily
+  masterChecklist: MasterChecklistItem[];
+  fetchMasterChecklist: () => Promise<void>;
+  addItemsToDaily: (items: MasterChecklistItem[]) => Promise<void>;
+  addItemToMaster: (item: Omit<MasterChecklistItem, 'id'>) => Promise<void>;
+  updateMasterItem: (id: string, item: Partial<MasterChecklistItem>) => Promise<void>;
+  removeMasterItem: (id: string) => Promise<void>;
+  bulkClearChecklist: () => Promise<void>;
+  
+  // History
+  checklistHistory: { target_date: string, total_items: number, completed_items: number }[];
+  fetchChecklistHistory: () => Promise<void>;
 }
 
 export const useKdsStore = create<KdsState>()(
@@ -115,6 +142,7 @@ export const useKdsStore = create<KdsState>()(
       isLoadingPlanner: false,
       error: null,
       hasUnsavedChanges: false,
+      copiedDaySlots: null,
       searchTerm: '',
       categoryFilter: 'All',
       groupFilter: 'All',
@@ -148,6 +176,115 @@ export const useKdsStore = create<KdsState>()(
         }
       },
       
+      checklist: [],
+      checklistDate: new Date().toISOString().split('T')[0],
+      setChecklistDate: (date) => set({ checklistDate: date }),
+      fetchChecklist: async (date) => {
+        try {
+          const data = await fetchChecklistByDate(date);
+          set({ checklist: data, checklistDate: date });
+        } catch (error: any) {
+          set({ error: error.message });
+        }
+      },
+      saveChecklistItem: async (item) => {
+        try {
+          const newItem = await upsertChecklistItem({ ...item, target_date: get().checklistDate });
+          set(state => ({
+            checklist: state.checklist.find(i => i.id === newItem.id)
+              ? state.checklist.map(i => i.id === newItem.id ? newItem : i)
+              : [newItem, ...state.checklist]
+          }));
+        } catch (error: any) {
+          set({ error: error.message });
+        }
+      },
+      removeChecklistItem: async (id) => {
+        try {
+          await deleteChecklistItem(id);
+          set(state => ({
+            checklist: state.checklist.filter(i => i.id !== id)
+          }));
+        } catch (error: any) {
+          set({ error: error.message });
+        }
+      },
+      masterChecklist: [],
+      fetchMasterChecklist: async () => {
+        try {
+          const data = await fetchMasterChecklist();
+          set({ masterChecklist: data });
+        } catch (error: any) {
+          set({ error: error.message });
+        }
+      },
+      addItemsToDaily: async (items) => {
+        try {
+          const date = get().checklistDate;
+          await addMasterItemsToDaily(date, items);
+          await get().fetchChecklist(date);
+          Swal.fire({ icon: 'success', title: 'เพิ่มสำเร็จ', text: `เพิ่ม ${items.length} รายการลงในเช็คลิสต์แล้ว`, timer: 1500 });
+        } catch (error: any) {
+          set({ error: error.message });
+        }
+      },
+      addItemToMaster: async (item) => {
+        try {
+          const newItem = await addToMaster(item);
+          set(state => ({
+            masterChecklist: [...state.masterChecklist, newItem]
+          }));
+        } catch (error: any) {
+          set({ error: error.message });
+          // Fallback fetch if error occurs
+          await get().fetchMasterChecklist();
+        }
+      },
+      updateMasterItem: async (id, item) => {
+        try {
+          const updated = await updateMasterItem(id, item);
+          set(state => ({
+            masterChecklist: state.masterChecklist.map(m => m.id === id ? updated : m)
+          }));
+        } catch (error: any) {
+          set({ error: error.message });
+          await get().fetchMasterChecklist();
+        }
+      },
+      removeMasterItem: async (id) => {
+        // Optimistic delete
+        const previousList = get().masterChecklist;
+        set(state => ({
+          masterChecklist: state.masterChecklist.filter(m => m.id !== id)
+        }));
+
+        try {
+          await deleteMasterItem(id);
+        } catch (error: any) {
+          // Revert if failed
+          set({ masterChecklist: previousList, error: error.message });
+          Swal.fire({ icon: 'error', title: 'ลบไม่สำเร็จ', text: error.message });
+        }
+      },
+      bulkClearChecklist: async () => {
+        try {
+          const date = get().checklistDate;
+          await clearDailyChecklist(date);
+          set({ checklist: [] });
+        } catch (error: any) {
+          set({ error: error.message });
+        }
+      },
+      checklistHistory: [],
+      fetchChecklistHistory: async () => {
+        try {
+          const data = await fetchChecklistDates();
+          set({ checklistHistory: data });
+        } catch (error: any) {
+          set({ error: error.message });
+        }
+      },
+
       loadMasterData: async (silent = false) => {
         try {
           if (!silent) set({ isLoadingData: true, error: null });
@@ -256,7 +393,7 @@ export const useKdsStore = create<KdsState>()(
         }
       },
 
-      assignMemberSlot: async (scheduleId, pkgId, memberId, date, meal, menuId, qty, time, notes, isExtraOrder = false, orderType = 'subscription') => {
+      assignMemberSlot: async (scheduleId, pkgId, memberId, date, meal, menuId, qty, time, notes, isExtraOrder = false, orderType = 'subscription', boxSize = 'regular') => {
          const pkg = get().activePackages.find(p => p.id === pkgId);
          if (pkg && !isExtraOrder) {
            const currentRemaining = pkg.meals_remaining;
@@ -286,7 +423,7 @@ export const useKdsStore = create<KdsState>()(
            meal_type: meal as any,
            menu_item_id: menuId,
            quantity: qty,
-           box_size: 'regular',
+           box_size: boxSize,
            delivery_time: time,
            kitchen_status: 'pending',
            notes: notes,
@@ -437,7 +574,6 @@ export const useKdsStore = create<KdsState>()(
       },
 
       cancelPintoPackage: async (id) => {
-        if (!confirm('ยืนยันการยกเลิกแพ็กเกจนี้? ข้อมูลการจัดส่งจะถูกลบออกทั้งหมด')) return;
         try {
           set({ isLoadingData: true });
           await deletePintoPackage(id);
@@ -472,6 +608,9 @@ export const useKdsStore = create<KdsState>()(
           const existingMember = get().members.find(m => m.phone === data.phone);
           
           if (existingMember) {
+            if ((existingMember as any).is_banned) {
+              throw new Error(`เบอร์โทรศัพท์นี้ถูกระงับการใช้งาน: ${(existingMember as any).ban_reason || 'ไม่ระบุเหตุผล'}`);
+            }
             memberId = existingMember.id;
           } else {
             const newMember = await createMember({
@@ -499,12 +638,102 @@ export const useKdsStore = create<KdsState>()(
           throw error;
         }
       },
-      
+
+      banMember: async (id, reason) => {
+        try {
+          set({ isLoadingData: true });
+          
+          const { error: memberError } = await supabase
+            .from('members')
+            .update({ 
+              is_banned: true, 
+              ban_reason: reason,
+              banned_at: new Date().toISOString()
+            })
+            .eq('id', id);
+
+          if (memberError) throw memberError;
+
+          const { data: member } = await supabase
+            .from('members')
+            .select('phone, full_name')
+            .eq('id', id)
+            .single();
+
+          if (member) {
+            await supabase.from('erp_blacklist').upsert({
+              phone: member.phone,
+              full_name: member.full_name,
+              reason: reason
+            });
+          }
+
+          await supabase.from('erp_member_ban_logs').insert({
+            member_id: id,
+            action: 'BAN',
+            reason: reason
+          });
+
+          await get().loadMasterData();
+          set({ isLoadingData: false });
+          
+          Swal.fire({
+            icon: 'success',
+            title: 'ระงับผู้ใช้งานเรียบร้อยแล้ว',
+            text: 'รายชื่อนี้จะถูกจัดอยู่ใน Blacklist ของระบบ',
+            timer: 2000
+          });
+        } catch (error: any) {
+          set({ error: error.message, isLoadingData: false });
+          Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: error.message });
+          throw error;
+        }
+      },
+
+      unbanMember: async (id, reason) => {
+        set({ isLoadingData: true });
+        try {
+          const { error } = await supabase
+            .from('members')
+            .update({ 
+              is_banned: false,
+              ban_reason: null,
+              banned_at: null
+            })
+            .eq('id', id);
+
+          if (error) throw error;
+
+          const member = get().members.find(m => m.id === id);
+          if (member) {
+            await supabase.from('erp_blacklist').delete().eq('phone', member.phone);
+            await supabase.from('erp_member_ban_logs').insert({
+              member_id: id,
+              action: 'UNBAN',
+              reason: reason
+            });
+          }
+
+          await get().loadMasterData();
+          set({ isLoadingData: false });
+          
+          Swal.fire({
+            icon: 'success',
+            title: 'ยกเลิกการระงับสำเร็จ',
+            text: 'สมาชิกสามารถสั่งอาหารได้ตามปกติแล้ว',
+            timer: 2000
+          });
+        } catch (error: any) {
+          set({ error: error.message, isLoadingData: false });
+          Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: error.message });
+          throw error;
+        }
+      },
+
       removeMemberSlot: async (scheduleId) => {
           try {
             const schedule = get().memberSchedules.find(s => s.id === scheduleId);
             const pkgId = get().selectedPackageId;
-            
             if (schedule && !scheduleId.startsWith('temp_') && pkgId) {
               await removeMemberSchedule(scheduleId);
               const allPackageSchedules = await fetchMemberSchedules('2020-01-01', '2030-12-31', pkgId);
@@ -592,9 +821,9 @@ export const useKdsStore = create<KdsState>()(
         }
       },
 
-      copiedDaySlots: null,
       copyDayPlan: (date) => {
-        const slots = get().memberSchedules.filter(s => s.delivery_date === date);
+        const pkgId = get().selectedPackageId;
+        const slots = get().memberSchedules.filter(s => s.delivery_date === date && s.package_id === pkgId);
         set({ copiedDaySlots: slots });
       },
       pasteDayPlan: async (targetDate, pkgId, memberId) => {
@@ -612,12 +841,12 @@ export const useKdsStore = create<KdsState>()(
             slot.delivery_time || '',
             slot.notes || '',
             slot.is_extra_order || false,
-            slot.meal_order_type || 'subscription'
+            slot.meal_order_type || 'subscription',
+            slot.box_size || 'regular'
           );
         }
       },
       clearDayPlan: async (date, pkgId) => {
-        if (!confirm(`ยืนยันการลบแผนอาหารทั้งหมดของวันที่ ${date}?`)) return;
         const slotsToDelete = get().memberSchedules.filter(s => s.delivery_date === date && s.package_id === pkgId);
         try {
           const realIds = slotsToDelete.filter(s => !s.id.startsWith('temp_')).map(s => s.id);
@@ -633,7 +862,8 @@ export const useKdsStore = create<KdsState>()(
         } catch (error: any) {
           set({ error: error.message });
         }
-      }
+      },
+      clearCopiedPlan: () => set({ copiedDaySlots: null })
     }), 
     {
       name: 'kds-storage',

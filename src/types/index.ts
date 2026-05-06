@@ -66,6 +66,9 @@ export interface Member {
   lifetime_value?: number;
   created_at?: string;
   updated_at?: string;
+  is_banned?: boolean;
+  ban_reason?: string;
+  banned_at?: string;
 }
 
 export interface PintoPackage {

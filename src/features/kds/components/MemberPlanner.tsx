@@ -3,7 +3,7 @@ import {
   ChevronLeft, ChevronRight, MessageSquare, Plus, User, X, Clock, Save, 
   UtensilsCrossed, Copy, Clipboard as ClipboardIcon, Search, FileText, Trash2, MapPin, Pin
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import dayjs from 'dayjs';
 import Swal from 'sweetalert2';
 import { supabase } from '../../../config/supabase';
@@ -19,7 +19,8 @@ export const MemberPlanner: React.FC = () => {
   const isAdmin = user?.role === 'ADMIN';
 
   // Navigation State
-  const [currentWeekStart, setCurrentWeekStart] = useState(dayjs().startOf('isoWeek' as any).toDate());
+  const [currentWeekStart, setCurrentWeekStart] = useState<Date>(dayjs().startOf('isoWeek' as any).toDate());
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
   // Modal State: Meal Editing
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -34,6 +35,7 @@ export const MemberPlanner: React.FC = () => {
     isExtraOrder: boolean;
     orderType: 'subscription' | 'a-la-carte';
     isNoRice: boolean;
+    boxSize: string;
   } | null>(null);
   
   // Modal State: Profile & Package
@@ -56,7 +58,6 @@ export const MemberPlanner: React.FC = () => {
   const [sidebarSearchQuery, setSidebarSearchQuery] = useState('');
   const [sidebarSortBy, setSidebarSortBy] = useState<'latest' | 'name'>('latest');
   const [sidebarFilterType, setSidebarFilterType] = useState<'all' | 'member' | 'retail'>('all');
-  const [memberSearchQuery, setMemberSearchQuery] = useState('');
 
   // Macros Summary State
   const [isMacrosModalOpen, setIsMacrosModalOpen] = useState(false);
@@ -79,6 +80,7 @@ export const MemberPlanner: React.FC = () => {
   const copyDayPlan = useKdsStore(state => state.copyDayPlan);
   const pasteDayPlan = useKdsStore(state => state.pasteDayPlan);
   const clearDayPlan = useKdsStore(state => state.clearDayPlan);
+  const clearCopiedPlan = useKdsStore(state => state.clearCopiedPlan);
   const copiedDaySlots = useKdsStore(state => state.copiedDaySlots);
   const hasUnsavedChanges = useKdsStore(state => state.hasUnsavedChanges);
   const saveMemberSchedules = useKdsStore(state => state.saveMemberSchedules);
@@ -88,15 +90,21 @@ export const MemberPlanner: React.FC = () => {
   const isLoadingData = useKdsStore(state => state.isLoadingData);
   const loadMasterData = useKdsStore(state => state.loadMasterData);
 
+  const getDayColorClass = (dayName: string, isToday: boolean) => {
+    if (isToday) return 'text-white';
+    if (dayName.includes('จันทร์')) return 'text-amber-500';
+    if (dayName.includes('อังคาร')) return 'text-pink-500';
+    if (dayName.includes('พุธ')) return 'text-emerald-500';
+    if (dayName.includes('พฤหัสบดี')) return 'text-orange-500';
+    if (dayName.includes('ศุกร์')) return 'text-sky-500';
+    if (dayName.includes('เสาร์')) return 'text-purple-500';
+    if (dayName.includes('อาทิตย์')) return 'text-red-500';
+    return 'text-slate-400';
+  };
+
   const weekDays = getWeekDays(currentWeekStart);
   
-  useEffect(() => {
-    if (selectedPackageId) {
-      const startStr = dayjs(currentWeekStart).format('YYYY-MM-DD');
-      const endStr = dayjs(currentWeekStart).add(6, 'day').format('YYYY-MM-DD');
-      loadMemberPlanner(startStr, endStr, selectedPackageId);
-    }
-  }, [currentWeekStart, selectedPackageId, loadMemberPlanner]);
+
 
   const handlePrevWeek = () => setCurrentWeekStart(dayjs(currentWeekStart).subtract(1, 'week').toDate());
   const handleNextWeek = () => setCurrentWeekStart(dayjs(currentWeekStart).add(1, 'week').toDate());
@@ -196,6 +204,8 @@ export const MemberPlanner: React.FC = () => {
         const name = member?.full_name || '';
         const matchesSearch = name.toLowerCase().includes(sidebarSearchQuery.toLowerCase());
         
+        if (member?.is_banned) return false;
+        
         if (sidebarFilterType === 'member') return matchesSearch && member?.member_type !== 'retail';
         if (sidebarFilterType === 'retail') return matchesSearch && member?.member_type === 'retail';
         return matchesSearch;
@@ -232,7 +242,31 @@ export const MemberPlanner: React.FC = () => {
       });
   }, [activePackages, sidebarSearchQuery, sidebarSortBy, sidebarFilterType, members, memberSchedules]);
 
+
   const selectedPackage = filteredPackages.find(p => p.id === selectedPackageId);
+
+  useEffect(() => {
+    if (currentWeekStart && selectedPackageId) {
+      const startStr = dayjs(currentWeekStart).format('YYYY-MM-DD');
+      const endStr = dayjs(currentWeekStart).add(6, 'day').format('YYYY-MM-DD');
+      loadMemberPlanner(startStr, endStr, selectedPackageId);
+    }
+  }, [currentWeekStart, selectedPackageId, loadMemberPlanner]);
+
+  // Auto-deselect if member gets banned
+  useEffect(() => {
+    const member = selectedPackage ? (Array.isArray(selectedPackage.members) ? selectedPackage.members[0] : selectedPackage.members) : null;
+    if (selectedPackageId && member?.is_banned) {
+      setSelectedPackageId(null);
+      Swal.fire({
+        icon: 'info',
+        title: 'สมาชิกถูกระงับ',
+        text: 'สมาชิกคนนี้ถูกแบนแล้ว ระบบจะย้ายคุณออกจากหน้านี้',
+        timer: 2000,
+        showConfirmButton: false
+      });
+    }
+  }, [selectedPackage, selectedPackageId, setSelectedPackageId]);
 
   const projectedRemaining = useMemo(() => {
     if (!selectedPackage) return 0;
@@ -268,7 +302,8 @@ export const MemberPlanner: React.FC = () => {
         notes: (existingSchedule.notes || '').replace('[ไม่รับข้าว] ', '').replace('[ไม่รับข้าว]', '').trim(),
         isExtraOrder: existingSchedule.is_extra_order || false,
         orderType: existingSchedule.meal_order_type || 'subscription',
-        isNoRice: existingSchedule.notes?.includes('[ไม่รับข้าว]') || false
+        isNoRice: existingSchedule.notes?.includes('[ไม่รับข้าว]') || false,
+        boxSize: existingSchedule.box_size || 'regular'
       });
     } else {
       const currentSchedules = getSchedulesForDate(date);
@@ -292,7 +327,8 @@ export const MemberPlanner: React.FC = () => {
         notes: '',
         isExtraOrder: false,
         orderType: 'subscription',
-        isNoRice: false
+        isNoRice: false,
+        boxSize: 'regular'
       });
     }
     setIsModalOpen(true);
@@ -316,10 +352,45 @@ export const MemberPlanner: React.FC = () => {
       editingSlot.deliveryTime,
       editingSlot.isNoRice ? `[ไม่รับข้าว] ${editingSlot.notes}`.trim() : editingSlot.notes,
       editingSlot.isExtraOrder,
-      editingSlot.orderType
+      editingSlot.orderType,
+      editingSlot.boxSize
     );
     
     setIsModalOpen(false);
+    
+    Swal.fire({
+      icon: 'success',
+      title: 'บันทึกสำเร็จ',
+      toast: true,
+      position: 'top-end',
+      showConfirmButton: false,
+      timer: 2000
+    });
+  };
+
+  const handleClearDay = async (date: string, packageId: string) => {
+    const result = await Swal.fire({
+      title: 'ล้างแผนทั้งหมดของวันนี้?',
+      text: "รายการอาหารทั้งหมดในวันนี้จะถูกลบทิ้ง",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#94a3b8',
+      confirmButtonText: 'ใช่, ลบทั้งหมด',
+      cancelButtonText: 'ยกเลิก'
+    });
+
+    if (result.isConfirmed) {
+      await clearDayPlan(date, packageId);
+      Swal.fire({
+        icon: 'success',
+        title: 'ล้างแผนเรียบร้อย',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 2000
+      });
+    }
   };
 
   const handleOpenProfile = () => {
@@ -465,23 +536,10 @@ export const MemberPlanner: React.FC = () => {
     }
   };
 
-  const calculateEstimateEndDate = () => {
-    if (!selectedPackage || selectedPackage.meals_remaining <= 0) return 'N/A';
-    
-    const mealsPerWeek = memberSchedules
-      .filter(s => s.package_id === selectedPackage.id && !s.is_extra_order)
-      .reduce((sum, s) => sum + (s.quantity || 1), 0);
-    if (mealsPerWeek <= 0) return 'ไม่มีแผนอาหาร';
-    
-    const avgMealsPerDay = mealsPerWeek / 7;
-    const daysLeft = Math.ceil(selectedPackage.meals_remaining / avgMealsPerDay);
-    
-    return dayjs().add(daysLeft, 'day').format('DD/MM/YYYY');
-  };
 
   return (
     <div className="flex-1 flex flex-col bg-[#F8FAFC] overflow-hidden relative">
-      <div className="px-4 md:px-6 py-4 border-b border-slate-200 bg-white flex justify-between items-center z-10 shadow-sm">
+      <div className="px-4 md:px-6 py-4 border-b border-slate-200 bg-white flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 z-10 shadow-sm">
         <div>
           <h2 className="text-lg font-normal text-slate-900 tracking-tight flex items-center gap-2">
             <User className="text-emerald-500" /> แผนอาหารรายบุคคล (Member Custom Plan)
@@ -491,23 +549,23 @@ export const MemberPlanner: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 w-full lg:w-auto">
            {hasUnsavedChanges && (
              <button 
                onClick={saveMemberSchedules}
                disabled={isLoadingData}
-               className="flex items-center gap-2 px-6 py-2.5 bg-emerald-500 text-white rounded-xl text-sm font-normal shadow-lg shadow-emerald-500/30 hover:bg-emerald-600 transition-all animate-bounce-subtle"
+               className="flex items-center gap-2 px-6 py-2.5 bg-red-500 text-white rounded-xl text-base font-bold shadow-lg shadow-red-500/30 hover:bg-red-600 transition-all animate-bounce-subtle w-full lg:w-auto justify-center"
              >
                {isLoadingData ? <Clock className="animate-spin" size={18} /> : <Save size={18} />}
-               บันทึกแผนงานทั้งหมด
+               ยืนยันบันทึกแผนงานทั้งหมด
              </button>
            )}
         </div>
       </div>
 
       <div className="flex-1 flex overflow-hidden relative">
-        <div className={`w-full md:w-72 bg-white md:border-r border-slate-200 flex-col z-10 absolute md:relative inset-0 transition-transform ${selectedPackage ? '-translate-x-full md:translate-x-0' : 'translate-x-0'} flex`}>
-          <div className="p-4 border-b border-slate-100 space-y-3">
+        <div className={`w-full ${isSidebarCollapsed ? 'md:w-0 md:opacity-0 overflow-hidden' : 'md:w-72 md:opacity-100'} bg-white md:border-r border-slate-200 flex-col z-10 absolute md:relative inset-0 transition-all duration-300 ${selectedPackage ? '-translate-x-full md:translate-x-0' : 'translate-x-0'} flex`}>
+          <div className="p-4 border-b border-slate-100 space-y-3 min-w-[288px]">
             <div className="flex justify-between items-center">
               <h3 className="text-xs font-normal uppercase tracking-widest text-slate-400">ลูกค้าที่กำลังดูแล</h3>
               <button 
@@ -677,7 +735,7 @@ export const MemberPlanner: React.FC = () => {
 
         {selectedPackage ? (
           <div className={`flex-1 flex flex-col overflow-hidden bg-[#F8FAFC] absolute md:relative inset-0 z-20 transition-transform ${selectedPackage ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}`}>
-              <div className="px-4 md:px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-200 bg-white shadow-sm">
+              <div className="px-4 md:px-6 py-4 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 border-b border-slate-200 bg-white shadow-sm">
                 {(() => {
                   const member = Array.isArray(selectedPackage.members) ? selectedPackage.members[0] : selectedPackage.members;
                   const isRetail = member?.member_type === 'retail' || selectedPackage.id.toString().startsWith('retail_');
@@ -693,7 +751,17 @@ export const MemberPlanner: React.FC = () => {
                        >
                          <ChevronLeft size={20} />
                        </button>
-                       <div className="w-10 h-10 md:w-12 md:h-12 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 flex-shrink-0">
+
+                       {/* Sidebar Toggle Button (Desktop/Tablet) */}
+                       <button 
+                         onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                         className="hidden md:flex bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 p-2 rounded-xl text-slate-400 hover:text-emerald-500 transition-all shadow-sm group"
+                         title={isSidebarCollapsed ? "ขยายแถบรายชื่อ" : "ย่อแถบรายชื่อ"}
+                       >
+                         {isSidebarCollapsed ? <ChevronRight size={20} className="group-hover:scale-110 transition-transform" /> : <ChevronLeft size={20} className="group-hover:scale-110 transition-transform" />}
+                       </button>
+
+                       <div className="w-10 h-10 md:w-12 md:h-12 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 flex-shrink-0 ml-1">
                          <User size={20} />
                        </div>
                        <div className="min-w-0 flex-1">
@@ -755,14 +823,23 @@ export const MemberPlanner: React.FC = () => {
                   );
                 })()}
                 
-                <div className="flex w-full md:w-auto items-stretch gap-2">
+                <div className="flex flex-col lg:flex-row w-full lg:w-auto items-stretch gap-2">
+                   {copiedDaySlots && (
+                     <button 
+                       onClick={clearCopiedPlan}
+                       className="px-4 py-2.5 bg-red-50 border border-red-200 text-red-600 hover:bg-red-600 hover:text-white rounded-xl text-xs font-bold transition-all shadow-sm shrink-0 flex items-center justify-center gap-2"
+                     >
+                       <X size={14} />
+                       ยกเลิกการคัดลอก
+                     </button>
+                   )}
                   <button 
                     onClick={() => setCurrentWeekStart(dayjs().startOf('isoWeek' as any).toDate())}
                     className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 hover:text-emerald-600 hover:border-emerald-200 rounded-xl text-xs font-medium transition-all shadow-sm shrink-0 flex items-center justify-center"
                   >
                     วันนี้
                   </button>
-                  <div className="flex w-full md:w-auto items-center justify-between bg-white border border-slate-200 rounded-xl p-1 shadow-sm shrink-0">
+                  <div className="flex flex-1 md:w-auto items-center justify-between bg-white border border-slate-200 rounded-xl p-1 shadow-sm shrink-0">
                     <button onClick={handlePrevWeek} className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-all"><ChevronLeft size={16} /></button>
                     <span className="px-3 text-[10px] font-normal uppercase tracking-widest text-emerald-600 truncate">
                       {formatDisplayDate(weekDays[0].date)}
@@ -773,130 +850,125 @@ export const MemberPlanner: React.FC = () => {
              </div>
              
              <div className="flex-1 overflow-y-auto p-4 md:p-6">
-                <div className="grid grid-cols-1 xl:grid-cols-7 gap-4">
+                <div className={`grid gap-4 ${isSidebarCollapsed ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7' : 'grid-cols-1 xl:grid-cols-7'}`}>
                   {weekDays.map(day => {
                     const daySchedules = getSchedulesForDate(day.date);
                     
                     return (
-                      <div key={day.date} className="flex flex-col gap-2">
-                        {/* Day Toolbar - Above the card */}
-                        <div className="flex items-center justify-between px-2 py-1 bg-slate-100/50 rounded-xl border border-slate-200/50">
-                          <div className="flex gap-1">
-                            {daySchedules.length > 0 && (
-                              <button 
-                                onClick={() => clearDayPlan(day.date, selectedPackage.id)}
-                                title="ล้างแผนทั้งหมด"
-                                className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <button 
-                              onClick={() => copyDailyMacros(day.date)}
-                              title="คัดลอกสรุปสารอาหาร (Macros)"
-                              className="p-1.5 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-all"
-                            >
-                              <FileText size={14} />
-                            </button>
-                            <button 
-                              onClick={() => copyDayPlan(day.date)}
-                              title="คัดลอกเมนูของวันนี้"
-                              className="p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-all"
-                            >
-                              <Copy size={14} />
-                            </button>
-                            {copiedDaySlots && (
-                              <button 
-                                onClick={() => pasteDayPlan(day.date, selectedPackage.id, selectedPackage.member_id)}
-                                title="วางเมนูที่คัดลอกมา"
-                                className="p-1.5 bg-emerald-500 text-white rounded-lg shadow-sm hover:bg-emerald-600 transition-all animate-pulse"
-                              >
-                                <ClipboardIcon size={14} />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className={`bg-white rounded-2xl border ${day.isToday ? 'border-blue-400 shadow-md ring-2 ring-blue-500/10' : 'border-slate-200 shadow-sm'} overflow-hidden flex flex-col`}>
-                          <div className={`px-4 py-3 border-b flex justify-between items-center ${day.isToday ? 'bg-blue-500 text-white' : 'bg-slate-50 border-slate-100'}`}>
+                      <div key={day.date} className="flex flex-col h-full">
+                        <div className={`bg-white rounded-2xl border ${day.isToday ? 'border-blue-400 shadow-md ring-2 ring-blue-500/10' : 'border-slate-200 shadow-sm'} overflow-hidden flex flex-col h-full group/card transition-all`}>
+                          {/* Card Header with Integrated Actions */}
+                           <div className={`px-4 py-3 border-b flex justify-between items-center transition-colors ${day.isToday ? 'bg-blue-600 text-white shadow-inner' : 'bg-slate-50 border-slate-100 group-hover/card:bg-slate-100'}`}>
                             <div>
-                              <p className={`text-[10px] font-normal uppercase tracking-widest ${day.isToday ? 'text-blue-100' : 'text-slate-400'}`}>{day.dayName}</p>
-                              <h3 className={`text-lg font-normal ${day.isToday ? 'text-white' : 'text-slate-800'}`}>{day.shortDate}</h3>
+                              <p className={`text-[13px] font-bold uppercase tracking-widest ${getDayColorClass(day.dayName, day.isToday)}`}>{day.dayName}</p>
+                              <h3 className={`text-base md:text-lg font-bold ${day.isToday ? 'text-white' : 'text-slate-800'}`}>{day.shortDate}</h3>
+                            </div>
+                            
+                            <div className="flex items-center gap-1">
+                               {(daySchedules.length > 0 || copiedDaySlots) && (
+                                 <div className={`flex items-center rounded-xl p-1 gap-0.5 border ${day.isToday ? "bg-white/20 backdrop-blur-md border-white/20 shadow-lg" : "bg-slate-100 border-slate-200 shadow-sm"}`}>
+                                   <button 
+                                     onClick={() => handleClearDay(day.date, selectedPackage.id)}
+                                     className={`p-1.5 rounded-lg transition-all ${day.isToday ? "hover:bg-red-500 hover:text-white" : "hover:bg-red-50 text-slate-500 hover:text-red-500"}`}
+                                     title="ล้างแผนทั้งหมด"
+                                   >
+                                     <Trash2 size={14} />
+                                   </button>
+                                   
+                                   <button 
+                                     onClick={() => copyDayPlan(day.date)}
+                                     className={`p-1.5 rounded-lg transition-all ${day.isToday ? "hover:bg-blue-600 hover:text-white" : "hover:bg-blue-50 text-slate-500 hover:text-blue-600"}`}
+                                     title="คัดลอกแผนวันนี"
+                                   >
+                                     <Copy size={14} />
+                                   </button>
+                                   {copiedDaySlots && (
+                                     <button 
+                                       onClick={() => pasteDayPlan(day.date, selectedPackage.id, selectedPackage.member_id)}
+                                       className={`p-1.5 rounded-lg transition-all ${
+                                         day.isToday 
+                                           ? 'bg-white text-blue-600 hover:bg-white shadow-sm' 
+                                           : 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm shadow-emerald-500/20'
+                                       } ${daySchedules.length === 0 ? 'animate-bounce' : ''}`}
+                                       title="วางเมนูที่คัดลอกมา"
+                                     >
+                                       <ClipboardIcon size={14} />
+                                     </button>
+                                   )}
+                                 </div>
+                               )}
                             </div>
                           </div>
-                        <div className="p-3 space-y-2 flex-1 flex flex-col bg-slate-50">
-                          {daySchedules.map((schedule, idx) => (
-                            <div 
-                              key={schedule.id}
-                              onClick={() => openModal(day.date, schedule)}
-                              className={`relative flex flex-col p-3 rounded-xl border cursor-pointer shadow-sm transition-all group ${
-                                schedule.is_extra_order 
-                                  ? 'bg-orange-50 border-orange-300 hover:border-orange-500 shadow-orange-100' 
-                                  : 'bg-white border-blue-200 hover:border-emerald-500'
-                              }`}
-                            >
-                                <div className="flex flex-wrap gap-1 mb-2">
-                                  {schedule.is_extra_order && (
-                                    <span className="bg-slate-900 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm animate-pulse">
-                                      สั่งแยก
-                                    </span>
-                                  )}
-                                  {schedule.menu_items?.category === 'dessert' && (
-                                    <span className="bg-pink-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm">
-                                      ของหวาน
-                                    </span>
-                                  )}
-                                  {schedule.menu_items?.category && schedule.menu_items?.category !== 'dessert' && (
-                                    <span className="bg-slate-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow-sm">
-                                      {schedule.menu_items.category === 'main' ? 'เมนูหลัก' : schedule.menu_items.category}
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="flex justify-between items-center mb-1">
-                                  <span className="text-[10px] font-normal uppercase tracking-widest text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">มื้อที่ {idx + 1}</span>
-                                  <div className="flex items-center gap-1">
-                                  {schedule.delivery_time && (
-                                     <span className="text-[9px] font-normal text-blue-500 flex items-center gap-1"><Clock size={10}/> {schedule.delivery_time}</span>
-                                  )}
-                                  {isAdmin && (
-                                    <button 
-                                      onClick={(e) => handleRemoveClick(e, schedule.id)}
-                                      className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-all shadow-sm bg-white border border-slate-100"
-                                      title="ลบมื้อนี้"
-                                    >
-                                      <Trash2 size={12} />
+
+                          <div className="p-3 space-y-2 flex-1 flex flex-col bg-slate-50/50">
+                            {daySchedules.map((schedule, idx) => (
+                              <div 
+                                key={schedule.id}
+                                onClick={() => openModal(day.date, schedule)}
+                                className={`relative flex flex-col p-3 rounded-xl border cursor-pointer shadow-sm transition-all group ${
+                                  schedule.is_extra_order 
+                                    ? 'bg-orange-50 border-orange-200 hover:border-orange-400 shadow-orange-100/50' 
+                                    : 'bg-white border-slate-200 hover:border-emerald-500'
+                                }`}
+                              >
+                                  <div className="flex items-center justify-between mb-2">
+                                    <div className="flex flex-wrap gap-1">
+                                      {schedule.is_extra_order && (
+                                        <span className="bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm">
+                                          สั่งแยก
+                                        </span>
+                                      )}
+                                      <span className="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded border border-slate-200">
+                                        มื้อที่ {idx + 1}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      {isAdmin && (
+                                        <button 
+                                          onClick={(e) => handleRemoveClick(e, schedule.id)}
+                                          className="p-1 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded transition-all"
+                                          title="ลบมื้อนี้"
+                                        >
+                                          <Trash2 size={12} />
                                     </button>
-                                  )}
-                                </div>
-                              </div>
-                              
-                              <p className="text-sm font-normal text-slate-800 leading-tight mb-2 truncate" title={schedule.menu_items?.name}>
-                                {schedule.menu_items?.name || 'ไม่ได้เลือกเมนู'}
-                              </p>
-                              
-                              <div className="flex items-center justify-between mt-auto border-t border-slate-100 pt-2">
-                                  <div className="flex-1 overflow-hidden mr-2">
-                                    {schedule.notes ? (
-                                      <p className="text-[10px] font-normal text-orange-600 truncate"><span className="text-orange-400 mr-1">📝</span>{schedule.notes}</p>
-                                    ) : (
-                                      <p className="text-[10px] text-slate-300">ไม่มีโน้ต</p>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="flex-1 min-w-0 mb-2">
+                                    <h4 className="text-base font-medium text-slate-800 leading-snug line-clamp-2">
+                                      {schedule.menu_items?.name || 'ไม่ได้เลือกเมนู'}
+                                    </h4>
+                                    {schedule.notes && (
+                                      <div className="mt-2 p-2 bg-red-50 border border-red-100 rounded-lg flex items-start gap-2 shadow-sm">
+                                        <MessageSquare size={12} className="text-red-500 mt-0.5 shrink-0" />
+                                        <p className="text-[11px] font-bold text-red-600 leading-tight">
+                                          {schedule.notes}
+                                        </p>
+                                      </div>
                                     )}
                                   </div>
-                                  <span className="text-[10px] font-normal text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full shrink-0">x{schedule.quantity}</span>
+
+                                  <div className="flex justify-between items-center mt-auto pt-2 border-t border-slate-100">
+                                    <div className="flex items-center gap-2">
+                                      {schedule.delivery_time && (
+                                         <span className="text-[10px] font-medium text-blue-600 flex items-center gap-1">
+                                           <Clock size={10}/> {schedule.delivery_time}
+                                         </span>
+                                      )}
+                                    </div>
+                                    <span className="text-[10px] font-bold text-slate-400">x{schedule.quantity || 1}</span>
+                                  </div>
                               </div>
-                            </div>
-                          ))}
-                          
-                          {daySchedules.length < 20 && (
-                             <button 
-                               onClick={() => openModal(day.date)}
-                               className="w-full py-3 mt-1 border-2 border-dashed border-slate-200 text-slate-400 rounded-xl hover:border-emerald-400 hover:text-emerald-500 hover:bg-emerald-50 transition-all flex items-center justify-center gap-2 text-xs font-normal"
-                             >
-                               <Plus size={16} /> 
-                             </button>
-                          )}
+                            ))}
+
+                            <button 
+                              onClick={() => openModal(day.date)}
+                              className="w-full py-3 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 hover:text-emerald-500 hover:border-emerald-200 hover:bg-emerald-50/30 transition-all flex items-center justify-center gap-2 text-sm font-bold"
+                            >
+                              <Plus size={16} />
+                              <span>เพิ่มเมนู</span>
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -917,792 +989,452 @@ export const MemberPlanner: React.FC = () => {
       </div>
 
       {isProfileModalOpen && memberUpdates && (
-        <div className="fixed inset-0 bg-slate-900/40 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
-           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden border border-slate-200">
-               <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
-                  <div className="flex items-center gap-4">
-                     <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
-                        <User size={24} />
-                     </div>
-                     <div>
-                        <h3 className="text-xl font-normal text-slate-800">ข้อมูลสมาชิกเชิงลึก</h3>
-                        <p className="text-xs font-normal text-slate-400 uppercase tracking-widest">Member Intelligence Profile</p>
-                     </div>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+           <motion.div 
+             initial={{ opacity: 0, scale: 0.95, y: 20 }}
+             animate={{ opacity: 1, scale: 1, y: 0 }}
+             className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden"
+           >
+              <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                 <div>
+                   <h3 className="text-xl font-normal text-slate-900 flex items-center gap-2">
+                     <FileText className="text-emerald-500" /> รายละเอียดลูกค้าและแพ็กเกจ
+                   </h3>
+                   <p className="text-slate-500 text-xs font-normal mt-1">อัปเดตข้อมูลส่วนตัวและเป้าหมายสุขภาพ</p>
+                 </div>
+                 <button onClick={() => setIsProfileModalOpen(false)} className="p-2 hover:bg-white rounded-full transition-all text-slate-400 shadow-sm border border-transparent hover:border-slate-100"><X size={20} /></button>
+              </div>
+              
+              <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">ชื่อ-นามสกุล</label>
+                    <input 
+                      type="text"
+                      value={memberUpdates.full_name}
+                      onChange={(e) => setMemberUpdates({...memberUpdates, full_name: e.target.value})}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm font-normal"
+                    />
                   </div>
-                  <button onClick={() => setIsProfileModalOpen(false)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-slate-700 transition-all">
-                    <X size={20} />
-                  </button>
-               </div>
-               
-               <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8 flex-1 overflow-y-auto custom-scrollbar">
-                  <div className="space-y-6">
-                    <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-4">
-                      <h4 className="text-sm font-normal text-slate-900 border-b border-slate-200 pb-2 flex items-center gap-2">
-                        <User size={16} className="text-emerald-500" /> ข้อมูลส่วนตัว
-                      </h4>
-                      <div>
-                        <label className="block text-[11px] font-normal text-slate-900 mb-1">ประเภทลูกค้า</label>
-                        <div className="flex bg-white border border-slate-200 p-1 rounded-xl gap-1">
-                          <button 
-                            type="button"
-                            onClick={() => setMemberUpdates({...memberUpdates, member_type: 'member'})}
-                            className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all ${memberUpdates.member_type !== 'retail' ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                          >
-                            สมาชิกปิ่นโต
-                          </button>
-                          <button 
-                            type="button"
-                            onClick={() => setMemberUpdates({...memberUpdates, member_type: 'retail'})}
-                            className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all ${memberUpdates.member_type === 'retail' ? 'bg-orange-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                          >
-                            ลูกค้ารายย่อย
-                          </button>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-normal text-slate-900 mb-1">ชื่อ-นามสกุล</label>
-                        <input 
-                          type="text" 
-                          value={memberUpdates.full_name || ''} 
-                          onChange={(e) => setMemberUpdates({...memberUpdates, full_name: e.target.value})}
-                          className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm font-normal text-slate-800 focus:border-emerald-500 outline-none transition-all"
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-[11px] font-normal text-slate-900 mb-1">เบอร์โทรศัพท์</label>
-                          <input 
-                            type="text" 
-                            value={memberUpdates.phone || ''} 
-                            onChange={(e) => setMemberUpdates({...memberUpdates, phone: e.target.value})}
-                            className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm font-normal text-slate-800 focus:border-emerald-500 outline-none transition-all"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-normal text-slate-900 mb-1">LINE ID</label>
-                          <input 
-                            type="text" 
-                            value={memberUpdates.line_id || ''} 
-                            onChange={(e) => setMemberUpdates({...memberUpdates, line_id: e.target.value})}
-                            className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-sm font-normal text-slate-800 focus:border-emerald-500 outline-none transition-all"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="bg-blue-50/50 p-6 rounded-2xl border border-blue-100 space-y-4">
-                      <h4 className="text-sm font-normal text-slate-900 border-b border-blue-200 pb-2 flex items-center gap-2">
-                        <MessageSquare size={16} className="text-blue-500" /> ที่อยู่จัดส่ง (Shipping Address)
-                      </h4>
-                      <div>
-                        <label className="block text-[11px] font-normal text-slate-900 mb-1">บ้านเลขที่ / หมู่บ้าน / ซอย / ถนน</label>
-                        <textarea 
-                          value={memberUpdates.address || ''} 
-                          rows={2}
-                          onChange={(e) => setMemberUpdates({...memberUpdates, address: e.target.value})}
-                          className="w-full p-2.5 bg-white border border-blue-200 rounded-xl text-sm font-normal text-slate-800 focus:border-blue-500 outline-none transition-all resize-none"
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-[11px] font-normal text-slate-900 mb-1">แขวง/ตำบล</label>
-                          <input type="text" value={memberUpdates.sub_district || ''} onChange={(e) => setMemberUpdates({...memberUpdates, sub_district: e.target.value})} className="w-full p-2.5 bg-white border border-blue-200 rounded-xl text-sm font-normal focus:border-blue-500 outline-none" />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-normal text-slate-900 mb-1">เขต/อำเภอ</label>
-                          <input type="text" value={memberUpdates.district || ''} onChange={(e) => setMemberUpdates({...memberUpdates, district: e.target.value})} className="w-full p-2.5 bg-white border border-blue-200 rounded-xl text-sm font-normal focus:border-blue-500 outline-none" />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-normal text-slate-900 mb-1">จังหวัด</label>
-                          <input type="text" value={memberUpdates.province || ''} onChange={(e) => setMemberUpdates({...memberUpdates, province: e.target.value})} className="w-full p-2.5 bg-white border border-blue-200 rounded-xl text-sm font-normal focus:border-blue-500 outline-none" />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-normal text-slate-900 mb-1">รหัสไปรษณีย์</label>
-                          <input type="text" value={memberUpdates.postal_code || ''} onChange={(e) => setMemberUpdates({...memberUpdates, postal_code: e.target.value})} className="w-full p-2.5 bg-white border border-blue-200 rounded-xl text-sm font-normal focus:border-blue-500 outline-none" />
-                        </div>
-                      </div>
-                    </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">เบอร์โทรศัพท์</label>
+                    <input 
+                      type="text"
+                      value={memberUpdates.phone}
+                      onChange={(e) => setMemberUpdates({...memberUpdates, phone: e.target.value})}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm font-normal"
+                    />
                   </div>
+                </div>
 
-                  <div className="space-y-6">
-                    <div className="bg-emerald-50/50 p-6 rounded-2xl border border-emerald-100 space-y-4">
-                      <h4 className="text-sm font-normal text-slate-900 border-b border-emerald-200 pb-2 flex items-center gap-2">
-                        <UtensilsCrossed size={16} className="text-emerald-500" /> สุขภาพและความชอบ
-                      </h4>
-                      <div>
-                        <label className="block text-[11px] font-normal text-slate-900 mb-1">เป้าหมายสุขภาพ (Health Goal)</label>
-                        <input 
-                          type="text" 
-                          value={memberUpdates.health_goal || ''} 
-                          onChange={(e) => setMemberUpdates({...memberUpdates, health_goal: e.target.value})}
-                          className="w-full p-2.5 bg-white border border-emerald-200 rounded-xl text-sm font-normal text-emerald-800 focus:border-emerald-500 outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-normal text-red-700 mb-1">ประวัติการแพ้อาหาร (Allergy)</label>
-                        <textarea 
-                          value={memberUpdates.allergy_notes || ''} 
-                          rows={2}
-                          onChange={(e) => setMemberUpdates({...memberUpdates, allergy_notes: e.target.value})}
-                          className="w-full p-2.5 bg-white border border-red-200 rounded-xl text-sm font-normal text-red-800 focus:border-red-500 outline-none transition-all resize-none"
-                        />
-                      </div>
-                    </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">ที่อยู่จัดส่ง</label>
+                  <textarea 
+                    rows={2}
+                    value={memberUpdates.address}
+                    onChange={(e) => setMemberUpdates({...memberUpdates, address: e.target.value})}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm font-normal resize-none"
+                  />
+                </div>
 
-                    <div className="bg-orange-50/50 p-6 rounded-2xl border border-orange-100 space-y-4">
-                      <h4 className="text-sm font-normal text-slate-900 border-b border-orange-200 pb-2 flex items-center gap-2">
-                        <Search size={16} className="text-orange-500" /> ข้อมูลลูกค้าเชิงลึก (Marketing Insight)
-                      </h4>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-[11px] font-normal text-slate-900 mb-1">ช่วงอายุ (Age Range)</label>
-                          <select 
-                            value={memberUpdates.age_range || ''} 
-                            onChange={(e) => setMemberUpdates({...memberUpdates, age_range: e.target.value})}
-                            className="w-full p-2.5 bg-white border border-orange-200 rounded-xl text-sm font-normal text-slate-800 focus:border-orange-500 outline-none"
-                          >
-                            <option value="">ไม่ระบุ</option>
-                            <option value="teen">วัยรุ่น (20)</option>
-                            <option value="working">วัยทำงาน (20-40)</option>
-                            <option value="adult">ผู้ใหญ่ (40-60)</option>
-                            <option value="senior">ผู้สูงอายุ (60+)</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-normal text-slate-900 mb-1">รอบจัดส่งปกติ</label>
-                          <select 
-                            value={memberUpdates.delivery_time || ''} 
-                            onChange={(e) => setMemberUpdates({...memberUpdates, delivery_time: e.target.value})}
-                            className="w-full p-2.5 bg-white border border-orange-200 rounded-xl text-sm font-normal text-slate-800 focus:border-orange-500 outline-none"
-                          >
-                             <option value="">-- เลือกเวลาส่ง --</option>
-                             <option value="11:00 - 13:00">11:00 - 13:00</option>
-                             <option value="15:00 - 17:00">15:00 - 17:00</option>
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-
-                     <div className="bg-purple-50/50 p-6 rounded-2xl border border-purple-100 space-y-4">
-                       <h4 className="text-sm font-normal text-slate-900 border-b border-purple-200 pb-2 flex items-center gap-2">
-                         <ClipboardIcon size={16} className="text-purple-500" /> จัดการแพ็กเกจ (Package Details)
-                       </h4>
-
-                       <div className="flex flex-wrap gap-2">
-                         <button 
-                           type="button"
-                           onClick={() => {
-                             setPackageUpdates({ package_name: 'ออเดอร์รายย่อย (No Package)', meals_total: 0 });
-                             setMemberUpdates({ ...memberUpdates, member_type: 'retail' });
-                           }}
-                           className="px-3 py-1.5 bg-white border border-orange-200 text-orange-600 rounded-lg text-[10px] font-bold hover:bg-orange-500 hover:text-white transition-all shadow-sm"
-                         >
-                           + เป็นรายย่อย (No Package)
-                         </button>
-                         <button 
-                           type="button"
-                           onClick={() => {
-                             setPackageUpdates({ package_name: '- ผูกปิ่นโต 7 วัน (14 มื้อ) (×1) = ฿899', meals_total: 15 });
-                             setMemberUpdates({ ...memberUpdates, member_type: 'member' });
-                           }}
-                           className="px-3 py-1.5 bg-white border border-emerald-200 text-emerald-600 rounded-lg text-[10px] font-bold hover:bg-emerald-500 hover:text-white transition-all shadow-sm"
-                         >
-                           + โปรฯ 7 วัน (15 มื้อ)
-                         </button>
-                         <button 
-                           type="button"
-                           onClick={() => {
-                             setPackageUpdates({ package_name: '- ผูกปิ่นโต 14 วัน (28 มื้อ) (×1) = ฿1,799', meals_total: 30 });
-                             setMemberUpdates({ ...memberUpdates, member_type: 'member' });
-                           }}
-                           className="px-3 py-1.5 bg-white border border-blue-200 text-blue-600 rounded-lg text-[10px] font-bold hover:bg-blue-500 hover:text-white transition-all shadow-sm"
-                         >
-                           + โปรฯ 14 วัน (30 มื้อ)
-                         </button>
-                         <button 
-                           type="button"
-                           onClick={() => {
-                             setPackageUpdates({ package_name: '- ผูกปิ่นโต 1 เดือน (60 มื้อ) (×1) = ฿3,799', meals_total: 62 });
-                             setMemberUpdates({ ...memberUpdates, member_type: 'member' });
-                           }}
-                           className="px-3 py-1.5 bg-white border border-purple-200 text-purple-600 rounded-lg text-[10px] font-bold hover:bg-purple-500 hover:text-white transition-all shadow-sm"
-                         >
-                           + โปรฯ 1 เดือน (62 มื้อ)
-                         </button>
-                         <button 
-                           type="button"
-                           onClick={() => {
-                             setPackageUpdates({ package_name: '- โปรโมชั่น เพิ่มกล้าม 14 วัน (60+2 มื้อ) = ฿7,399', meals_total: 62 });
-                             setMemberUpdates({ ...memberUpdates, member_type: 'member' });
-                           }}
-                           className="px-3 py-1.5 bg-white border border-slate-700 text-slate-700 rounded-lg text-[10px] font-bold hover:bg-slate-700 hover:text-white transition-all shadow-sm"
-                         >
-                           + เพิ่มกล้าม 14 วัน (62 มื้อ)
-                         </button>
-                         <button 
-                           type="button"
-                           onClick={() => {
-                             setPackageUpdates({ package_name: '- โปรโมชั่น เพิ่มกล้าม 1 เดือน (120+4 มื้อ) = ฿14,490', meals_total: 124 });
-                             setMemberUpdates({ ...memberUpdates, member_type: 'member' });
-                           }}
-                           className="px-3 py-1.5 bg-white border border-slate-900 text-slate-900 rounded-lg text-[10px] font-bold hover:bg-slate-900 hover:text-white transition-all shadow-sm"
-                         >
-                           + เพิ่มกล้าม 1 เดือน (124 มื้อ)
-                         </button>
-                         <button 
-                           type="button"
-                           onClick={() => {
-                             setPackageUpdates({ package_name: '- โปรโมชั่น เพิ่มกล้าม 1 เดือน กับข้าวอย่างเดียว (120+4 มื้อ) = ฿12,499', meals_total: 124 });
-                             setMemberUpdates({ ...memberUpdates, member_type: 'member' });
-                           }}
-                           className="px-3 py-1.5 bg-white border border-rose-600 text-rose-600 rounded-lg text-[10px] font-bold hover:bg-rose-600 hover:text-white transition-all shadow-sm"
-                         >
-                           + เพิ่มกล้าม 1 ด. ไม่รับข้าว
-                         </button>
-                       </div>
-
-                       <div>
-                         <label className="block text-[11px] font-normal text-slate-900 mb-1">ชื่อแพ็กเกจปัจจุบัน</label>
-                         <input 
-                           type="text" 
-                           value={packageUpdates?.package_name || ''} 
-                           onChange={(e) => setPackageUpdates({...packageUpdates!, package_name: e.target.value})}
-                           className="w-full p-2.5 bg-white border border-purple-200 rounded-xl text-sm font-normal focus:border-purple-500 outline-none"
-                         />
-                       </div>
-                       <div>
-                         <label className="block text-[11px] font-normal text-purple-700 mb-1 font-bold">จำนวนมื้อทั้งหมด (ยอดเต็ม)</label>
-                         <input 
-                           type="number" 
-                           value={packageUpdates?.meals_total || 0} 
-                           onChange={(e) => setPackageUpdates({...packageUpdates!, meals_total: parseInt(e.target.value) || 0})}
-                           className="w-full p-2.5 bg-white border border-purple-300 rounded-xl text-sm font-bold text-purple-700 focus:border-purple-500 outline-none"
-                         />
-                         <p className="text-[10px] text-purple-400 mt-1">* แก้ไขเมื่อมีโปรโมชั่นแถมมื้อ เช่น 60+2 ให้ใส่เป็น 62</p>
-                       </div>
-                     </div>
-
-                     {/* Stats & Prediction */}
-                     <div className="bg-slate-900 p-6 rounded-2xl shadow-xl space-y-3">
-                        {(() => {
-                           const member = selectedPackage ? (Array.isArray(selectedPackage.members) ? selectedPackage.members[0] : selectedPackage.members) : null;
-                           const isRetail = member?.member_type === 'retail' || selectedPackage?.id.toString().startsWith('retail_');
-                           
-                           const packageSchedules = memberSchedules.filter(s => s.package_id === selectedPackage?.id);
-                           const totalSubscriptionOrdered = packageSchedules.filter(s => !s.is_extra_order).reduce((sum, s) => sum + (s.quantity || 1), 0);
-                           
-                           return (
-                             <>
-                               <h4 className="text-xs font-normal text-slate-400 uppercase tracking-widest border-b border-slate-700 pb-2">สถิติและคาดการณ์</h4>
-                               <div className="flex justify-between items-center">
-                                  <span className="text-xs text-slate-400">{isRetail ? 'ยอดสั่งรวมทั้งสิ้น:' : 'มื้ออาหารคงเหลือ:'}</span>
-                                  <span className={`text-lg font-normal ${isRetail ? 'text-orange-400' : 'text-emerald-400'}`}>
-                                    {isRetail ? `${totalSubscriptionOrdered} มื้อ` : `${selectedPackage?.meals_remaining} มื้อ`}
-                                  </span>
-                                  {(() => {
-                                    const extraCount = packageSchedules.filter(s => s.is_extra_order).reduce((sum, s) => sum + (s.quantity || 1), 0);
-                                    if (extraCount === 0) return null;
-                                    return (
-                                      <span className="text-[10px] md:text-xs font-bold px-2 py-0.5 rounded-md bg-orange-500 text-white border border-orange-600 shadow-sm flex items-center gap-1">
-                                        สั่งแยก {extraCount} มื้อ
-                                      </span>
-                                    );
-                                  })()}
-                               </div>
-                               {!isRetail && (
-                                 <div className="flex justify-between items-center">
-                                    <span className="text-xs text-slate-400">คาดว่าจะหมดในวันที่:</span>
-                                    <span className="text-sm font-normal text-blue-400">{calculateEstimateEndDate()}</span>
-                                 </div>
-                               )}
-                               <p className="text-[10px] text-slate-500 italic mt-2">* คำนวณจากความถี่ในการวางแผนอาหารในสัปดาห์ปัจจุบัน</p>
-                             </>
-                           );
-                        })()}
-                     </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 ml-1">ชื่อแพ็กเกจ</label>
+                    <input 
+                      type="text"
+                      value={packageUpdates?.package_name}
+                      onChange={(e) => setPackageUpdates({...packageUpdates!, package_name: e.target.value})}
+                      className="w-full px-4 py-3 bg-white border border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm font-normal"
+                    />
                   </div>
-               </div>
-               
-               <div className="px-8 py-6 bg-slate-50 border-t border-slate-100 flex justify-end shrink-0">
-                    <button 
-                    onClick={handleSaveProfile}
-                    disabled={isLoadingData}
-                    className="px-8 py-3 bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-emerald-500/20 rounded-2xl text-sm font-normal transition-all flex items-center gap-2"
-                  >
-                    {isLoadingData && <Clock className="animate-spin" size={18} />}
-                    บันทึกข้อมูลสมาชิก
-                  </button>
-               </div>
-            </div>
-        </div>
-      )}
-
-      {/* Simplified Meal Detail Modal */}
-      <AnimatePresence>
-        {isModalOpen && editingSlot && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsModalOpen(false)}
-              className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
-            />
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden border border-slate-200 relative z-10"
-            >
-               <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                  <h3 className="text-lg font-normal text-slate-800 flex items-center gap-2">
-                    <UtensilsCrossed className="text-emerald-500" /> จัดการตารางอาหาร
-                  </h3>
-                  <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-700">
-                    <X size={20} />
-                  </button>
-               </div>
-               
-               <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
-                  {/* Member Summary in Modal */}
-                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600">
-                        <User size={20} />
-                      </div>
-                      <div>
-                        <h4 className="font-normal text-slate-800">
-                          {Array.isArray(selectedPackage?.members) ? selectedPackage.members[0]?.full_name : selectedPackage?.members?.full_name}
-                        </h4>
-                        <p className="text-[10px] font-normal text-slate-500 uppercase tracking-widest">ข้อมูลสมาชิกและโปรโมชั่น</p>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200">
-                      <div>
-                        <p className="text-[9px] font-normal text-slate-400 uppercase">เบอร์โทรศัพท์</p>
-                        <p className="text-xs font-normal text-slate-700">{selectedPackage?.members?.phone || '-'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] font-normal text-slate-400 uppercase">รอบจัดส่งปกติ</p>
-                        <p className="text-xs font-normal text-blue-600">{selectedPackage?.members?.delivery_time || '11:00 - 13:00'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] font-normal text-red-400 uppercase">หมายเหตุ/แพ้</p>
-                        <p className="text-xs font-normal text-red-600 truncate">{selectedPackage?.members?.allergy_notes || '-'}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] font-normal text-slate-400 uppercase">โปรโมชั่น</p>
-                        <p className="text-xs font-normal text-slate-600 truncate">{selectedPackage?.package_name}</p>
-                      </div>
-                    </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 ml-1">จำนวนมื้อทั้งหมด</label>
+                    <input 
+                      type="number"
+                      value={packageUpdates?.meals_total}
+                      onChange={(e) => setPackageUpdates({...packageUpdates!, meals_total: parseInt(e.target.value) || 0})}
+                      className="w-full px-4 py-3 bg-white border border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm font-normal"
+                    />
                   </div>
+                </div>
 
-                  <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100">
-                    <label className="block text-xs font-normal text-emerald-600 uppercase tracking-widest mb-2">เมนูอาหารที่เลือก</label>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-emerald-500 shadow-sm">
-                        <UtensilsCrossed size={20} />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-slate-800">
-                          {menus.find(m => m.id === editingSlot.menuId)?.name || 'กรุณาเลือกรายการเมนูอาหารที่ต้องการ'}
-                        </p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <p className="text-[10px] font-bold text-emerald-500 uppercase">
-                            {editingSlot.mealType === 'meal_1' ? 'มื้อเช้า' : editingSlot.mealType === 'meal_2' ? 'มื้อเที่ยง' : `มื้อ ${editingSlot.mealType.split('_')[1]}`}
-                          </p>
-                          {(() => {
-                            const m = menus.find(menu => menu.id === editingSlot.menuId);
-                            if (!m) return null;
-                            const kcal = editingSlot.isNoRice ? (m.calories || 0) - 108 : (m.calories || 0);
-                            const carbs = editingSlot.isNoRice ? (m.carbs || 0) - 23 : (m.carbs || 0);
-                            return (
-                              <span className="text-[10px] font-bold text-slate-400">
-                                • 🔥 {kcal} kcal | C: {carbs}g
-                              </span>
-                            );
-                          })()}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                    {/* No Rice Toggle */}
-                    <div 
-                      onClick={() => setEditingSlot({...editingSlot, isNoRice: !editingSlot.isNoRice})}
-                      className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between group ${editingSlot.isNoRice ? 'bg-emerald-50 border-emerald-500' : 'bg-white border-slate-100 hover:border-slate-200'}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${editingSlot.isNoRice ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'}`}>
-                          {editingSlot.isNoRice ? <span className="text-lg">🥦</span> : <span className="text-lg">🍚</span>}
-                        </div>
-                        <div>
-                          <p className={`text-sm font-bold ${editingSlot.isNoRice ? 'text-emerald-700' : 'text-slate-700'}`}>ไม่รับข้าว (เปลี่ยนเป็นผัก)</p>
-                          <p className="text-[10px] font-medium text-slate-400">-108 kcal | -23g Carbs</p>
-                        </div>
-                      </div>
-                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${editingSlot.isNoRice ? 'border-emerald-500 bg-emerald-500' : 'border-slate-200'}`}>
-                        {editingSlot.isNoRice && <Plus size={14} className="text-white rotate-45" />}
-                      </div>
-                    </div>
-
-                    {/* Menu Picker (Quick Search) */}
-                    <div>
-                      <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 ml-1">ค้นหาและเลือกเมนู</label>
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                      <input 
-                        type="text"
-                        placeholder="พิมพ์ชื่อเมนู..."
-                        value={menuSearch}
-                        onChange={(e) => setMenuSearch(e.target.value)}
-                        className="w-full pl-10 pr-10 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-normal focus:border-emerald-500 outline-none"
-                      />
-                      {menuSearch && (
-                        <button 
-                          onClick={() => setMenuSearch('')}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-                        >
-                          <X size={16} />
-                        </button>
-                      )}
-                    </div>
-                    {menuSearch && (
-                      <div className="mt-2 max-h-40 overflow-y-auto border border-slate-200 rounded-xl bg-white shadow-inner">
-                        {menus
-                          .filter(m => m.menu_group === 'pinto' && m.name.toLowerCase().includes(menuSearch.toLowerCase()))
-                          .map(m => (
-                          <div 
-                            key={m.id}
-                            onClick={() => {
-                              setEditingSlot({...editingSlot!, menuId: m.id});
-                              setMenuSearch('');
-                            }}
-                            className="p-3 hover:bg-emerald-50 cursor-pointer border-b border-slate-50 last:border-0 text-sm font-normal text-slate-700 flex justify-between items-center group"
-                          >
-                            <div className="flex flex-col">
-                              <span>{m.name}</span>
-                              <span className="text-[10px] text-slate-400 uppercase">{m.protein}kcal | {m.category}</span>
-                            </div>
-                            <div className="opacity-0 group-hover:opacity-100 bg-emerald-500 text-white text-[10px] px-2 py-1 rounded-lg">เลือก</div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">ประเภทมื้ออาหาร (Order Type)</label>
-                    <div className="flex gap-2">
-                      <button 
-                        onClick={() => setEditingSlot({...editingSlot!, isExtraOrder: false, orderType: 'subscription'})}
-                        className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all border ${!editingSlot.isExtraOrder ? 'bg-emerald-500 text-white border-emerald-600 shadow-md' : 'bg-white text-slate-400 border-slate-200'}`}
-                      >
-                        ในแพ็กเกจ
-                      </button>
-                      <button 
-                        onClick={() => setEditingSlot({...editingSlot!, isExtraOrder: true, orderType: 'a-la-carte'})}
-                        className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all border ${editingSlot.isExtraOrder ? 'bg-orange-500 text-white border-orange-600 shadow-md' : 'bg-white text-slate-400 border-slate-200'}`}
-                      >
-                        เมนูสั่งแยก (A-la-carte)
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                       <label className="block text-xs font-normal text-slate-700 uppercase tracking-widest mb-2">จำนวน (มื้อ)</label>
-                       <input 
-                         type="number" 
-                         min="1"
-                         value={editingSlot.qty || ''}
-                         onFocus={(e) => e.target.select()}
-                         onChange={(e) => setEditingSlot({...editingSlot!, qty: Math.round(Number(e.target.value)) || 1})}
-                         className="w-full p-3 bg-white border border-slate-300 rounded-xl text-sm font-normal text-slate-800 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
-                       />
-                    </div>
-                    <div>
-                       <label className="block text-xs font-normal text-slate-700 uppercase tracking-widest mb-2">หมายเหตุเพิ่มเติม</label>
-                       <input 
-                         type="text" 
-                         value={editingSlot.notes}
-                         onChange={(e) => setEditingSlot({...editingSlot!, notes: e.target.value})}
-                         placeholder="เช่น ไม่เผ็ด"
-                         className="w-full p-3 bg-white border border-slate-300 rounded-xl text-sm font-normal text-slate-800 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
-                       />
-                    </div>
-                  </div>
-               </div>
-               
-               <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
-                  {editingSlot.scheduleId ? (
-                    <button 
-                      onClick={(e) => handleRemoveClick(e, editingSlot.scheduleId!)}
-                      className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 hover:bg-red-500 hover:text-white rounded-xl text-sm font-normal transition-all border border-red-100 shadow-sm"
-                    >
-                      <Trash2 size={16} /> ลบมื้อนี้
-                    </button>
-                  ) : <div></div>}
-                  
-                  <div className="flex gap-3">
-                    <button 
-                      onClick={() => setIsModalOpen(false)}
-                      className="px-6 py-2.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl text-sm font-normal transition-all"
-                    >
-                      ยกเลิก
-                    </button>
-                    <button 
-                      onClick={handleSaveModal}
-                      disabled={isLoadingData}
-                      className="flex items-center gap-2 px-8 py-2.5 bg-emerald-500 text-white rounded-xl text-sm font-normal hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/20 transition-all active:scale-95"
-                    >
-                      {isLoadingData ? <Clock className="animate-spin" size={18} /> : <Save size={18} />}
-                      บันทึก
-                    </button>
-                  </div>
-               </div>
-             </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-      {/* Add New Package Modal */}
-      {isAddPackageModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
-           <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden border border-slate-200">
-               <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                  <h3 className="text-xl font-normal text-slate-800">เปิดโปรโมชั่นปิ่นโตใหม่</h3>
-                  <button onClick={() => setIsAddPackageModalOpen(false)} className="text-slate-400 hover:text-slate-700 transition-colors">
-                    <X size={20} />
-                  </button>
-               </div>
-               
-               <div className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar">
-                  <div>
-                    <label className="block text-[10px] font-normal text-slate-500 uppercase tracking-widest mb-2">ค้นหา/เลือกชื่อลูกค้า (Existing Member)</label>
-                    <div className="space-y-2">
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                        <input 
-                          type="text"
-                          placeholder="พิมพ์ชื่อหรือเบอร์โทรเพื่อค้นหา..."
-                          value={memberSearchQuery}
-                          onChange={(e) => setMemberSearchQuery(e.target.value)}
-                          className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-normal focus:border-emerald-500 outline-none"
-                        />
-                        {memberSearchQuery && (
-                          <button 
-                            onClick={() => setMemberSearchQuery('')}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-                          >
-                            <X size={14} />
-                          </button>
-                        )}
-                      </div>
-                      <select 
-                        value={newPackage.member_id}
-                        onChange={(e) => setNewPackage({...newPackage, member_id: e.target.value})}
-                        className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-normal text-slate-800 focus:border-emerald-500 outline-none shadow-sm"
-                      >
-                        <option value="">-- เลือกรายชื่อลูกค้า ({members.filter(m => 
-                          m.full_name.toLowerCase().includes(memberSearchQuery.toLowerCase()) || 
-                          m.phone.includes(memberSearchQuery)
-                        ).length} คน) --</option>
-                        {members
-                          .filter(m => 
-                            m.full_name.toLowerCase().includes(memberSearchQuery.toLowerCase()) || 
-                            m.phone.includes(memberSearchQuery)
-                          )
-                          .map(m => (
-                            <option key={m.id} value={m.id}>{m.full_name} ({m.phone})</option>
-                          ))
-                        }
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-normal text-slate-500 uppercase tracking-widest mb-2">เลือกโปรโมชั่นหลัก</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">เป้าหมายสุขภาพ</label>
                     <select 
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (val === '7days') {
-                          setNewPackage({
-                            ...newPackage,
-                            package_name: '- ผูกปิ่นโต 7 วัน (14 มื้อ) (×1) = ฿899',
-                            meals_total: 15,
-                            end_date: dayjs(newPackage.start_date).add(7, 'day').format('YYYY-MM-DD')
-                          });
-                        } else if (val === '14days') {
-                          setNewPackage({
-                            ...newPackage,
-                            package_name: '- ผูกปิ่นโต 14 วัน (28 มื้อ) (×1) = ฿1,799',
-                            meals_total: 30,
-                            end_date: dayjs(newPackage.start_date).add(14, 'day').format('YYYY-MM-DD')
-                          });
-                        } else if (val === '30days') {
-                          setNewPackage({
-                            ...newPackage,
-                            package_name: '- ผูกปิ่นโต 1 เดือน (60 มื้อ) (×1) = ฿3,799',
-                            meals_total: 62,
-                            end_date: dayjs(newPackage.start_date).add(30, 'day').format('YYYY-MM-DD')
-                          });
-                        } else if (val === 'muscle14days') {
-                          setNewPackage({
-                            ...newPackage,
-                            package_name: '- โปรโมชั่น เพิ่มกล้าม 14 วัน (60+2 มื้อ) = ฿7,399',
-                            meals_total: 62,
-                            end_date: dayjs(newPackage.start_date).add(14, 'day').format('YYYY-MM-DD')
-                          });
-                        } else if (val === 'muscle30days') {
-                          setNewPackage({
-                            ...newPackage,
-                            package_name: '- โปรโมชั่น เพิ่มกล้าม 1 เดือน (120+4 มื้อ) = ฿14,490',
-                            meals_total: 124,
-                            end_date: dayjs(newPackage.start_date).add(30, 'day').format('YYYY-MM-DD')
-                          });
-                        } else if (val === 'muscle30days_norice') {
-                          setNewPackage({
-                            ...newPackage,
-                            package_name: '- โปรโมชั่น เพิ่มกล้าม 1 เดือน กับข้าวอย่างเดียว (120+4 มื้อ) = ฿12,499',
-                            meals_total: 124,
-                            end_date: dayjs(newPackage.start_date).add(30, 'day').format('YYYY-MM-DD')
-                          });
-                        }
-                      }}
-                      className="w-full p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-sm font-normal text-emerald-800 focus:border-emerald-500 outline-none"
+                      value={memberUpdates.health_goal}
+                      onChange={(e) => setMemberUpdates({...memberUpdates, health_goal: e.target.value})}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm font-normal"
                     >
-                      <option value="">-- เลือกรูปแบบโปรโมชั่น --</option>
-                      <option value="7days">ผูกปิ่นโต 7 วัน (14+1 มื้อ)</option>
-                      <option value="14days">ผูกปิ่นโต 14 วัน (28+2 มื้อ)</option>
-                      <option value="30days">ผูกปิ่นโต 1 เดือน (60+2 มื้อ)</option>
-                      <option value="muscle14days">โปรโมชั่น เพิ่มกล้าม 14 วัน (60+2 มื้อ) ฿7,399</option>
-                      <option value="muscle30days">โปรโมชั่น เพิ่มกล้าม 1 เดือน (120+4 มื้อ) ฿14,490</option>
-                      <option value="muscle30days_norice">โปรโมชั่น เพิ่มกล้าม 1 เดือน (กับข้าวอย่างเดียว 120+4 มื้อ) ฿12,499</option>
+                      <option value="">ไม่ระบุ</option>
+                      <option value="ลดน้ำหนัก">ลดน้ำหนัก</option>
+                      <option value="เพิ่มกล้ามเนื้อ">เพิ่มกล้ามเนื้อ</option>
+                      <option value="เพื่อสุขภาพ">เพื่อสุขภาพ</option>
+                      <option value="คุมอาหาร">คุมอาหาร</option>
                     </select>
                   </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[10px] font-normal text-slate-500 uppercase tracking-widest mb-2">จำนวนมื้อรวม</label>
-                      <input 
-                        type="number"
-                        value={newPackage.meals_total}
-                        onFocus={(e) => e.target.select()}
-                        onChange={(e) => setNewPackage({...newPackage, meals_total: Math.round(Number(e.target.value)) || 0})}
-                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-normal text-slate-800 focus:border-emerald-500 outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-normal text-slate-500 uppercase tracking-widest mb-2">วันที่เริ่มทาน</label>
-                      <input 
-                        type="date"
-                        value={newPackage.start_date}
-                        onChange={(e) => setNewPackage({...newPackage, start_date: e.target.value})}
-                        className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-normal text-slate-800 focus:border-emerald-500 outline-none"
-                      />
-                    </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">รอบเวลาจัดส่ง</label>
+                    <input 
+                      type="text"
+                      placeholder="เช่น 11:00 - 13:00"
+                      value={memberUpdates.delivery_time}
+                      onChange={(e) => setMemberUpdates({...memberUpdates, delivery_time: e.target.value})}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm font-normal"
+                    />
                   </div>
-               </div>
-               
-               <div className="px-8 py-6 bg-slate-50 border-t border-slate-100 flex justify-end">
-                   <button 
-                    onClick={handleAddPackage}
-                    disabled={isLoadingData}
-                    className="w-full py-4 bg-emerald-500 text-white hover:bg-emerald-600 shadow-xl shadow-emerald-500/20 rounded-2xl text-sm font-normal transition-all flex items-center justify-center gap-2"
-                  >
-                    {isLoadingData ? <Clock className="animate-spin" size={18} /> : <Save size={18} />}
-                    ยืนยันเปิดแพ็กเกจ
-                  </button>
-               </div>
-           </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">แพ้อาหาร / สิ่งที่ไม่ทาน</label>
+                  <input 
+                    type="text"
+                    value={memberUpdates.allergies || ''}
+                    onChange={(e) => setMemberUpdates({...memberUpdates, allergies: e.target.value})}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm font-normal"
+                    placeholder="เช่น ไม่ทานเผ็ด, แพ้ถั่ว"
+                  />
+                </div>
+              </div>
+
+              <div className="px-8 py-6 bg-slate-50/50 border-t border-slate-100 flex gap-3">
+                 <button 
+                   onClick={() => setIsProfileModalOpen(false)}
+                   className="flex-1 px-6 py-3 border border-slate-200 text-slate-600 rounded-xl text-sm font-normal hover:bg-white transition-all shadow-sm"
+                 >
+                   ยกเลิก
+                 </button>
+                 <button 
+                   onClick={handleSaveProfile}
+                   className="flex-1 px-6 py-3 bg-emerald-500 text-white rounded-xl text-sm font-normal hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
+                 >
+                   บันทึกการเปลี่ยนแปลง
+                 </button>
+              </div>
+           </motion.div>
         </div>
       )}
-      {/* Macros Preview Modal */}
+
       {isMacrosModalOpen && macrosContent && (
-        <div className="fixed inset-0 bg-slate-900/40 z-[70] flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200">
-            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-indigo-50">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center text-white shadow-lg">
-                  <FileText size={20} />
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+           <motion.div 
+             initial={{ opacity: 0, scale: 0.95, y: 20 }}
+             animate={{ opacity: 1, scale: 1, y: 0 }}
+             className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden"
+           >
+              <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-indigo-50/50">
+                 <div>
+                   <h3 className="text-xl font-normal text-slate-900 flex items-center gap-2">
+                     <UtensilsCrossed className="text-indigo-500" /> สรุปสารอาหาร (Macros)
+                   </h3>
+                   <p className="text-slate-500 text-xs font-normal mt-1">ประจำวันที่ {macrosContent.date}</p>
+                 </div>
+                 <button onClick={() => setIsMacrosModalOpen(false)} className="p-2 hover:bg-white rounded-full transition-all text-slate-400 shadow-sm border border-transparent hover:border-slate-100"><X size={20} /></button>
+              </div>
+              
+              <div className="p-8 space-y-6">
+                <div className="grid grid-cols-4 gap-4">
+                  <div className="bg-orange-50 p-3 rounded-2xl border border-orange-100 text-center">
+                    <p className="text-[10px] font-bold text-orange-400 uppercase tracking-widest mb-1">Kcal</p>
+                    <p className="text-xl font-bold text-orange-600">{macrosContent.totals.kcal.toFixed(0)}</p>
+                  </div>
+                  <div className="bg-red-50 p-3 rounded-2xl border border-red-100 text-center">
+                    <p className="text-[10px] font-bold text-red-400 uppercase tracking-widest mb-1">Protein</p>
+                    <p className="text-xl font-bold text-red-600">{macrosContent.totals.protein.toFixed(1)}g</p>
+                  </div>
+                  <div className="bg-blue-50 p-3 rounded-2xl border border-blue-100 text-center">
+                    <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-1">Carbs</p>
+                    <p className="text-xl font-bold text-blue-600">{macrosContent.totals.carbs.toFixed(1)}g</p>
+                  </div>
+                  <div className="bg-yellow-50 p-3 rounded-2xl border border-yellow-100 text-center">
+                    <p className="text-[10px] font-bold text-yellow-400 uppercase tracking-widest mb-1">Fat</p>
+                    <p className="text-xl font-bold text-yellow-600">{macrosContent.totals.fat.toFixed(1)}g</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-normal text-slate-800">สรุปโภชนาการรายวัน</h3>
-                  <p className="text-[10px] font-normal text-indigo-400 uppercase tracking-widest">{macrosContent.date}</p>
+
+                <div className="space-y-3">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">รายการเมนูวันนี้</label>
+                  <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-2">
+                    {macrosContent.meals.map((m, i) => (
+                      <div key={i} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
+                        <span className="text-xs font-normal text-slate-700 truncate max-w-[200px]">{m.name}</span>
+                        <span className="text-[10px] font-bold text-slate-400">{m.kcal.toFixed(0)} kcal</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">ข้อความสำหรับส่งให้ลูกค้า</label>
+                  <div className="relative group">
+                    <textarea 
+                      readOnly
+                      rows={5}
+                      value={macrosContent.formattedText}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-[11px] font-normal leading-relaxed text-slate-600 resize-none focus:outline-none"
+                    />
+                    <button 
+                      onClick={() => {
+                        navigator.clipboard.writeText(macrosContent.formattedText);
+                        Swal.fire({ icon: 'success', title: 'คัดลอกแล้ว', toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
+                      }}
+                      className="absolute right-3 bottom-3 bg-white text-indigo-600 p-2 rounded-xl shadow-md border border-indigo-100 hover:bg-indigo-50 transition-all flex items-center gap-1.5 text-[11px] font-bold"
+                    >
+                      <Copy size={14} /> คัดลอกข้อความ
+                    </button>
+                  </div>
                 </div>
               </div>
-              <button onClick={() => setIsMacrosModalOpen(false)} className="text-slate-400 hover:text-slate-600">
-                <X size={20} />
+
+              <div className="px-8 py-6 bg-slate-50/50 border-t border-slate-100">
+                 <button 
+                   onClick={() => setIsMacrosModalOpen(false)}
+                   className="w-full px-6 py-3 bg-slate-800 text-white rounded-xl text-sm font-normal hover:bg-slate-900 transition-all shadow-lg shadow-slate-800/20"
+                 >
+                   ปิดหน้าต่าง
+                 </button>
+              </div>
+           </motion.div>
+        </div>
+      )}
+
+      {isModalOpen && editingSlot && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col"
+          >
+            <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <div>
+                <h3 className="text-xl font-normal text-slate-900 flex items-center gap-2">
+                  <Plus className="text-emerald-500" /> {editingSlot.scheduleId ? 'แก้ไขเมนูอาหาร' : 'เพิ่มเมนูอาหาร'}
+                </h3>
+                <p className="text-slate-500 text-xs font-normal mt-1">วันที่ {dayjs(editingSlot.date).locale('th').format('DD MMMM YYYY')}</p>
+              </div>
+              <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-white rounded-full transition-all text-slate-400 shadow-sm border border-transparent hover:border-slate-100"><X size={20} /></button>
+            </div>
+            
+            <div className="p-8 space-y-6 overflow-y-auto max-h-[70vh] custom-scrollbar">
+              <div className="space-y-4">
+                <div className="relative group">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors" size={18} />
+                  <input 
+                    type="text"
+                    placeholder="ค้นหาชื่อเมนู..."
+                    value={menuSearch}
+                    onChange={(e) => setMenuSearch(e.target.value)}
+                    className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all text-sm font-normal"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar border-b border-slate-100 pb-4">
+                  {menus
+                    .filter(m => m.name.toLowerCase().includes(menuSearch.toLowerCase()))
+                    .map(menu => (
+                      <button
+                        key={menu.id}
+                        onClick={() => setEditingSlot({ ...editingSlot, menuId: menu.id })}
+                        className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${
+                          editingSlot.menuId === menu.id 
+                            ? 'bg-emerald-50 border-emerald-500 shadow-sm ring-1 ring-emerald-500/10' 
+                            : 'bg-white border-slate-100 hover:border-slate-200'
+                        }`}
+                      >
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${editingSlot.menuId === menu.id ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                          <UtensilsCrossed size={16} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className={`text-sm font-normal truncate ${editingSlot.menuId === menu.id ? 'text-emerald-700' : 'text-slate-800'}`}>{menu.name}</p>
+                          <p className="text-[10px] text-slate-400 uppercase tracking-widest">{menu.category}</p>
+                        </div>
+                      </button>
+                    ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">มื้อที่</label>
+                  <select 
+                    value={editingSlot.mealType}
+                    onChange={(e) => setEditingSlot({ ...editingSlot, mealType: e.target.value })}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all text-sm font-normal"
+                  >
+                    {[...Array(20)].map((_, i) => (
+                      <option key={i+1} value={`meal_${i+1}`}>มื้อที่ {i+1}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">จำนวน (ชุด)</label>
+                  <input 
+                    type="number"
+                    min="1"
+                    value={editingSlot.qty}
+                    onChange={(e) => setEditingSlot({ ...editingSlot, qty: parseInt(e.target.value) || 1 })}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all text-sm font-normal"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">รอบเวลาส่ง</label>
+                  <input 
+                    type="text"
+                    placeholder="เช่น 11:00 - 13:00"
+                    value={editingSlot.deliveryTime}
+                    onChange={(e) => setEditingSlot({ ...editingSlot, deliveryTime: e.target.value })}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all text-sm font-normal"
+                  />
+                </div>
+                <div className="space-y-2">
+                   <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">ประเภทออเดอร์</label>
+                   <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 gap-1 h-[46px]">
+                     <button 
+                       onClick={() => setEditingSlot({...editingSlot, isExtraOrder: false, orderType: 'subscription'})}
+                       className={`flex-1 rounded-lg text-[10px] font-bold uppercase transition-all ${!editingSlot.isExtraOrder ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-400'}`}
+                     >
+                       ในแพ็กเกจ
+                     </button>
+                     <button 
+                       onClick={() => setEditingSlot({...editingSlot, isExtraOrder: true, orderType: 'a-la-carte'})}
+                       className={`flex-1 rounded-lg text-[10px] font-bold uppercase transition-all ${editingSlot.isExtraOrder ? 'bg-orange-500 text-white shadow-sm' : 'text-slate-400'}`}
+                     >
+                       สั่งแยก
+                     </button>
+                   </div>
+                </div>
+              </div>
+
+              <div className="space-y-4 pt-2">
+                 <label className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-100 rounded-2xl cursor-pointer group hover:bg-blue-100 transition-all">
+                   <input 
+                     type="checkbox"
+                     checked={editingSlot.isNoRice}
+                     onChange={(e) => setEditingSlot({...editingSlot, isNoRice: e.target.checked})}
+                     className="w-5 h-5 rounded-lg border-blue-300 text-blue-600 focus:ring-blue-500 transition-all"
+                   />
+                   <div>
+                     <span className="text-sm font-bold text-blue-700 block">🍚 ไม่รับข้าว (Nutritional Adjustment)</span>
+                     <span className="text-[10px] text-blue-500 font-normal">ระบบจะหักลบแคลอรี่และคาร์บในสรุปสารอาหารให้อัตโนมัติ</span>
+                   </div>
+                 </label>
+
+                 <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">โน้ตเพิ่มเติม</label>
+                    <textarea 
+                      placeholder="เช่น ไม่เอาถั่ว, ไม่เอาผักชี..."
+                      rows={2}
+                      value={editingSlot.notes}
+                      onChange={(e) => setEditingSlot({ ...editingSlot, notes: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all text-sm font-normal resize-none"
+                    />
+                 </div>
+              </div>
+            </div>
+
+            <div className="px-8 py-6 bg-slate-50/50 border-t border-slate-100 flex gap-3">
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="flex-1 px-6 py-3 border border-slate-200 text-slate-600 rounded-xl text-sm font-normal hover:bg-white transition-all shadow-sm"
+              >
+                ยกเลิก
+              </button>
+              <button 
+                onClick={handleSaveModal}
+                className="flex-1 px-6 py-3 bg-emerald-500 text-white rounded-xl text-sm font-normal hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
+              >
+                {editingSlot.scheduleId ? 'บันทึกการแก้ไข' : 'เพิ่มเมนูทันที'}
               </button>
             </div>
+          </motion.div>
+        </div>
+      )}
 
-            <div className="p-6 space-y-6">
-              <div className="space-y-3 overflow-y-auto max-h-[30vh] pr-2 custom-scrollbar">
-                {macrosContent.meals.map((meal, i) => (
-                  <div key={i} className="flex justify-between items-start p-3 bg-slate-50 rounded-2xl border border-slate-100">
-                    <div>
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-tighter">มื้อที่ {i+1}</p>
-                      <p className="text-sm font-normal text-slate-800 truncate max-w-[180px]">{meal.name}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-bold text-indigo-600">{meal.kcal} <span className="text-[10px] font-normal text-slate-400">kcal</span></p>
-                      <p className="text-[10px] text-slate-500">P:{meal.protein}g | C:{meal.carbs}g | F:{meal.fat}g</p>
-                    </div>
-                  </div>
-                ))}
+      {isAddPackageModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden"
+          >
+            <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+              <div>
+                <h3 className="text-xl font-normal text-slate-900 flex items-center gap-2">
+                  <Plus className="text-emerald-500" /> เปิดแพ็กเกจใหม่ให้ลูกค้า
+                </h3>
+                <p className="text-slate-500 text-xs font-normal mt-1">ระบุรายละเอียดสัญญาและจำนวนมื้ออาหาร</p>
+              </div>
+              <button onClick={() => setIsAddPackageModalOpen(false)} className="p-2 hover:bg-white rounded-full transition-all text-slate-400 shadow-sm border border-transparent hover:border-slate-100"><X size={20} /></button>
+            </div>
+            
+            <div className="p-8 space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">เลือกลูกค้า</label>
+                <select 
+                  value={newPackage.member_id}
+                  onChange={(e) => setNewPackage({ ...newPackage, member_id: e.target.value })}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all text-sm font-normal"
+                >
+                  <option value="">เลือกชื่อลูกค้า...</option>
+                  {members.map(m => (
+                    <option key={m.id} value={m.id}>{m.full_name} ({m.phone})</option>
+                  ))}
+                </select>
               </div>
 
-              <div className="bg-indigo-600 rounded-2xl p-5 text-white shadow-xl shadow-indigo-200">
-                <div className="flex justify-between items-center mb-4 pb-4 border-b border-white/20">
-                  <span className="text-sm font-normal opacity-80">🔥 พลังงานรวมทั้งหมด</span>
-                  <span className="text-2xl font-bold">{macrosContent.totals.kcal} kcal</span>
-                </div>
-                <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="bg-white/10 rounded-xl py-2">
-                    <p className="text-[10px] opacity-70 uppercase">Protein</p>
-                    <p className="text-sm font-bold">{macrosContent.totals.protein}g</p>
-                  </div>
-                  <div className="bg-white/10 rounded-xl py-2">
-                    <p className="text-[10px] opacity-70 uppercase">Carbs</p>
-                    <p className="text-sm font-bold">{macrosContent.totals.carbs}g</p>
-                  </div>
-                  <div className="bg-white/10 rounded-xl py-2">
-                    <p className="text-[10px] opacity-70 uppercase">Fat</p>
-                    <p className="text-sm font-bold">{macrosContent.totals.fat}g</p>
-                  </div>
-                </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">ชื่อแพ็กเกจ</label>
+                <input 
+                  type="text"
+                  placeholder="เช่น ผูกปิ่นโต 14 วัน (28 มื้อ)"
+                  value={newPackage.package_name}
+                  onChange={(e) => setNewPackage({ ...newPackage, package_name: e.target.value })}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all text-sm font-normal"
+                />
               </div>
 
-              <div className="flex gap-3">
-                <button 
-                  onClick={() => setIsMacrosModalOpen(false)}
-                  className="flex-1 py-3 border border-slate-200 text-slate-600 rounded-2xl text-sm font-normal hover:bg-slate-50 transition-all"
-                >
-                  ปิด
-                </button>
-                <button 
-                  onClick={() => {
-                    navigator.clipboard.writeText(macrosContent.formattedText);
-                    Swal.fire({
-                      icon: 'success',
-                      title: 'คัดลอกสำเร็จ!',
-                      toast: true,
-                      position: 'top-end',
-                      timer: 2000,
-                      showConfirmButton: false
-                    });
-                    setIsMacrosModalOpen(false);
-                  }}
-                  className="flex-[2] py-3 bg-emerald-500 text-white rounded-2xl text-sm font-normal shadow-lg shadow-emerald-500/20 hover:bg-emerald-600 transition-all flex items-center justify-center gap-2"
-                >
-                  <Copy size={16} /> คัดลอกสรุปส่งลูกค้า
-                </button>
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">จำนวนมื้อทั้งหมด</label>
+                  <input 
+                    type="number"
+                    value={newPackage.meals_total}
+                    onChange={(e) => setNewPackage({ ...newPackage, meals_total: parseInt(e.target.value) || 0 })}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all text-sm font-normal"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">วันที่เริ่มแพ็กเกจ</label>
+                  <input 
+                    type="date"
+                    value={newPackage.start_date}
+                    onChange={(e) => setNewPackage({ ...newPackage, start_date: e.target.value })}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all text-sm font-normal"
+                  />
+                </div>
               </div>
             </div>
-          </div>
+
+            <div className="px-8 py-6 bg-slate-50/50 border-t border-slate-100 flex gap-3">
+              <button 
+                onClick={() => setIsAddPackageModalOpen(false)}
+                className="flex-1 px-6 py-3 border border-slate-200 text-slate-600 rounded-xl text-sm font-normal hover:bg-white transition-all shadow-sm"
+              >
+                ยกเลิก
+              </button>
+              <button 
+                onClick={handleAddPackage}
+                className="flex-1 px-6 py-3 bg-emerald-500 text-white rounded-xl text-sm font-normal hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
+              >
+                ยืนยันเปิดแพ็กเกจ
+              </button>
+            </div>
+          </motion.div>
         </div>
       )}
     </div>
   );
 };
-

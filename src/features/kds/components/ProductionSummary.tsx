@@ -649,6 +649,9 @@ export const ProductionSummary: React.FC = () => {
     const summary: Record<string, any> = {};
     memberSchedules
       .filter(s => {
+        const member = Array.isArray(s.members) ? s.members[0] : s.members;
+        if (member?.is_banned) return false;
+        
         if (filterType === 'day') return s.delivery_date === selectedDate;
         return dayjs(s.delivery_date).isSame(currentMonth, 'month');
       })
@@ -676,8 +679,9 @@ export const ProductionSummary: React.FC = () => {
         const round = s.delivery_time || 'รอบปกติ';
         summary[id].rounds[round] = (summary[id].rounds[round] || 0) + s.quantity;
         
+        const memberData = Array.isArray((s as any).members) ? (s as any).members[0] : (s as any).members;
         summary[id].members.push({
-          name: (s as any).members?.full_name || 'ลูกค้าทั่วไป',
+          name: memberData?.full_name || 'ลูกค้าทั่วไป',
           qty: s.quantity,
           note: s.notes,
           round: round
@@ -694,7 +698,11 @@ export const ProductionSummary: React.FC = () => {
 
   // Monthly stats for dashboard
   const monthlyStats = useMemo(() => {
-    const filtered = memberSchedules.filter(s => dayjs(s.delivery_date).isSame(currentMonth, 'month'));
+    const filtered = memberSchedules.filter(s => {
+      const member = Array.isArray(s.members) ? s.members[0] : s.members;
+      if (member?.is_banned) return false;
+      return dayjs(s.delivery_date).isSame(currentMonth, 'month');
+    });
     const menuCounts: Record<string, number> = {};
     const menuNames: Record<string, string> = {};
     const roundCounts: Record<string, number> = { 'รอบเช้า': 0, 'รอบเย็น': 0, 'อื่นๆ': 0 };

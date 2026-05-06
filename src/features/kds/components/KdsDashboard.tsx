@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'; 
-import { ChefHat, CalendarDays, UtensilsCrossed, Calendar, MenuSquare, Package } from 'lucide-react';
+import { ChefHat, CalendarDays, UtensilsCrossed, Calendar, MenuSquare, Package, ClipboardCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useKdsStore } from '../../../store/kdsStore';
 import { MenuLibrary } from './MenuLibrary';
@@ -7,8 +7,9 @@ import { GlobalPlanner } from './GlobalPlanner';
 import { MemberPlanner } from './MemberPlanner';
 import { TodayView } from './TodayView';
 import { ProductionSummary } from './ProductionSummary';
+import { KitchenChecklist } from './KitchenChecklist';
 
-type Tab = 'today' | 'global' | 'member' | 'summary';
+type Tab = 'checklist' | 'today' | 'global' | 'member' | 'summary';
 
 export const KdsDashboard: React.FC = () => {
   const loadMasterData = useKdsStore(state => state.loadMasterData);
@@ -76,26 +77,29 @@ export const KdsDashboard: React.FC = () => {
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         
         {/* Header & Tabs */}
-        <div className="bg-white px-4 md:px-6 py-4 border-b border-slate-200 shadow-sm z-20 flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div className="flex justify-between items-start">
-            <div>
-              <h1 className="text-xl md:text-2xl font-normal text-slate-900 tracking-tight flex items-center gap-2">
-                <UtensilsCrossed className="text-emerald-500" /> KDS Control
-              </h1>
-              <p className="text-xs md:text-sm font-normal text-slate-500 mt-1">ระบบจัดแผนอาหารและห้องครัว</p>
+        <div className="bg-white px-4 md:px-6 py-3 border-b border-slate-200 shadow-sm z-20 flex flex-col lg:flex-row items-center justify-between gap-4">
+          <div className="flex items-center justify-between w-full lg:w-auto gap-8">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-500 shadow-sm border border-emerald-100">
+                <UtensilsCrossed size={20} />
+              </div>
+              <div>
+                <h1 className="text-base md:text-lg font-bold text-slate-900 tracking-tight leading-none">KDS Control</h1>
+                <p className="text-[10px] md:text-xs font-normal text-slate-500 mt-1">ระบบจัดแผนอาหารและห้องครัว</p>
+              </div>
             </div>
             
-            {/* Mobile Open Menu Button */}
             <button 
               onClick={() => setIsMenuDrawerOpen(true)}
-              className="flex bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-3 py-2 rounded-xl items-center gap-2 font-normal text-xs transition-colors"
+              className="flex bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white px-4 py-2.5 rounded-xl items-center gap-2 font-medium text-[11px] md:text-xs transition-all border border-emerald-100 shadow-sm"
             >
               <MenuSquare size={16} /> รายการเมนู
             </button>
           </div>
           
-          <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 overflow-x-auto scrollbar-hide relative">
+          <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 overflow-x-auto scrollbar-hide w-full lg:w-auto">
             {[
+              { id: 'checklist', label: 'เช็คลิสต์เตรียมของ', icon: ClipboardCheck, activeColor: 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' },
               { id: 'global', label: 'แผนร้าน', icon: CalendarDays, activeColor: 'bg-slate-900 text-white' },
               { id: 'member', label: 'แผนลูกค้า', icon: Calendar, activeColor: 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' },
               { id: 'today', label: 'ทำอาหารวันนี้', icon: ChefHat, activeColor: 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' },
@@ -104,7 +108,7 @@ export const KdsDashboard: React.FC = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as Tab)}
-                className={`flex items-center gap-2.5 px-6 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all duration-300 relative ${
+                className={`flex items-center gap-2 px-3 md:px-5 py-2 md:py-2.5 rounded-xl text-[11px] md:text-sm font-medium whitespace-nowrap transition-all duration-300 relative ${
                   activeTab === tab.id ? tab.activeColor : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'
                 }`}
               >
@@ -115,7 +119,7 @@ export const KdsDashboard: React.FC = () => {
                     transition={{ type: 'spring', bounce: 0.15, duration: 0.5 }}
                   />
                 )}
-                <tab.icon size={18} className="relative z-10" />
+                <tab.icon size={16} className="relative z-10" />
                 <span className="relative z-10">{tab.label}</span>
               </button>
             ))}
@@ -128,6 +132,7 @@ export const KdsDashboard: React.FC = () => {
             <ContentSkeleton />
           ) : (
             <>
+              {activeTab === 'checklist' && <KitchenChecklist />}
               {activeTab === 'global' && <GlobalPlanner />}
               {activeTab === 'member' && <MemberPlanner />}
               {activeTab === 'today' && <TodayView />}

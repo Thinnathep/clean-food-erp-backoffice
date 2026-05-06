@@ -161,7 +161,8 @@ export const fetchActivePackages = async (): Promise<PintoPackage[]> => {
       members!pinto_packages_member_id_fkey (
         id, full_name, phone, line_id, avatar_url, date_of_birth, gender, 
         health_goal, allergy_notes, internal_notes, tags, source, member_type,
-        age_range, delivery_time, address, sub_district, district, province, postal_code, food_preferences
+        age_range, delivery_time, address, sub_district, district, province, postal_code, food_preferences,
+        is_banned, ban_reason
       )
     `)
     .eq('status', 'active')
@@ -198,7 +199,7 @@ export const fetchMemberSchedules = async (startDate: string, endDate: string, p
       id, package_id, member_id, delivery_date, meal_type, menu_item_id, quantity, box_size, delivery_time, kitchen_status, notes, is_extra_order, meal_order_type,
       menu_items (id, name, category, protein, calories, image_url, tags),
       pinto_packages (id, package_name, meals_remaining),
-      members!erp_member_meal_schedules_member_id_fkey (id, full_name, phone, delivery_time, member_type)
+      members!erp_member_meal_schedules_member_id_fkey (id, full_name, phone, delivery_time, member_type, is_banned)
     `)
     .gte('delivery_date', startDate)
     .lte('delivery_date', endDate);
