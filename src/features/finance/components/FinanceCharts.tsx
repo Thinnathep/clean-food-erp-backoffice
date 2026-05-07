@@ -145,7 +145,7 @@ export const FinanceCharts: React.FC<Props> = ({ transactions, buckets, isDarkMo
                 ))}
               </Pie>
               <Tooltip 
-                formatter={(value: number) => `฿${value.toLocaleString()}`}
+                formatter={(value: any) => `฿${Number(value).toLocaleString()}`}
                 contentStyle={{ 
                   backgroundColor: themeColors.tooltipBg, 
                   borderColor: themeColors.tooltipBorder,

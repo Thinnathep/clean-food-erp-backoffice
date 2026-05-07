@@ -6,8 +6,8 @@ import { fetchInventoryItems, recordStockIn } from '../../inventory/api';
 import type { InventoryItem } from '../../../types';
 import { toast } from 'sonner';
 import { 
-  TrendingDown, Receipt, Image as ImageIcon, X, 
-  AlertCircle, ChevronRight, Calculator, Box, PlusCircle
+  TrendingDown, X, 
+  AlertCircle, Calculator, Box, PlusCircle
 } from 'lucide-react';
 
 interface Props {
@@ -23,7 +23,6 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [notes, setNotes] = useState('');
-  const [isPersonal, setIsPersonal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
 
@@ -72,7 +71,6 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
         amount: amt,
         category: selectedCat,
         description,
-        is_personal: isPersonal,
         source_type: 'EXPENSE',
         receipt_url: receiptUrl,
         notes
