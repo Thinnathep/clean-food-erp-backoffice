@@ -190,14 +190,19 @@ export const TodayView: React.FC = () => {
       let fat = schedule.menu_items?.fat || 0;
 
       if (schedule.notes?.includes('[ไม่รับข้าว]')) {
+        // Standard rice portion: ~108 kcal, ~23g Carbs
         kcal -= 108;
         carbs -= 23;
+        
+        // Ensure minimum 5g carbs remains for sauces/vegetables if the dish isn't purely plain
+        // This prevents unrealistic "0 Carbs" for dishes like Teriyaki or Stir-fry
+        carbs = Math.max(5, carbs);
       }
 
       // Ensure values are not negative
       kcal = Math.max(0, kcal);
-      carbs = Math.max(0, carbs);
       protein = Math.max(0, protein);
+      carbs = Math.max(0, carbs);
       fat = Math.max(0, fat);
 
       grouped[timeLabel].members[groupKey].totalKcal += (kcal * schedule.quantity);
@@ -219,7 +224,8 @@ export const TodayView: React.FC = () => {
         isExtra: schedule.is_extra_order || false,
         createdAt: schedule.created_at || '',
         kcal,
-        macros: `P:${protein} C:${carbs} F:${fat}`
+        macros: `P:${protein} C:${carbs} F:${fat}`,
+        mealType: schedule.meal_type
       });
 
       grouped[timeLabel].categoryStats[category] = (grouped[timeLabel].categoryStats[category] || 0) + schedule.quantity;
@@ -525,12 +531,12 @@ export const TodayView: React.FC = () => {
   const handleCopyNutrition = (memberName: string, item: any, time: string) => {
     const dateStr = dayjs(selectedDate).locale('th').format('DD MMMM YYYY');
     let text = `📋 ข้อมูลโภชนาการประจำวันที่ ${dateStr}\n`;
-    text += `👤 ลูกค้า: ${memberName}\n`;
+    text += `👤 ลูกค้า: คุณ${memberName}\n`;
     text += `⏰ รอบ: ${time}\n`;
     text += `──────────────────\n`;
     
     item.orders.forEach((o: any, i: number) => {
-      text += `${i + 1}. ${o.menuName} (x${o.qty})\n`;
+      text += `${i + 1}.${o.menuName} (x${o.qty})\n`;
       text += `   🔥 ${o.kcal * o.qty} kcal | ${o.macros}\n`;
     });
     

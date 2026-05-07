@@ -105,7 +105,7 @@ export const fetchGlobalPlanSlots = async (startDate: string, endDate: string): 
     .from('pinto_meal_plan')
     .select(`
       id, delivery_date, meal_type, menu_item_id,
-      menu_items (id, name, category, protein, calories, image_url, tags)
+      menu_items (id, name, category, protein, calories, carbs, fat, image_url, tags)
     `)
     .gte('delivery_date', startDate)
     .lte('delivery_date', endDate);
@@ -197,7 +197,7 @@ export const fetchMemberSchedules = async (startDate: string, endDate: string, p
     .from('erp_member_meal_schedules')
     .select(`
       id, package_id, member_id, delivery_date, meal_type, menu_item_id, quantity, box_size, delivery_time, kitchen_status, notes, is_extra_order, meal_order_type,
-      menu_items (id, name, category, protein, calories, image_url, tags),
+      menu_items (id, name, category, protein, calories, carbs, fat, image_url, tags),
       pinto_packages (id, package_name, meals_remaining),
       members!erp_member_meal_schedules_member_id_fkey (id, full_name, phone, delivery_time, member_type, is_banned)
     `)
