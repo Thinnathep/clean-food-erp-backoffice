@@ -415,7 +415,7 @@ const MasterSelector: React.FC<{
   return (
     <div className="fixed inset-0 z-[100] flex flex-col bg-white overflow-hidden font-prompt md:inset-auto md:w-full md:max-w-2xl md:h-[85vh] md:rounded-3xl md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:shadow-2xl">
       <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-20">
-        <h3 className="text-xl font-medium text-slate-900">จัดการคลังของทั้งหมด</h3>
+        <h3 className="text-lg font-medium text-slate-900">จัดการคลังของทั้งหมด</h3>
         <div className="flex items-center gap-2">
            {!editingMasterId && (
             <button 
@@ -531,8 +531,8 @@ const MasterSelector: React.FC<{
         )}
       </div>
       <div className="p-5 border-t border-slate-100 flex gap-4 bg-white">
-        <button onClick={onClose} className="flex-1 py-5 bg-slate-100 text-slate-600 font-medium rounded-2xl active:scale-[0.98] transition-transform text-lg">ยกเลิก</button>
-        <button disabled={selectedIds.size === 0} onClick={() => onConfirm(masterList.filter(i => selectedIds.has(i.id)))} className="flex-[2] py-5 bg-indigo-600 text-white font-medium rounded-2xl shadow-xl shadow-indigo-100 disabled:opacity-50 active:scale-[0.98] transition-transform text-lg">เพิ่มลงแผน ({selectedIds.size} รายการ)</button>
+        <button onClick={onClose} className="flex-1 py-4 bg-slate-100 text-slate-600 font-medium rounded-2xl active:scale-[0.98] transition-transform text-base">ยกเลิก</button>
+        <button disabled={selectedIds.size === 0} onClick={() => onConfirm(masterList.filter(i => selectedIds.has(i.id)))} className="flex-[2] py-4 bg-indigo-600 text-white font-medium rounded-2xl shadow-xl shadow-indigo-100 disabled:opacity-50 active:scale-[0.98] transition-transform text-base">เพิ่มลงแผน ({selectedIds.size} รายการ)</button>
       </div>
     </div>
   );
@@ -542,15 +542,12 @@ const MasterSelector: React.FC<{
 const MasterItemRow: React.FC<{ item: any, isSelected: boolean, onToggle: (id: string) => void, onEdit: (i: any) => void, onDelete: (id: string) => void }> = memo(({ item, isSelected, onToggle, onEdit, onDelete }) => {
   return (
     <div 
-      onPointerDown={(e) => {
-        e.preventDefault();
-        onToggle(item.id);
-      }}
+      onClick={() => onToggle(item.id)}
       className={`flex items-center transition-colors cursor-pointer select-none ${isSelected ? 'bg-indigo-50/50' : 'bg-white hover:bg-slate-50/80'}`}
     >
-      <div className="flex-1 px-6 py-5 flex items-center justify-between text-left">
+      <div className="flex-1 px-6 py-4 flex items-center justify-between text-left">
         <div>
-          <div className={`text-xl font-medium tracking-tight ${isSelected ? 'text-indigo-700' : 'text-slate-800'}`}>{item.item_name}</div>
+          <div className={`text-lg font-medium tracking-tight ${isSelected ? 'text-indigo-700' : 'text-slate-800'}`}>{item.item_name}</div>
           {(item.vendor || item.target_time) && (
             <div className="flex gap-2 mt-1">
               {item.vendor && <span className="text-[10px] text-slate-400 font-medium bg-slate-100 px-1.5 py-0.5 rounded">@{item.vendor}</span>}

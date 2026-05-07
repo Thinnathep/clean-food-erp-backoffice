@@ -1,0 +1,402 @@
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../../../config/supabase';
+import { POOL_CONFIG } from '../types';
+import type { SplitConfig, PoolType } from '../types';
+import type { Member } from '../../../types';
+import { toast } from 'sonner';
+import dayjs from 'dayjs';
+import { TrendingUp, Package, Dumbbell, ShoppingBag, Percent, Users, User } from 'lucide-react';
+
+interface Props {
+  configs: SplitConfig[];
+  onSaved: () => void;
+  isDarkMode?: boolean;
+}
+
+const PINTO_PRESETS = [
+  { label: '7 วัน (15 มื้อ)', price: 899, meals: 15, days: 7 },
+  { label: '14 วัน (30 มื้อ)', price: 1799, meals: 30, days: 14 },
+  { label: '30 วัน (62 มื้อ)', price: 3799, meals: 62, days: 30 },
+];
+
+const MUSCLE_PRESETS = [
+  { label: '14 วัน (62 มื้อ) - Promo', price: 7399, meals: 62, days: 14 },
+  { label: '30 วัน (124 มื้อ) - Std', price: 12499, meals: 124, days: 30 },
+  { label: '30 วัน (124 มื้อ) - Prem', price: 14499, meals: 124, days: 30 },
+];
+
+export const RevenueRecorder: React.FC<Props> = ({ configs, onSaved, isDarkMode = false }) => {
+  const [sourceType, setSourceType] = useState<'PACKAGE' | 'ORDER' | 'MUSCLE_CUSTOM'>('PACKAGE');
+  const [grossAmount, setGrossAmount] = useState('');
+  const [deliveryFee, setDeliveryFee] = useState('');
+  const [description, setDescription] = useState('');
+  const [notes, setNotes] = useState('');
+  const [privateNote, setPrivateNote] = useState('');
+  const [periodStart, setPeriodStart] = useState(dayjs().format('YYYY-MM-DD'));
+  const [periodEnd, setPeriodEnd] = useState('');
+  const [selectedDays, setSelectedDays] = useState<number>(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedConfigId, setSelectedConfigId] = useState('');
+  
+  // Member Selection State
+  const [members, setMembers] = useState<Member[]>([]);
+  const [selectedMemberId, setSelectedMemberId] = useState('');
+  
+  // VAT State
+  const [hasVat, setHasVat] = useState(false);
+  const [vatPct, setVatPct] = useState('7');
+  const [isVatIncluded, setIsVatIncluded] = useState(true);
+
+  useEffect(() => {
+    fetchMembers();
+  }, []);
+
+  const fetchMembers = async () => {
+    const { data } = await supabase.from('erp_members').select('id, full_name, phone').order('full_name');
+    setMembers(data || []);
+  };
+
+  const gross = Number(grossAmount) || 0;
+  const delivery = Number(deliveryFee) || 0;
+  const net = gross - delivery;
+
+  const vatAmount = hasVat 
+    ? (isVatIncluded ? (gross * Number(vatPct) / (100 + Number(vatPct))) : (gross * Number(vatPct) / 100))
+    : 0;
+  
+  const activeConfig = configs.find(c => c.id === selectedConfigId) || configs.find(c => {
+    if (sourceType === 'PACKAGE') return c.promotion_type === 'PINTO' && c.is_default;
+    if (sourceType === 'MUSCLE_CUSTOM') return c.promotion_type === 'MUSCLE' && c.is_default;
+    return c.promotion_type === 'RETAIL' && c.is_default;
+  });
+
+  const materialPct = activeConfig?.material_pct ?? 35;
+  const laborPct = activeConfig?.labor_pct ?? 15;
+  const opsPct = activeConfig?.ops_pct ?? 20;
+  const profitPct = activeConfig?.profit_pct ?? 30;
+
+  const materialAmt = +(net * materialPct / 100).toFixed(2);
+  const laborAmt = +(net * laborPct / 100).toFixed(2);
+  const opsAmt = +(net * opsPct / 100).toFixed(2);
+  const profitAmt = +(net - materialAmt - laborAmt - opsAmt).toFixed(2);
+
+  const handleApplyPreset = (p: { price: number; label: string; days: number }) => {
+    setGrossAmount(p.price.toString());
+    setDescription(p.label);
+    setSelectedDays(p.days);
+    if (periodStart) {
+      setPeriodEnd(dayjs(periodStart).add(p.days - 1, 'day').format('YYYY-MM-DD'));
+    }
+  };
+
+  // Auto-update end date when start date changes if a preset was selected
+  useEffect(() => {
+    if (selectedDays > 0 && periodStart) {
+      setPeriodEnd(dayjs(periodStart).add(selectedDays - 1, 'day').format('YYYY-MM-DD'));
+    }
+  }, [periodStart, selectedDays]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (gross <= 0) return toast.error('กรุณาใส่จำนวนเงิน');
+    if (net <= 0) return toast.error('ยอดสุทธิต้องมากกว่า 0');
+    setIsSubmitting(true);
+    try {
+      const { data: bucket, error: bucketErr } = await supabase.from('erp_revenue_buckets').insert({
+        source_type: sourceType,
+        member_id: selectedMemberId || null,
+        gross_amount: gross,
+        delivery_fee: delivery,
+        net_amount: net,
+        split_config_id: activeConfig?.id,
+        material_pct: materialPct, labor_pct: laborPct, ops_pct: opsPct, profit_pct: profitPct,
+        material_amount: materialAmt, labor_amount: laborAmt, ops_amount: opsAmt, profit_amount: profitAmt,
+        description, private_note: privateNote,
+        period_start: periodStart || null, period_end: periodEnd || null,
+        notes: notes + (hasVat ? `\nVAT ${vatPct}%: ${vatAmount.toFixed(2)} (${isVatIncluded ? 'รวมในยอด' : 'แยกต่างหาก'})` : ''),
+      }).select().single();
+      if (bucketErr) throw bucketErr;
+
+      // Update Member LTV if linked
+      if (selectedMemberId) {
+        const member = members.find(m => m.id === selectedMemberId);
+        if (member) {
+          const { error: memberErr } = await supabase.rpc('increment_member_ltv', { 
+            p_member_id: selectedMemberId, 
+            p_amount: gross 
+          });
+          if (memberErr) console.error('LTV Update Error:', memberErr);
+        }
+      }
+
+      const splits: { pool_type: PoolType; amount: number }[] = [
+        { pool_type: 'MATERIAL', amount: materialAmt },
+        { pool_type: 'LABOR', amount: laborAmt },
+        { pool_type: 'OPS', amount: opsAmt },
+        { pool_type: 'PROFIT', amount: profitAmt },
+      ];
+      const { error: txErr } = await supabase.from('erp_fund_transactions').insert(
+        splits.map(s => ({ pool_type: s.pool_type, direction: 'IN', amount: s.amount, category: 'Auto Split', description: `จาก: ${description || sourceType}`, source_type: 'SPLIT', source_id: bucket.id }))
+      );
+      if (txErr) throw txErr;
+
+      for (const s of splits) {
+        await supabase.rpc('increment_fund_pool', { p_pool_type: s.pool_type, p_amount: s.amount });
+      }
+      toast.success('บันทึกรายรับและแยกเงินเรียบร้อย!');
+      setGrossAmount(''); setDeliveryFee(''); setDescription(''); setNotes(''); setPrivateNote(''); setSelectedMemberId('');
+      onSaved();
+    } catch (err: any) {
+      toast.error('เกิดข้อผิดพลาด: ' + err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // ── Theme helpers ──
+  const card = isDarkMode ? 'bg-slate-800/50 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm';
+  const inputBase = isDarkMode
+    ? 'bg-slate-900/60 border-slate-700 text-slate-200 placeholder-slate-600 focus:border-emerald-500'
+    : 'bg-slate-50 border-slate-200 text-slate-700 placeholder-slate-400 focus:border-emerald-500';
+  const heading = isDarkMode ? 'text-white' : 'text-slate-800';
+  const subtext = isDarkMode ? 'text-slate-400' : 'text-slate-500';
+  const mutedBg = isDarkMode ? 'bg-slate-900/40 border-slate-700/50 text-slate-500 hover:border-slate-600' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-400';
+  const selectStyle = isDarkMode
+    ? 'bg-slate-900/60 border-slate-700 text-slate-300 focus:border-emerald-500'
+    : 'bg-white border-slate-200 text-slate-700 focus:border-emerald-500';
+
+  const sourceTypes = [
+    { key: 'PACKAGE' as const, label: 'แพ็กเกจผูกปิ่นโต', icon: <Package size={16} /> },
+    { key: 'MUSCLE_CUSTOM' as const, label: 'เพิ่มกล้าม Custom', icon: <Dumbbell size={16} /> },
+    { key: 'ORDER' as const, label: 'ขายปลีกรายกล่อง', icon: <ShoppingBag size={16} /> },
+  ];
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+      {/* Form */}
+      <div className={`lg:col-span-3 rounded-2xl border p-6 transition-all ${card}`}>
+        <h3 className={`text-lg font-bold mb-5 flex items-center gap-2 ${heading}`}>
+          <TrendingUp size={20} className="text-emerald-500" /> บันทึกรายรับใหม่
+        </h3>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Member Selection */}
+          <div>
+             <label className={`block text-xs font-medium mb-1 ${subtext}`}>ระบุลูกค้า (เพื่อสะสม LTV)</label>
+             <div className="relative">
+                <select 
+                  value={selectedMemberId}
+                  onChange={e => setSelectedMemberId(e.target.value)}
+                  className={`w-full p-3 pl-10 border rounded-xl text-sm outline-none transition-all ${selectStyle}`}
+                >
+                  <option value="">-- ไม่ระบุลูกค้า (ขายปลีกทั่วไป) --</option>
+                  {members.map(m => (
+                    <option key={m.id} value={m.id}>
+                      {m.full_name} ({m.phone})
+                    </option>
+                  ))}
+                </select>
+                <Users className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+             </div>
+          </div>
+
+          {/* Source Type */}
+          <div className="grid grid-cols-2 gap-4">
+             <div>
+                <label className={`block text-xs font-medium mb-2 ${subtext}`}>ประเภทรายรับ</label>
+                <div className="grid grid-cols-1 gap-2">
+                  {sourceTypes.map(st => (
+                    <button
+                      key={st.key}
+                      type="button"
+                      onClick={() => setSourceType(st.key)}
+                      className={`flex items-center gap-2 p-3 rounded-xl text-sm font-medium border transition-all ${
+                        sourceType === st.key
+                          ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-600'
+                          : mutedBg
+                      }`}
+                    >
+                      {st.icon} {st.label}
+                    </button>
+                  ))}
+                </div>
+             </div>
+             <div>
+                <label className={`block text-xs font-medium mb-2 ${subtext}`}>เลือกสูตรแยกเงิน (Split Formula)</label>
+                <select 
+                  value={selectedConfigId}
+                  onChange={e => setSelectedConfigId(e.target.value)}
+                  className={`w-full p-3 border rounded-xl text-sm outline-none transition-all ${selectStyle}`}
+                >
+                  <option value="">-- ใช้ค่าเริ่มต้นตามประเภท --</option>
+                  {configs.map(c => (
+                    <option key={c.id} value={c.id}>
+                      {c.config_name} ({c.material_pct}/{c.labor_pct}/{c.ops_pct}/{c.profit_pct})
+                    </option>
+                  ))}
+                </select>
+                <div className="mt-2 p-3 rounded-lg bg-slate-100/50 border border-slate-200 text-[10px] text-slate-500">
+                   ใช้สูตร: <span className="font-bold text-emerald-600">{activeConfig?.config_name || 'System Default'}</span>
+                </div>
+             </div>
+          </div>
+
+          {/* Quick Presets */}
+          {(sourceType === 'PACKAGE' || sourceType === 'MUSCLE_CUSTOM') && (
+            <div>
+              <label className={`block text-xs font-medium mb-2 ${subtext}`}>เลือกแพ็กเกจด่วน (Presets)</label>
+              <div className="flex flex-wrap gap-2">
+                {(sourceType === 'PACKAGE' ? PINTO_PRESETS : MUSCLE_PRESETS).map(p => (
+                  <button
+                    key={p.label}
+                    type="button"
+                    onClick={() => handleApplyPreset(p)}
+                    className={`px-3 py-2 rounded-xl text-xs border transition-all bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 text-slate-600`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={`block text-xs font-medium mb-1 ${subtext}`}>ยอดรวมที่ลูกค้าจ่าย (฿)</label>
+              <input
+                type="number" min="0" step="0.01"
+                value={grossAmount}
+                onChange={e => setGrossAmount(e.target.value)}
+                placeholder="0.00"
+                className={`w-full p-3 border rounded-xl text-lg font-bold text-emerald-600 outline-none transition-all ${inputBase}`}
+                required
+              />
+            </div>
+            <div>
+              <label className={`block text-xs font-medium mb-1 ${subtext}`}>ค่าจัดส่ง (฿)</label>
+              <input
+                type="number" min="0" step="0.01"
+                value={deliveryFee}
+                onChange={e => setDeliveryFee(e.target.value)}
+                placeholder="0.00"
+                className={`w-full p-3 border rounded-xl text-lg font-bold text-purple-600 outline-none transition-all ${inputBase}`}
+              />
+            </div>
+          </div>
+
+          {/* VAT Toggle */}
+          <div className={`p-4 rounded-xl border ${card} flex items-center justify-between`}>
+             <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${hasVat ? 'bg-blue-500/10 text-blue-500' : 'bg-slate-100 text-slate-400'}`}>
+                  <Percent size={18} />
+                </div>
+                <div>
+                   <p className={`text-sm font-bold ${heading}`}>การคำนวณ VAT</p>
+                </div>
+             </div>
+             <div className="flex items-center gap-3">
+                {hasVat && (
+                  <div className="flex items-center gap-2 mr-4">
+                    <input 
+                      type="number" 
+                      value={vatPct} 
+                      onChange={e => setVatPct(e.target.value)}
+                      className="w-12 p-1 text-center text-xs border rounded-lg bg-slate-50"
+                    />
+                    <select 
+                      value={isVatIncluded ? 'IN' : 'EX'}
+                      onChange={e => setIsVatIncluded(e.target.value === 'IN')}
+                      className="text-[10px] p-1 border rounded-lg bg-slate-50"
+                    >
+                      <option value="IN">รวมแล้ว</option>
+                      <option value="EX">บวกเพิ่ม</option>
+                    </select>
+                  </div>
+                )}
+                <button 
+                  type="button"
+                  onClick={() => setHasVat(!hasVat)}
+                  className={`w-12 h-6 rounded-full transition-all relative ${hasVat ? 'bg-blue-500' : 'bg-slate-300'}`}
+                >
+                  <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${hasVat ? 'left-7' : 'left-1'}`} />
+                </button>
+             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={`block text-xs font-medium mb-1 ${subtext}`}>วันเริ่มต้น</label>
+              <input type="date" value={periodStart} onChange={e => setPeriodStart(e.target.value)}
+                className={`w-full p-3 border rounded-xl text-sm outline-none transition-all ${inputBase}`} />
+            </div>
+            <div>
+              <label className={`block text-xs font-medium mb-1 ${subtext}`}>วันสิ้นสุด</label>
+              <input type="date" value={periodEnd} onChange={e => setPeriodEnd(e.target.value)}
+                className={`w-full p-3 border rounded-xl text-sm outline-none transition-all ${inputBase}`} />
+            </div>
+          </div>
+
+          <div>
+            <label className={`block text-xs font-medium mb-1 ${subtext}`}>รายละเอียด</label>
+            <input type="text" value={description} onChange={e => setDescription(e.target.value)}
+              placeholder="เช่น แพ็กเกจ 14 วัน — คุณแพร"
+              className={`w-full p-3 border rounded-xl text-sm outline-none transition-all ${inputBase}`} />
+          </div>
+
+          <button type="submit" disabled={isSubmitting || gross <= 0}
+            className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-all disabled:opacity-40">
+            {isSubmitting ? 'กำลังบันทึก...' : '✅ บันทึกรายรับ'}
+          </button>
+        </form>
+      </div>
+
+      {/* Preview Section */}
+      <div className="lg:col-span-2 space-y-4">
+        {selectedMemberId && (
+           <div className={`p-4 rounded-2xl border transition-all ${card}`}>
+              <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                 <User size={12} /> ข้อมูลลูกค้า
+              </p>
+              {members.filter(m => m.id === selectedMemberId).map(m => (
+                 <div key={m.id}>
+                    <p className={`font-bold ${heading}`}>{m.full_name}</p>
+                    <p className="text-xs text-slate-500">{m.phone}</p>
+                 </div>
+              ))}
+           </div>
+        )}
+
+        <div className={`p-6 rounded-2xl border transition-all ${card}`}>
+           <h3 className={`text-sm font-bold mb-4 ${subtext}`}>🔄 Preview การแยกเงิน</h3>
+           {gross > 0 ? (
+              <div className="space-y-4">
+                 <div className="flex justify-between text-sm">
+                    <span className={subtext}>ยอดสุทธิ (Split)</span>
+                    <span className="text-cyan-600 font-bold">฿{net.toLocaleString()}</span>
+                 </div>
+                 <div className="space-y-2">
+                    {([
+                       { pt: 'MATERIAL' as PoolType, amt: materialAmt, pct: materialPct },
+                       { pt: 'LABOR' as PoolType, amt: laborAmt, pct: laborPct },
+                       { pt: 'OPS' as PoolType, amt: opsAmt, pct: opsPct },
+                       { pt: 'PROFIT' as PoolType, amt: profitAmt, pct: profitPct },
+                    ]).map(item => {
+                       const cfg = POOL_CONFIG[item.pt];
+                       return (
+                          <div key={item.pt} className="flex justify-between items-center text-xs">
+                             <span className="flex items-center gap-2 text-slate-500">
+                                {cfg.icon} {cfg.label}
+                             </span>
+                             <span className="font-bold" style={{ color: cfg.color }}>฿{item.amt.toLocaleString()}</span>
+                          </div>
+                       );
+                    })}
+                 </div>
+              </div>
+           ) : (
+              <p className="text-xs text-slate-400 text-center py-4">ใส่จำนวนเงินเพื่อดูพรีวิว</p>
+           )}
+        </div>
+      </div>
+    </div>
+  );
+};
