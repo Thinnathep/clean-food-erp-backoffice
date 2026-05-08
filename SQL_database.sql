@@ -63,6 +63,19 @@ CREATE TABLE public.erp_delivery_schedules (
   CONSTRAINT erp_delivery_schedules_pkey PRIMARY KEY (id),
   CONSTRAINT fk_schedule_member FOREIGN KEY (member_id) REFERENCES public.members(id)
 );
+CREATE TABLE public.erp_expense_categories (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  pool_type text NOT NULL,
+  icon text DEFAULT '📦'::text,
+  color text DEFAULT '#64748b'::text,
+  visibility text DEFAULT 'ALL'::text,
+  is_personal boolean DEFAULT false,
+  sort_order integer DEFAULT 0,
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT erp_expense_categories_pkey PRIMARY KEY (id)
+);
 CREATE TABLE public.erp_financial_transactions (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   type text NOT NULL,
@@ -92,6 +105,39 @@ CREATE TABLE public.erp_financial_transactions (
   CONSTRAINT fk_financial_supplier FOREIGN KEY (supplier_id) REFERENCES public.erp_suppliers(id),
   CONSTRAINT fk_financial_approved_by FOREIGN KEY (approved_by) REFERENCES public.erp_staff(id),
   CONSTRAINT fk_financial_order FOREIGN KEY (order_id) REFERENCES public.orders(order_id)
+);
+CREATE TABLE public.erp_fund_pools (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  pool_type text NOT NULL UNIQUE,
+  display_name text NOT NULL,
+  display_name_public text NOT NULL,
+  current_balance numeric DEFAULT 0,
+  total_in numeric DEFAULT 0,
+  total_out numeric DEFAULT 0,
+  target_amount numeric DEFAULT 0,
+  color_code text DEFAULT '#10b981'::text,
+  icon text DEFAULT '💰'::text,
+  visibility text DEFAULT 'ALL'::text,
+  sort_order integer DEFAULT 0,
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT erp_fund_pools_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.erp_fund_transactions (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  pool_type text NOT NULL,
+  direction text NOT NULL,
+  amount numeric NOT NULL,
+  category text,
+  description text,
+  private_note text,
+  source_type text DEFAULT 'MANUAL'::text,
+  source_id text,
+  receipt_url text,
+  is_personal boolean DEFAULT false,
+  created_by uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT erp_fund_transactions_pkey PRIMARY KEY (id),
+  CONSTRAINT erp_fund_transactions_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.erp_staff(id)
 );
 CREATE TABLE public.erp_inventory_adjustments (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -297,6 +343,54 @@ CREATE TABLE public.erp_recipes (
   CONSTRAINT erp_recipes_pkey PRIMARY KEY (id),
   CONSTRAINT fk_recipes_item FOREIGN KEY (item_id) REFERENCES public.erp_inventory_items(id),
   CONSTRAINT fk_recipes_menu_item FOREIGN KEY (menu_item_id) REFERENCES public.menu_items(id)
+);
+CREATE TABLE public.erp_revenue_buckets (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  source_type text NOT NULL,
+  source_id text,
+  member_id uuid,
+  payment_id uuid,
+  gross_amount numeric NOT NULL,
+  delivery_fee numeric DEFAULT 0,
+  net_amount numeric NOT NULL,
+  split_config_id uuid,
+  material_pct numeric DEFAULT 35,
+  labor_pct numeric DEFAULT 15,
+  ops_pct numeric DEFAULT 20,
+  profit_pct numeric DEFAULT 30,
+  material_amount numeric NOT NULL,
+  labor_amount numeric NOT NULL,
+  ops_amount numeric NOT NULL,
+  profit_amount numeric NOT NULL,
+  description text,
+  status text DEFAULT 'active'::text,
+  period_start date,
+  period_end date,
+  notes text,
+  private_note text,
+  created_by uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT erp_revenue_buckets_pkey PRIMARY KEY (id),
+  CONSTRAINT erp_revenue_buckets_member_id_fkey FOREIGN KEY (member_id) REFERENCES public.members(id),
+  CONSTRAINT erp_revenue_buckets_payment_id_fkey FOREIGN KEY (payment_id) REFERENCES public.payments(id),
+  CONSTRAINT erp_revenue_buckets_split_config_id_fkey FOREIGN KEY (split_config_id) REFERENCES public.erp_split_configs(id),
+  CONSTRAINT erp_revenue_buckets_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.erp_staff(id)
+);
+CREATE TABLE public.erp_split_configs (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  config_name text NOT NULL,
+  promotion_type text NOT NULL DEFAULT 'PINTO'::text,
+  material_pct numeric NOT NULL DEFAULT 35,
+  labor_pct numeric NOT NULL DEFAULT 15,
+  ops_pct numeric NOT NULL DEFAULT 20,
+  profit_pct numeric NOT NULL DEFAULT 30,
+  is_default boolean DEFAULT false,
+  is_active boolean DEFAULT true,
+  notes text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT erp_split_configs_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.erp_staff (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),

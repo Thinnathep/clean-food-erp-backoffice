@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react'; // Re-triggering index
+import React, { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../../config/supabase';
 import { useAuthStore } from '../../../store/authStore';
 import { POOL_CONFIG } from '../types';
@@ -11,14 +12,15 @@ import { SplitSimulator } from './SplitSimulator.tsx';
 import { FinanceCharts } from './FinanceCharts.tsx';
 import { LTVAnalysis } from './LTVAnalysis.tsx';
 import { FinanceSettings } from './FinanceSettings.tsx';
+import { PromotionBuilder } from './PromotionBuilder.tsx';
 import dayjs from 'dayjs';
 import { toast } from 'sonner';
 import {
-  Wallet, PiggyBank, Receipt, History, Calculator,
+  Wallet, PiggyBank, Receipt, History, Calculator, Rocket,
   TrendingUp, TrendingDown, RefreshCw, Sun, Moon, Package, AlertTriangle, Download, Users, Settings
 } from 'lucide-react';
 
-type TabKey = 'overview' | 'income' | 'expense' | 'history' | 'simulator' | 'customers' | 'settings';
+type TabKey = 'overview' | 'income' | 'expense' | 'history' | 'simulator' | 'promotions' | 'customers' | 'settings';
 
 export const FinanceDashboard: React.FC = () => {
   const { user } = useAuthStore();
@@ -87,6 +89,7 @@ export const FinanceDashboard: React.FC = () => {
     { key: 'income', label: 'บันทึกรายรับ', icon: <TrendingUp size={18} /> },
     { key: 'expense', label: 'บันทึกรายจ่าย', icon: <TrendingDown size={18} /> },
     { key: 'history', label: 'ประวัติ', icon: <History size={18} /> },
+    { key: 'promotions', label: 'สร้างโปรฯ', icon: <Rocket size={18} /> },
     { key: 'customers', label: 'ลูกค้า (LTV)', icon: <Users size={18} /> },
     { key: 'simulator', label: 'จำลอง Split', icon: <Calculator size={18} /> },
     { key: 'settings', label: 'ตั้งค่า', icon: <Settings size={18} /> },
@@ -190,187 +193,216 @@ export const FinanceDashboard: React.FC = () => {
           isDarkMode ? 'bg-slate-800/40 border-slate-700/50' : 'bg-slate-100 border-slate-200 shadow-inner'
         }`}>
           {tabs.map(tab => (
-            <button
+            <motion.button
               key={tab.key}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+              className={`relative flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
                 activeTab === tab.key
-                  ? isDarkMode 
-                    ? 'bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 text-emerald-400 border border-emerald-500/30'
-                    : 'bg-white text-emerald-600 border border-emerald-200 shadow-sm'
+                  ? 'text-emerald-600'
                   : isDarkMode
-                    ? 'text-slate-500 hover:text-slate-300 border border-transparent'
-                    : 'text-slate-500 hover:text-slate-800 border border-transparent'
+                    ? 'text-slate-500 hover:text-slate-300'
+                    : 'text-slate-500 hover:text-slate-800'
               }`}
             >
-              {tab.icon}
-              <span className="hidden md:inline">{tab.label}</span>
-            </button>
+              {activeTab === tab.key && (
+                <motion.div
+                  layoutId="activeTab"
+                  className={`absolute inset-0 rounded-lg shadow-sm ${
+                    isDarkMode 
+                      ? 'bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 border border-emerald-500/30' 
+                      : 'bg-white border border-emerald-200'
+                  }`}
+                  transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                />
+              )}
+              <span className="relative z-10 flex items-center gap-2">
+                {tab.icon}
+                <span className="hidden md:inline">{tab.label}</span>
+              </span>
+            </motion.button>
           ))}
         </div>
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
-        {activeTab === 'overview' && (
-          <>
-            {/* Fund Depletion Alerts */}
-            {visiblePools.filter(p => p.target_amount > 0 && p.current_balance < (p.target_amount * 0.2)).length > 0 && (
-              <div className={`p-4 rounded-2xl border animate-pulse transition-all bg-red-500/10 border-red-500/30 flex items-start gap-4`}>
-                <div className="p-2 rounded-xl bg-red-500 text-white">
-                  <AlertTriangle size={20} />
+      <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar overflow-x-hidden">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+          >
+            {activeTab === 'overview' && (
+              <>
+                {/* Fund Depletion Alerts */}
+                {visiblePools.filter(p => p.target_amount > 0 && p.current_balance < (p.target_amount * 0.2)).length > 0 && (
+                  <div className={`p-4 rounded-2xl border animate-pulse transition-all bg-red-500/10 border-red-500/30 flex items-start gap-4 mb-6`}>
+                    <div className="p-2 rounded-xl bg-red-500 text-white">
+                      <AlertTriangle size={20} />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-red-500">แจ้งเตือน: เงินในบางกองทุนต่ำกว่าเกณฑ์!</h4>
+                      <p className="text-xs text-red-400 mt-0.5">
+                        {visiblePools
+                          .filter(p => p.target_amount > 0 && p.current_balance < (p.target_amount * 0.2))
+                          .map(p => `${p.display_name} (เหลือ ฿${p.current_balance.toLocaleString()})`)
+                          .join(', ')}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Summary Cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                  <SummaryCard label="รายรับเดือนนี้" value={monthIncome} color="#22c55e" icon={<TrendingUp size={18} />} isDarkMode={isDarkMode} />
+                  <SummaryCard label="รายจ่ายเดือนนี้" value={monthExpense} color="#ef4444" icon={<TrendingDown size={18} />} isDarkMode={isDarkMode} />
+                  <SummaryCard label="กำไรสุทธิ" value={netProfit} color={netProfit >= 0 ? "#10b981" : "#f43f5e"} icon={<PiggyBank size={18} />} isDarkMode={isDarkMode} />
+                  <SummaryCard label="แพ็กเกจ Active" value={activePackages} color="#3b82f6" icon={<Package size={18} />} isDarkMode={isDarkMode} isCount />
+                  <SummaryCard label="ค่าจัดส่งรวม" value={monthDeliveryFees} color="#8b5cf6" icon={<Receipt size={18} />} isDarkMode={isDarkMode} />
+                  <SummaryCard label="ยอดคงเหลือรวม" value={totalBalance} color="#06b6d4" icon={<Wallet size={18} />} isDarkMode={isDarkMode} />
                 </div>
-                <div>
-                  <h4 className="text-sm font-bold text-red-500">แจ้งเตือน: เงินในบางกองทุนต่ำกว่าเกณฑ์!</h4>
-                  <p className="text-xs text-red-400 mt-0.5">
-                    {visiblePools
-                      .filter(p => p.target_amount > 0 && p.current_balance < (p.target_amount * 0.2))
-                      .map(p => `${p.display_name} (เหลือ ฿${p.current_balance.toLocaleString()})`)
-                      .join(', ')}
-                  </p>
+
+                {/* Charts Section */}
+                <FinanceCharts transactions={transactions} buckets={buckets} isDarkMode={isDarkMode} />
+
+                {/* Split Bar */}
+                <div className={`rounded-2xl border p-5 transition-all mt-6 ${
+                  isDarkMode ? 'bg-slate-800/50 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'
+                }`}>
+                  <h3 className={`text-sm font-medium mb-3 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>สัดส่วนการแยกเงิน (เดือนนี้)</h3>
+                  <div className="flex h-8 rounded-xl overflow-hidden gap-0.5 shadow-inner bg-slate-100 dark:bg-slate-900">
+                    {(['MATERIAL', 'LABOR', 'OPS', 'PROFIT'] as PoolType[]).map(pt => {
+                      const total = monthBuckets.reduce((s, b) => s + b.net_amount, 0);
+                      const poolAmount = monthBuckets.reduce((s, b) => {
+                        if (pt === 'MATERIAL') return s + b.material_amount;
+                        if (pt === 'LABOR') return s + b.labor_amount;
+                        if (pt === 'OPS') return s + b.ops_amount;
+                        return s + b.profit_amount;
+                      }, 0);
+                      const pct = total > 0 ? (poolAmount / total * 100) : (pt === 'MATERIAL' ? 35 : pt === 'LABOR' ? 15 : pt === 'OPS' ? 20 : 30);
+                      const cfg = POOL_CONFIG[pt];
+                      const showPool = isCEO || (pt !== 'LABOR' && pt !== 'PROFIT');
+                      if (!showPool) return null;
+                      return (
+                        <div
+                          key={pt}
+                          className="flex items-center justify-center text-xs font-bold text-white transition-all"
+                          style={{ width: `${pct}%`, backgroundColor: cfg.color, minWidth: 40 }}
+                          title={`${cfg.label}: ฿${poolAmount.toLocaleString()} (${pct.toFixed(0)}%)`}
+                        >
+                          {cfg.icon} {pct.toFixed(0)}%
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="flex gap-4 mt-3 flex-wrap">
+                    {(['MATERIAL', 'LABOR', 'OPS', 'PROFIT'] as PoolType[]).map(pt => {
+                      const cfg = POOL_CONFIG[pt];
+                      const showPool = isCEO || (pt !== 'LABOR' && pt !== 'PROFIT');
+                      if (!showPool) return null;
+                      return (
+                        <span key={pt} className="text-xs flex items-center gap-1.5 transition-colors"
+                          style={{ color: isDarkMode ? '#94a3b8' : '#475569' }}>
+                          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cfg.color }} />
+                          {isCEO ? cfg.label : cfg.labelPublic}
+                        </span>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+
+                {/* Fund Pool Cards */}
+                <div className="mt-6">
+                  <FundPoolCards pools={visiblePools} isCEO={isCEO} transactions={monthTx} isDarkMode={isDarkMode} />
+                </div>
+
+                {/* Recent Revenue Buckets */}
+                <div className={`rounded-2xl border p-5 transition-all mt-6 ${
+                  isDarkMode ? 'bg-slate-800/50 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'
+                }`}>
+                  <h3 className={`text-sm font-medium mb-4 flex items-center gap-2 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                    <Receipt size={16} /> รายรับล่าสุด
+                  </h3>
+                  {monthBuckets.length === 0 ? (
+                    <p className="text-slate-500 text-sm text-center py-8">ยังไม่มีรายรับในเดือนนี้</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {monthBuckets.slice(0, 10).map(b => (
+                        <div key={b.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+                          isDarkMode 
+                            ? 'bg-slate-900/40 border-slate-700/30 hover:border-emerald-500/30' 
+                            : 'bg-slate-50 border-slate-100 hover:border-emerald-300 hover:bg-white'
+                        }`}>
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+                              isDarkMode ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-emerald-50 border border-emerald-100 text-emerald-600'
+                            }`}>
+                              <TrendingUp size={18} />
+                            </div>
+                            <div>
+                              <p className={`text-sm font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>{b.description || b.source_type}</p>
+                              <p className="text-xs text-slate-500">{b.members?.full_name || '—'} · {dayjs(b.created_at).format('DD/MM/YY HH:mm')}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className={`text-sm font-bold ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>+฿{b.gross_amount.toLocaleString()}</p>
+                            {b.delivery_fee > 0 && (
+                              <p className="text-xs text-slate-500">ค่าส่ง ฿{b.delivery_fee.toLocaleString()}</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
             )}
 
-            {/* Summary Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              <SummaryCard label="รายรับเดือนนี้" value={monthIncome} color="#22c55e" icon={<TrendingUp size={18} />} isDarkMode={isDarkMode} />
-              <SummaryCard label="รายจ่ายเดือนนี้" value={monthExpense} color="#ef4444" icon={<TrendingDown size={18} />} isDarkMode={isDarkMode} />
-              <SummaryCard label="กำไรสุทธิ" value={netProfit} color={netProfit >= 0 ? "#10b981" : "#f43f5e"} icon={<PiggyBank size={18} />} isDarkMode={isDarkMode} />
-              <SummaryCard label="แพ็กเกจ Active" value={activePackages} color="#3b82f6" icon={<Package size={18} />} isDarkMode={isDarkMode} isCount />
-              <SummaryCard label="ค่าจัดส่งรวม" value={monthDeliveryFees} color="#8b5cf6" icon={<Receipt size={18} />} isDarkMode={isDarkMode} />
-              <SummaryCard label="ยอดคงเหลือรวม" value={totalBalance} color="#06b6d4" icon={<Wallet size={18} />} isDarkMode={isDarkMode} />
-            </div>
+            {activeTab === 'income' && (
+              <RevenueRecorder
+                configs={configs}
+                onSaved={fetchAll}
+                isDarkMode={isDarkMode}
+              />
+            )}
 
-            {/* Charts Section */}
-            <FinanceCharts transactions={transactions} buckets={buckets} isDarkMode={isDarkMode} />
+            {activeTab === 'expense' && (
+              <ExpenseRecorder
+                onSaved={fetchAll}
+                isDarkMode={isDarkMode}
+              />
+            )}
 
-            {/* Split Bar */}
-            <div className={`rounded-2xl border p-5 transition-all ${
-              isDarkMode ? 'bg-slate-800/50 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'
-            }`}>
-              <h3 className={`text-sm font-medium mb-3 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>สัดส่วนการแยกเงิน (เดือนนี้)</h3>
-              <div className="flex h-8 rounded-xl overflow-hidden gap-0.5 shadow-inner bg-slate-100 dark:bg-slate-900">
-                {(['MATERIAL', 'LABOR', 'OPS', 'PROFIT'] as PoolType[]).map(pt => {
-                  const total = monthBuckets.reduce((s, b) => s + b.net_amount, 0);
-                  const poolAmount = monthBuckets.reduce((s, b) => {
-                    if (pt === 'MATERIAL') return s + b.material_amount;
-                    if (pt === 'LABOR') return s + b.labor_amount;
-                    if (pt === 'OPS') return s + b.ops_amount;
-                    return s + b.profit_amount;
-                  }, 0);
-                  const pct = total > 0 ? (poolAmount / total * 100) : (pt === 'MATERIAL' ? 35 : pt === 'LABOR' ? 15 : pt === 'OPS' ? 20 : 30);
-                  const cfg = POOL_CONFIG[pt];
-                  const showPool = isCEO || (pt !== 'LABOR' && pt !== 'PROFIT');
-                  if (!showPool) return null;
-                  return (
-                    <div
-                      key={pt}
-                      className="flex items-center justify-center text-xs font-bold text-white transition-all"
-                      style={{ width: `${pct}%`, backgroundColor: cfg.color, minWidth: 40 }}
-                      title={`${cfg.label}: ฿${poolAmount.toLocaleString()} (${pct.toFixed(0)}%)`}
-                    >
-                      {cfg.icon} {pct.toFixed(0)}%
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="flex gap-4 mt-3 flex-wrap">
-                {(['MATERIAL', 'LABOR', 'OPS', 'PROFIT'] as PoolType[]).map(pt => {
-                  const cfg = POOL_CONFIG[pt];
-                  const showPool = isCEO || (pt !== 'LABOR' && pt !== 'PROFIT');
-                  if (!showPool) return null;
-                  return (
-                    <span key={pt} className="text-xs flex items-center gap-1.5 transition-colors"
-                      style={{ color: isDarkMode ? '#94a3b8' : '#475569' }}>
-                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cfg.color }} />
-                      {isCEO ? cfg.label : cfg.labelPublic}
-                    </span>
-                  );
-                })}
-              </div>
-            </div>
+            {activeTab === 'history' && (
+              <TransactionHistory
+                transactions={transactions}
+                isCEO={isCEO}
+                selectedMonth={selectedMonth}
+                isDarkMode={isDarkMode}
+              />
+            )}
 
-            {/* Fund Pool Cards */}
-            <FundPoolCards pools={visiblePools} isCEO={isCEO} transactions={monthTx} isDarkMode={isDarkMode} />
+            {activeTab === 'simulator' && (
+              <SplitSimulator configs={configs} isDarkMode={isDarkMode} />
+            )}
 
-            {/* Recent Revenue Buckets */}
-            <div className={`rounded-2xl border p-5 transition-all ${
-              isDarkMode ? 'bg-slate-800/50 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'
-            }`}>
-              <h3 className={`text-sm font-medium mb-4 flex items-center gap-2 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                <Receipt size={16} /> รายรับล่าสุด
-              </h3>
-              {monthBuckets.length === 0 ? (
-                <p className="text-slate-500 text-sm text-center py-8">ยังไม่มีรายรับในเดือนนี้</p>
-              ) : (
-                <div className="space-y-2">
-                  {monthBuckets.slice(0, 10).map(b => (
-                    <div key={b.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
-                      isDarkMode 
-                        ? 'bg-slate-900/40 border-slate-700/30 hover:border-emerald-500/30' 
-                        : 'bg-slate-50 border-slate-100 hover:border-emerald-300 hover:bg-white'
-                    }`}>
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
-                          isDarkMode ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-emerald-50 border border-emerald-100 text-emerald-600'
-                        }`}>
-                          <TrendingUp size={18} />
-                        </div>
-                        <div>
-                          <p className={`text-sm font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>{b.description || b.source_type}</p>
-                          <p className="text-xs text-slate-500">{b.members?.full_name || '—'} · {dayjs(b.created_at).format('DD/MM/YY HH:mm')}</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className={`text-sm font-bold ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>+฿{b.gross_amount.toLocaleString()}</p>
-                        {b.delivery_fee > 0 && (
-                          <p className="text-xs text-slate-500">ค่าส่ง ฿{b.delivery_fee.toLocaleString()}</p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </>
-        )}
+            {activeTab === 'promotions' && (
+              <PromotionBuilder isDarkMode={isDarkMode} />
+            )}
 
-        {activeTab === 'income' && (
-          <RevenueRecorder
-            configs={configs}
-            onSaved={fetchAll}
-            isDarkMode={isDarkMode}
-          />
-        )}
+            {activeTab === 'customers' && (
+              <LTVAnalysis isDarkMode={isDarkMode} />
+            )}
 
-        {activeTab === 'expense' && (
-          <ExpenseRecorder
-            onSaved={fetchAll}
-            isDarkMode={isDarkMode}
-          />
-        )}
-
-        {activeTab === 'history' && (
-          <TransactionHistory
-            transactions={transactions}
-            isCEO={isCEO}
-            selectedMonth={selectedMonth}
-            isDarkMode={isDarkMode}
-          />
-        )}
-
-        {activeTab === 'simulator' && (
-          <SplitSimulator configs={configs} isDarkMode={isDarkMode} />
-        )}
-
-        {activeTab === 'customers' && (
-          <LTVAnalysis isDarkMode={isDarkMode} />
-        )}
-
-        {activeTab === 'settings' && (
-          <FinanceSettings configs={configs} onRefresh={fetchAll} isDarkMode={isDarkMode} />
-        )}
+            {activeTab === 'settings' && (
+              <FinanceSettings configs={configs} onRefresh={fetchAll} isDarkMode={isDarkMode} />
+            )}
+          </motion.div>
+        </AnimatePresence>
       </div>
     </div>
   );

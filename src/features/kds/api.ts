@@ -6,7 +6,7 @@ import type { KdsTask, MenuItem, PintoPackage, GlobalPlanSlot, MemberMealSchedul
 export const fetchActiveKdsTasks = async (): Promise<KdsTask[]> => {
   const { data, error } = await supabase
     .from('orders')
-    .select('id, order_id, menu_name, created_at, kitchen_status, delivery_status')
+    .select('id, order_id, menu_name, created_at, kitchen_status, delivery_status, menu_item_id')
     .eq('kitchen_status', 'ยืนยันแล้ว')
     .neq('delivery_status', 'ส่งเรียบร้อย')
     .order('created_at', { ascending: true });
@@ -519,6 +519,27 @@ export const fetchMenuRecipes = async (menuItemId: string): Promise<RecipeItem[]
     storage_unit: (r as any).erp_inventory_items?.storage_unit,
     avg_unit_cost: (r as any).erp_inventory_items?.avg_unit_cost
   })) as RecipeItem[];
+};
+
+export const fetchBulkRecipes = async (menuItemIds: string[]): Promise<RecipeItem[]> => {
+    if (!menuItemIds.length) return [];
+    const { data, error } = await supabase
+      .from('erp_recipes')
+      .select(`
+        *,
+        erp_inventory_items (name, storage_unit, avg_unit_cost)
+      `)
+      .in('menu_item_id', menuItemIds)
+      .is('deleted_at', null);
+  
+    if (error) throw error;
+    
+    return (data || []).map(r => ({
+      ...r,
+      item_name: (r as any).erp_inventory_items?.name,
+      storage_unit: (r as any).erp_inventory_items?.storage_unit,
+      avg_unit_cost: (r as any).erp_inventory_items?.avg_unit_cost
+    })) as RecipeItem[];
 };
 
 export const fetchInventoryForRecipes = async (): Promise<InvItem[]> => {

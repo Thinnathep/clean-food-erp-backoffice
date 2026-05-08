@@ -7,6 +7,7 @@ export interface Order {
   created_at: string;
   kitchen_status: string;
   delivery_status: string;
+  menu_item_id?: string;
 }
 
 // --- Company Master Data ---

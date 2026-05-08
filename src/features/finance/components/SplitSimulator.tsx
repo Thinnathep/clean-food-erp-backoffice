@@ -176,7 +176,7 @@ export const SplitSimulator: React.FC<Props> = ({ isDarkMode = false }) => {
               <div className="bg-white/10 rounded-2xl p-4 border border-white/10">
                  <p className="text-indigo-100 text-xs mb-1">💡 งบโฆษณาที่แนะนำ</p>
                  <p className="font-bold text-lg">฿{marketingBudgetPerMeal} <span className="text-xs font-normal">/ มื้อ</span></p>
-                 <p className="text-[10px] opacity-70 mt-1">* คิดจาก 50% ของงบดำเนินการ (Ops)</p>
+                 <p className="text-[10px] opacity-70 mt-1">* คิดจาก 50% ของงบค่าบิล (Ops)</p>
               </div>
 
               <div className="bg-white/10 rounded-2xl p-4 border border-white/10">
@@ -273,7 +273,7 @@ export const SplitSimulator: React.FC<Props> = ({ isDarkMode = false }) => {
                 {([
                   { pt: 'MATERIAL' as PoolType, amt: materialAmt, pct: materialPct, tip: 'ต้นทุนอาหารและแพ็กเกจ' },
                   { pt: 'LABOR' as PoolType, amt: laborAmt, pct: laborPct, tip: 'ค่าแรงแม่บ้านและทีมงาน' },
-                  { pt: 'OPS' as PoolType, amt: opsAmt, pct: opsPct, tip: 'ค่าน้ำไฟ ค่าโฆษณา และจิปาถะ' },
+                  { pt: 'OPS' as PoolType, amt: opsAmt, pct: opsPct, tip: 'ค่าบิล ค่าน้ำไฟ ค่าโฆษณา และจิปาถะ' },
                   { pt: 'PROFIT' as PoolType, amt: profitAmt, pct: profitPct, tip: 'กำไรสุทธิหลังหักค่าใช้จ่าย' },
                 ]).map(item => {
                   const cfg = POOL_CONFIG[item.pt];

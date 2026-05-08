@@ -161,7 +161,7 @@ export const FinanceSettings: React.FC<Props> = ({ configs, onRefresh, isDarkMod
                        className={`w-full p-2.5 rounded-xl border text-sm outline-none focus:border-emerald-500 ${input}`} />
                  </div>
                  <div>
-                    <label className="block text-[10px] font-bold text-amber-500 mb-1">ดำเนินการ (%)</label>
+                    <label className="block text-[10px] font-bold text-amber-500 mb-1">ค่าบิล (%)</label>
                     <input type="number" value={formData.ops_pct} onChange={e => setFormData({...formData, ops_pct: Number(e.target.value)})}
                        className={`w-full p-2.5 rounded-xl border text-sm outline-none focus:border-emerald-500 ${input}`} />
                  </div>

@@ -5,7 +5,7 @@ import dayjs from 'dayjs';
 import 'dayjs/locale/th';
 import { useKdsStore } from '../../../store/kdsStore';
 import { useAuthStore } from '../../../store/authStore';
-import { closeKitchenSession, updateSchedulesKitchenStatus, updateOrdersKitchenStatus } from '../api';
+import { closeKitchenSession, updateSchedulesKitchenStatus, updateOrdersKitchenStatus, fetchBulkRecipes } from '../api';
 import { supabase } from '../../../config/supabase';
 import Swal from 'sweetalert2';
 import { toast } from 'sonner';
@@ -72,6 +72,9 @@ export const TodayView: React.FC = () => {
   const [summarySearchTerm, setSummarySearchTerm] = useState('');
   const [summaryCategoryFilter, setSummaryCategoryFilter] = useState('all');
   const [selectedSummaryMenu, setSelectedSummaryMenu] = useState<any>(null);
+  const [isPrepSummaryOpen, setIsPrepSummaryOpen] = useState(false);
+  const [isLoadingPrep, setIsLoadingPrep] = useState(false);
+  const [prepSummary, setPrepSummary] = useState<any[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(dayjs().format('YYYY-MM-DD'));
 
 
@@ -350,7 +353,7 @@ export const TodayView: React.FC = () => {
     if (viewMode !== 'week') return null;
 
     const days: Record<string, any> = {};
-    const menuTotals: Record<string, { qty: number; category: string; details: any[] }> = {};
+    const menuTotals: Record<string, { id: string; qty: number; category: string; details: any[] }> = {};
 
     const d = dayjs(selectedDate);
     const day = d.day();
@@ -394,7 +397,7 @@ export const TodayView: React.FC = () => {
           else if (category.includes('แกง')) category = 'แกง';
           else if (category.includes('ต้ม')) category = 'ต้ม';
           else if (category.includes('ชุดเซต') || category.includes('โปรโมชั่น')) category = 'ชุดเซต';
-          menuTotals[name] = { qty: 0, category, details: [] };
+          menuTotals[name] = { id: s.menu_items?.id || '', qty: 0, category, details: [] };
         }
         menuTotals[name].qty += s.quantity;
         menuTotals[name].details.push({
@@ -423,7 +426,7 @@ export const TodayView: React.FC = () => {
         tempDayMenus[taskDate][cleanName] = (tempDayMenus[taskDate][cleanName] || 0) + qty;
 
         if (!menuTotals[cleanName]) {
-            menuTotals[cleanName] = { qty: 0, category: 'รายย่อย', details: [] };
+            menuTotals[cleanName] = { id: t.menu_item_id || '', qty: 0, category: 'รายย่อย', details: [] };
         }
         menuTotals[cleanName].qty += qty;
         menuTotals[cleanName].details.push({
@@ -459,6 +462,52 @@ export const TodayView: React.FC = () => {
       menuTotals: filteredMenus
     };
   }, [memberSchedules, tasks, viewMode, selectedDate, summarySearchTerm, summaryCategoryFilter]);
+
+  const handleOpenPrepSummary = async () => {
+    if (!weeklySummary) return;
+    
+    setIsPrepSummaryOpen(true);
+    setIsLoadingPrep(true);
+    try {
+        const menuItemIds = weeklySummary.menuTotals
+            .map((m: any) => m.id)
+            .filter((id: string) => id && isUUID(id));
+            
+        const recipes = await fetchBulkRecipes(menuItemIds);
+        
+        // Aggregate by ingredient
+        const aggregates: Record<string, any> = {};
+        
+        weeklySummary.menuTotals.forEach((menu: any) => {
+            const menuRecipes = recipes.filter(r => r.menu_item_id === menu.id);
+            menuRecipes.forEach(recipe => {
+                const key = recipe.item_id;
+                if (!aggregates[key]) {
+                    aggregates[key] = {
+                        name: recipe.item_name || 'Unknown',
+                        unit: recipe.storage_unit || 'หน่วย',
+                        total: 0,
+                        menus: []
+                    };
+                }
+                const amount = recipe.quantity_required * menu.qty;
+                aggregates[key].total += amount;
+                aggregates[key].menus.push({
+                    name: menu.name,
+                    qty: menu.qty,
+                    recipeQty: recipe.quantity_required
+                });
+            });
+        });
+        
+        setPrepSummary(Object.values(aggregates).sort((a, b) => a.name.localeCompare(b.name, 'th')));
+    } catch (error) {
+        toast.error("ไม่สามารถโหลดข้อมูลเตรียมวัตถุดิบได้");
+        setIsPrepSummaryOpen(false);
+    } finally {
+        setIsLoadingPrep(false);
+    }
+  };
 
   const toggleComplete = async (_time: string, _memberId: string, item: any) => {
     const isCurrentlyDone = item.orders.every((o: any) => 
@@ -1029,6 +1078,14 @@ export const TodayView: React.FC = () => {
                             </div>
                             
                             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 max-w-2xl">
+                                <button 
+                                    onClick={handleOpenPrepSummary}
+                                    className="px-6 py-3 bg-indigo-600 text-white rounded-2xl text-sm font-black flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 transition-all active:scale-95 shrink-0"
+                                >
+                                    <Package size={18} />
+                                    <span>สรุปเตรียมวัตถุดิบ</span>
+                                </button>
+
                                 <div className="flex-1 relative group">
                                     <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-emerald-500 transition-colors">
                                         <Sparkles size={16} />
@@ -1405,6 +1462,121 @@ export const TodayView: React.FC = () => {
                             >
                                 ตกลง
                             </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+        </AnimatePresence>
+
+        {/* Prep Summary Modal */}
+        <AnimatePresence>
+            {isPrepSummaryOpen && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setIsPrepSummaryOpen(false)}
+                        className="absolute inset-0 bg-slate-900/60 backdrop-blur-xl"
+                    />
+                    <motion.div 
+                        initial={{ opacity: 0, scale: 0.95, y: 30 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 30 }}
+                        className="relative bg-white w-full max-w-4xl rounded-[40px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-white/20"
+                    >
+                        <div className="p-10 border-b border-slate-50 flex items-center justify-between bg-gradient-to-br from-indigo-50 to-white">
+                            <div className="flex items-center gap-6">
+                                <div className="w-16 h-16 rounded-[24px] bg-indigo-600 text-white flex items-center justify-center shadow-xl shadow-indigo-600/30">
+                                    <Package size={32} />
+                                </div>
+                                <div>
+                                    <h2 className="text-3xl font-black text-slate-900 leading-none">สรุปการเตรียมวัตถุดิบ</h2>
+                                    <p className="text-sm font-bold text-indigo-600 uppercase tracking-[0.2em] mt-3">รายการรวมทั้งสัปดาห์สำหรับจัดการสต็อก</p>
+                                </div>
+                            </div>
+                            <button 
+                                onClick={() => setIsPrepSummaryOpen(false)}
+                                className="w-12 h-12 rounded-2xl bg-white text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all flex items-center justify-center border border-slate-100 shadow-sm"
+                            >
+                                <X size={24} />
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-10 custom-scrollbar bg-slate-50/30">
+                            {isLoadingPrep ? (
+                                <div className="h-full flex flex-col items-center justify-center space-y-4 py-20">
+                                    <div className="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin" />
+                                    <p className="text-slate-400 font-bold animate-pulse">กำลังคำนวณปริมาณวัตถุดิบ...</p>
+                                </div>
+                            ) : prepSummary.length === 0 ? (
+                                <div className="h-full flex flex-col items-center justify-center space-y-6 py-20 text-center">
+                                    <div className="w-24 h-24 rounded-full bg-slate-100 flex items-center justify-center text-slate-300">
+                                        <AlertTriangle size={48} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-bold text-slate-600">ไม่พบข้อมูลสูตรอาหาร</h3>
+                                        <p className="text-slate-400 mt-2">กรุณาตั้งค่า Recipe ในเมนูที่เกี่ยวข้องก่อน</p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {prepSummary.map((item, idx) => (
+                                        <div key={idx} className="bg-white p-6 rounded-[28px] border border-slate-100 shadow-sm hover:shadow-md transition-all group">
+                                            <div className="flex items-start justify-between mb-4">
+                                                <div className="min-w-0">
+                                                    <h4 className="text-lg font-black text-slate-800 truncate">{item.name}</h4>
+                                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">ยอดรวมที่ต้องเตรียม</p>
+                                                </div>
+                                                <div className="px-4 py-2 bg-indigo-50 rounded-2xl text-indigo-700 text-xl font-black shadow-inner flex items-baseline gap-1">
+                                                    {item.total.toLocaleString()}
+                                                    <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400">{item.unit}</span>
+                                                </div>
+                                            </div>
+                                            <div className="space-y-2 pt-4 border-t border-slate-50">
+                                                {item.menus.map((m: any, midx: number) => (
+                                                    <div key={midx} className="flex items-center justify-between text-xs font-medium text-slate-500">
+                                                        <span className="truncate pr-4 flex items-center gap-2">
+                                                            <div className="w-1 h-1 rounded-full bg-slate-300" />
+                                                            {m.name}
+                                                        </span>
+                                                        <span className="shrink-0 font-bold text-slate-700">
+                                                            {m.qty} x {m.recipeQty} = {(m.qty * m.recipeQty).toLocaleString()}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-8 bg-white border-t border-slate-100 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                                    <CheckCircle2 size={20} />
+                                </div>
+                                <p className="text-xs font-bold text-slate-500 leading-tight">
+                                    คำนวณจากยอดผลิตทั้งหมดในสัปดาห์นี้<br/>
+                                    <span className="text-emerald-600">พร้อมสำหรับการจัดซื้อวัตถุดิบแล้ว</span>
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <button 
+                                    onClick={() => window.print()}
+                                    className="px-8 py-3 bg-slate-100 text-slate-600 rounded-2xl text-sm font-bold hover:bg-slate-200 transition-all flex items-center gap-2"
+                                >
+                                    <Printer size={18} />
+                                    พิมพ์รายการ
+                                </button>
+                                <button 
+                                    onClick={() => setIsPrepSummaryOpen(false)}
+                                    className="px-10 py-3 bg-slate-900 text-white rounded-2xl text-sm font-bold hover:bg-slate-800 transition-all shadow-lg active:scale-95"
+                                >
+                                    ปิด
+                                </button>
+                            </div>
                         </div>
                     </motion.div>
                 </div>

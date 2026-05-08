@@ -91,6 +91,6 @@ export type PoolType = 'MATERIAL' | 'LABOR' | 'OPS' | 'PROFIT';
 export const POOL_CONFIG: Record<PoolType, { label: string; labelPublic: string; color: string; bgColor: string; borderColor: string; icon: string }> = {
   MATERIAL: { label: 'ทุนวัตถุดิบ', labelPublic: 'ต้นทุนการผลิต', color: '#22c55e', bgColor: 'rgba(34,197,94,0.1)', borderColor: 'rgba(34,197,94,0.3)', icon: '🟢' },
   LABOR:    { label: 'ค่าแรง/สวัสดิการ', labelPublic: 'สวัสดิการทีม', color: '#3b82f6', bgColor: 'rgba(59,130,246,0.1)', borderColor: 'rgba(59,130,246,0.3)', icon: '🔵' },
-  OPS:      { label: 'ค่าดำเนินการ', labelPublic: 'ค่าดำเนินการ', color: '#eab308', bgColor: 'rgba(234,179,8,0.1)', borderColor: 'rgba(234,179,8,0.3)', icon: '🟡' },
+  OPS:      { label: 'ค่าบิล', labelPublic: 'ค่าบิล', color: '#eab308', bgColor: 'rgba(234,179,8,0.1)', borderColor: 'rgba(234,179,8,0.3)', icon: '🟡' },
   PROFIT:   { label: 'กำไรสุทธิ', labelPublic: 'สำรองธุรกิจ', color: '#ef4444', bgColor: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.3)', icon: '🔴' },
 };
