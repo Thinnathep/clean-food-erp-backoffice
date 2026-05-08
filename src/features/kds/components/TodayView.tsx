@@ -1,6 +1,6 @@
 import React, { useMemo, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChefHat, CheckCircle2, AlertTriangle, Package, UtensilsCrossed, ChevronLeft, ChevronRight, X, Printer, Sparkles } from 'lucide-react';
+import { ChefHat, CheckCircle2, AlertTriangle, Package, UtensilsCrossed, ChevronLeft, ChevronRight, ChevronDown, X, Printer, Sparkles } from 'lucide-react';
 import dayjs from 'dayjs';
 import 'dayjs/locale/th';
 import { useKdsStore } from '../../../store/kdsStore';
@@ -16,20 +16,15 @@ import type { MemberMealSchedule, KdsTask } from '../../../types';
 
 const CATEGORY_PRIORITY: Record<string, number> = {
   'ของหวาน': 1,
-  'ของหวาน/ว่าง': 1,
+  'ทานเล่น': 1.5,
   'สลัด': 2,
   'ซูวี': 3,
   'ซุป': 4,
-  'ซุป/แกง': 4,
-  'ซุป/ต้ม': 4,
   'ต้ม': 5,
   'แกง': 6,
-  'แกง/ต้ม': 6,
   'เส้น': 7,
-  'เมนูเส้น': 7,
   'ผัด': 8,
-  'ผัดแห้ง': 8,
-  'ชุดเซต/โปรโมชั่น': 9,
+  'ชุดเซต': 9,
   'แพ็กเกจ': 9,
   'เมนูหลัก': 10,
   'อื่นๆ': 99
@@ -37,20 +32,29 @@ const CATEGORY_PRIORITY: Record<string, number> = {
 
 const CATEGORY_COLORS: Record<string, string> = {
   'ของหวาน': '#E11D48', // rose-600
-  'ของหวาน/ว่าง': '#E11D48',
+  'ทานเล่น': '#8B5CF6', // violet-500
   'สลัด': '#10B981', // emerald-500
   'ซูวี': '#4F46E5', // indigo-600
   'ซุป': '#0D9488', // teal-600
-  'ซุป/แกง': '#0D9488',
-  'ซุป/ต้ม': '#0D9488',
   'ต้ม': '#0D9488',
   'แกง': '#0D9488',
-  'แกง/ต้ม': '#0D9488',
   'เส้น': '#D97706', // amber-600
-  'เมนูเส้น': '#D97706',
   'ผัด': '#EA580C', // orange-600
-  'ผัดแห้ง': '#EA580C',
-  'เมนูหลัก': '#475569' // slate-600
+  'ชุดเซต': '#475569', // slate-600
+  'เมนูหลัก': '#475569' 
+};
+
+const getCleanTimeLabel = (rawTime: string) => {
+  if (!rawTime) return 'ออเดอร์สั่งด่วน (Retail)';
+  const timeMatch = rawTime.match(/(\d{1,2})[:.](\d{2})/);
+  const hour = timeMatch ? parseInt(timeMatch[1]) : -1;
+  const isEvening = (hour >= 14 && hour <= 21) || rawTime.includes('เย็น') || rawTime.toLowerCase().includes('evening');
+  const isMorning = (hour >= 4 && hour <= 13) || rawTime.includes('เช้า') || rawTime.toLowerCase().includes('morning');
+  const cleanTime = rawTime.replace(/รอบเช้า|รอบเย็น|\(Morning\)|\(Evening\)/g, '').trim().replace(/^\(|\)$/g, '');
+
+  if (isEvening) return `รอบเย็น (${cleanTime})`;
+  if (isMorning) return `รอบเช้า (${cleanTime})`;
+  return rawTime;
 };
 
 export const TodayView: React.FC = () => {
@@ -63,12 +67,27 @@ export const TodayView: React.FC = () => {
   const [parent] = useAutoAnimate();
   
   const [filterType, setFilterType] = useState<'all' | 'member' | 'retail' | 'extra' | 'menu'>('all');
-
+  const [viewMode, setViewMode] = useState<'day' | 'week'>('day');
+  const [isSummaryMode, setIsSummaryMode] = useState(false);
+  const [summarySearchTerm, setSummarySearchTerm] = useState('');
+  const [summaryCategoryFilter, setSummaryCategoryFilter] = useState('all');
+  const [selectedSummaryMenu, setSelectedSummaryMenu] = useState<any>(null);
   const [selectedDate, setSelectedDate] = useState<string>(dayjs().format('YYYY-MM-DD'));
 
 
   useEffect(() => {
-    loadMemberPlanner(selectedDate, selectedDate);
+    let start = selectedDate;
+    let end = selectedDate;
+
+    if (viewMode === 'week') {
+      const d = dayjs(selectedDate);
+      const day = d.day();
+      const diffToMonday = (day === 0 ? -6 : 1 - day);
+      start = d.add(diffToMonday, 'day').format('YYYY-MM-DD');
+      end = d.add(diffToMonday + 6, 'day').format('YYYY-MM-DD');
+    }
+
+    loadMemberPlanner(start, end);
     fetchTasks();
 
     const schedulesChannel = supabase
@@ -76,7 +95,18 @@ export const TodayView: React.FC = () => {
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'erp_member_meal_schedules' },
-        () => { loadMemberPlanner(selectedDate, selectedDate); }
+        () => { 
+          if (viewMode === 'week') {
+            const d = dayjs(selectedDate);
+            const day = d.day();
+            const diffToMonday = (day === 0 ? -6 : 1 - day);
+            const s = d.add(diffToMonday, 'day').format('YYYY-MM-DD');
+            const e = d.add(diffToMonday + 6, 'day').format('YYYY-MM-DD');
+            loadMemberPlanner(s, e);
+          } else {
+            loadMemberPlanner(selectedDate, selectedDate); 
+          }
+        }
       )
       .on(
         'postgres_changes',
@@ -88,14 +118,23 @@ export const TodayView: React.FC = () => {
     return () => {
       supabase.removeChannel(schedulesChannel);
     };
-  }, [selectedDate]);
+  }, [selectedDate, viewMode]);
 
   const todayProduction = useMemo(() => {
     const todaySchedules = memberSchedules.filter(s => {
       const member = Array.isArray(s.members) ? s.members[0] : s.members;
       if (member?.is_banned) return false;
       
-      if (s.delivery_date !== selectedDate) return false;
+      if (viewMode === 'day') {
+        if (s.delivery_date !== selectedDate) return false;
+      } else {
+        const d = dayjs(selectedDate);
+        const day = d.day();
+        const diffToMonday = (day === 0 ? -6 : 1 - day);
+        const start = d.add(diffToMonday, 'day').format('YYYY-MM-DD');
+        const end = d.add(diffToMonday + 6, 'day').format('YYYY-MM-DD');
+        if (s.delivery_date < start || s.delivery_date > end) return false;
+      }
       
       // If filtering specifically for extras
       if (filterType === 'extra') return s.is_extra_order;
@@ -108,8 +147,18 @@ export const TodayView: React.FC = () => {
     });
 
     const todayTasks = tasks.filter(t => {
-      const isOnDate = dayjs(t.created_at).format('YYYY-MM-DD') === selectedDate;
-      if (!isOnDate) return false;
+      const taskDate = dayjs(t.created_at).format('YYYY-MM-DD');
+      
+      if (viewMode === 'day') {
+        if (taskDate !== selectedDate) return false;
+      } else {
+        const d = dayjs(selectedDate);
+        const day = d.day();
+        const diffToMonday = (day === 0 ? -6 : 1 - day);
+        const start = d.add(diffToMonday, 'day').format('YYYY-MM-DD');
+        const end = d.add(diffToMonday + 6, 'day').format('YYYY-MM-DD');
+        if (taskDate < start || taskDate > end) return false;
+      }
 
       // In 'extra' view, we only show schedules, not retail tasks
       if (filterType === 'extra') return false;
@@ -121,38 +170,34 @@ export const TodayView: React.FC = () => {
     const grouped: Record<string, any> = {};
     let specialNotes = 0;
 
-    const getCleanTimeLabel = (rawTime: string) => {
-      if (!rawTime) return 'ออเดอร์สั่งด่วน (Retail)';
-      const timeMatch = rawTime.match(/(\d{1,2})[:.](\d{2})/);
-      const hour = timeMatch ? parseInt(timeMatch[1]) : -1;
-      const isEvening = (hour >= 14 && hour <= 21) || rawTime.includes('เย็น') || rawTime.toLowerCase().includes('evening');
-      const isMorning = (hour >= 4 && hour <= 13) || rawTime.includes('เช้า') || rawTime.toLowerCase().includes('morning');
-      const cleanTime = rawTime.replace(/รอบเช้า|รอบเย็น|\(Morning\)|\(Evening\)/g, '').trim().replace(/^\(|\)$/g, '');
-
-      if (isEvening) return `รอบเย็น (${cleanTime})`;
-      if (isMorning) return `รอบเช้า (${cleanTime})`;
-      return rawTime;
-    };
-
     todaySchedules.forEach(schedule => {
       const memberData = Array.isArray(schedule.members) ? schedule.members[0] : schedule.members;
       const rawTime = (schedule.delivery_time || memberData?.delivery_time || '').trim();
-      const timeLabel = getCleanTimeLabel(rawTime);
+      let timeLabel = getCleanTimeLabel(rawTime);
+      
+      if (viewMode === 'week') {
+        const dateLabel = dayjs(schedule.delivery_date).locale('th').format('dddที่ DD');
+        timeLabel = `${dateLabel} - ${timeLabel}`;
+      }
+
       const memberName = memberData?.full_name || 'ไม่ระบุชื่อ';
       const menuName = schedule.menu_items?.name || 'ไม่ทราบชื่อเมนู';
       const groupKey = filterType === 'menu' ? menuName : memberName;
       
       let category = schedule.menu_items?.category || 'อื่นๆ';
-      // ... (category simplification logic)
       if (category.includes('ของหวาน')) category = 'ของหวาน';
+      else if (category.includes('ทานเล่น')) category = 'ทานเล่น';
       else if (category.includes('เส้น')) category = 'เส้น';
       else if (category.includes('ผัด')) category = 'ผัด';
       else if (category.includes('สลัด')) category = 'สลัด';
       else if (category.includes('ซูวี')) category = 'ซูวี';
-      else if (category.includes('ซุป') || category.includes('ต้ม') || category.includes('แกง')) category = 'ซุป/แกง';
+      else if (category.includes('ซุป')) category = 'ซุป';
+      else if (category.includes('แกง')) category = 'แกง';
+      else if (category.includes('ต้ม')) category = 'ต้ม';
+      else if (category.includes('ชุดเซต') || category.includes('โปรโมชั่น')) category = 'ชุดเซต';
 
       if (!grouped[timeLabel]) {
-        grouped[timeLabel] = { totalRoundQty: 0, members: {}, categoryStats: {} };
+        grouped[timeLabel] = { totalRoundQty: 0, members: {}, categoryStats: {}, sortKey: schedule.delivery_date + (rawTime || '99:99') };
       }
 
       if (!grouped[timeLabel].members[groupKey]) {
@@ -242,8 +287,12 @@ export const TodayView: React.FC = () => {
       const menuId = matchedMenu?.id || `retail_${task.id}`;
       const category = matchedMenu?.category || 'รายย่อย';
 
-      if (!grouped[timeLabel]) {
-        grouped[timeLabel] = { totalRoundQty: 0, members: {}, categoryStats: {} };
+      const targetLabel = viewMode === 'week' 
+        ? `${dayjs(task.created_at).locale('th').format('dddที่ DD')} - ${timeLabel}` 
+        : timeLabel;
+
+      if (!grouped[targetLabel]) {
+        grouped[targetLabel] = { totalRoundQty: 0, members: {}, categoryStats: {}, sortKey: dayjs(task.created_at).format('YYYY-MM-DD') + '99:99' };
       }
 
       const qtyMatch = menuNameRaw.match(/\(x(\d+)\)/);
@@ -251,8 +300,8 @@ export const TodayView: React.FC = () => {
       const groupKey = filterType === 'menu' ? (matchedMenu?.name || menuNameRaw) : memberName;
 
 
-      if (!grouped[timeLabel].members[groupKey]) {
-        grouped[timeLabel].members[groupKey] = {
+      if (!grouped[targetLabel].members[groupKey]) {
+        grouped[targetLabel].members[groupKey] = {
           memberName: groupKey,
           totalQty: 0,
           hasNotes: false,
@@ -261,8 +310,8 @@ export const TodayView: React.FC = () => {
         };
       }
 
-      grouped[timeLabel].totalRoundQty += qty;
-      grouped[timeLabel].members[groupKey].totalQty += qty;
+      grouped[targetLabel].totalRoundQty += qty;
+      grouped[targetLabel].members[groupKey].totalQty += qty;
 
 
       const kcal = Math.max(0, matchedMenu?.calories || 0);
@@ -270,12 +319,12 @@ export const TodayView: React.FC = () => {
       const carbs = Math.max(0, matchedMenu?.carbs || 0);
       const fat = Math.max(0, matchedMenu?.fat || 0);
 
-      grouped[timeLabel].members[groupKey].totalKcal += (kcal * qty);
-      grouped[timeLabel].members[groupKey].totalP += (protein * qty);
-      grouped[timeLabel].members[groupKey].totalC += (carbs * qty);
-      grouped[timeLabel].members[groupKey].totalF += (fat * qty);
+      grouped[targetLabel].members[groupKey].totalKcal += (kcal * qty);
+      grouped[targetLabel].members[groupKey].totalP += (protein * qty);
+      grouped[targetLabel].members[groupKey].totalC += (carbs * qty);
+      grouped[targetLabel].members[groupKey].totalF += (fat * qty);
 
-      grouped[timeLabel].members[groupKey].orders.push({
+      grouped[targetLabel].members[groupKey].orders.push({
         id: task.id,
         menuId,
         menuName: filterType === 'menu' ? memberName : (matchedMenu?.name || menuNameRaw),
@@ -291,11 +340,125 @@ export const TodayView: React.FC = () => {
         macros: `P:${protein} C:${carbs} F:${fat}`
       });
 
-      grouped[timeLabel].categoryStats[category] = (grouped[timeLabel].categoryStats[category] || 0) + qty;
+      grouped[targetLabel].categoryStats[category] = (grouped[targetLabel].categoryStats[category] || 0) + qty;
     });
 
     return { groups: grouped, specialNotesCount: specialNotes };
-  }, [memberSchedules, tasks, menus, selectedDate, filterType]);
+  }, [memberSchedules, tasks, menus, selectedDate, filterType, viewMode]);
+
+  const weeklySummary = useMemo(() => {
+    if (viewMode !== 'week') return null;
+
+    const days: Record<string, any> = {};
+    const menuTotals: Record<string, { qty: number; category: string; details: any[] }> = {};
+
+    const d = dayjs(selectedDate);
+    const day = d.day();
+    const diffToMonday = (day === 0 ? -6 : 1 - day);
+    
+    for (let i = 0; i < 7; i++) {
+      const date = d.add(diffToMonday + i, 'day').format('YYYY-MM-DD');
+      days[date] = { 
+        date, 
+        total: 0, 
+        rounds: {} as Record<string, number>,
+        topMenus: [] as { name: string; qty: number }[]
+      };
+    }
+
+    const tempDayMenus: Record<string, Record<string, number>> = {};
+    for (const date of Object.keys(days)) tempDayMenus[date] = {};
+
+    // Process Member Schedules
+    memberSchedules.forEach(s => {
+      const memberData = Array.isArray(s.members) ? s.members[0] : s.members;
+      
+      if (days[s.delivery_date]) {
+        days[s.delivery_date].total += s.quantity;
+        const rawTime = (s.delivery_time || memberData?.delivery_time || '').trim();
+        const round = getCleanTimeLabel(rawTime);
+        days[s.delivery_date].rounds[round] = (days[s.delivery_date].rounds[round] || 0) + s.quantity;
+        
+        const name = s.menu_items?.name || 'Unknown';
+        tempDayMenus[s.delivery_date][name] = (tempDayMenus[s.delivery_date][name] || 0) + s.quantity;
+        
+        if (!menuTotals[name]) {
+          let category = s.menu_items?.category || 'อื่นๆ';
+          if (category.includes('ของหวาน')) category = 'ของหวาน';
+          else if (category.includes('ทานเล่น')) category = 'ทานเล่น';
+          else if (category.includes('เส้น')) category = 'เส้น';
+          else if (category.includes('ผัด')) category = 'ผัด';
+          else if (category.includes('สลัด')) category = 'สลัด';
+          else if (category.includes('ซูวี')) category = 'ซูวี';
+          else if (category.includes('ซุป')) category = 'ซุป';
+          else if (category.includes('แกง')) category = 'แกง';
+          else if (category.includes('ต้ม')) category = 'ต้ม';
+          else if (category.includes('ชุดเซต') || category.includes('โปรโมชั่น')) category = 'ชุดเซต';
+          menuTotals[name] = { qty: 0, category, details: [] };
+        }
+        menuTotals[name].qty += s.quantity;
+        menuTotals[name].details.push({
+            id: s.id,
+            date: s.delivery_date,
+            time: round,
+            memberName: memberData?.full_name || 'ไม่ระบุชื่อ',
+            qty: s.quantity,
+            notes: s.notes
+        });
+      }
+    });
+
+    // Process Retail Tasks
+    tasks.forEach(t => {
+      const taskDate = dayjs(t.created_at).format('YYYY-MM-DD');
+      if (days[taskDate]) {
+        const qtyMatch = (t.menu_name || '').match(/\(x(\d+)\)/);
+        const qty = qtyMatch ? parseInt(qtyMatch[1]) : 1;
+        
+        days[taskDate].total += qty;
+        const round = 'รายย่อย';
+        days[taskDate].rounds[round] = (days[taskDate].rounds[round] || 0) + qty;
+        
+        const cleanName = (t.menu_name || '').replace(/\(x\d+\)/g, '').trim();
+        tempDayMenus[taskDate][cleanName] = (tempDayMenus[taskDate][cleanName] || 0) + qty;
+
+        if (!menuTotals[cleanName]) {
+            menuTotals[cleanName] = { qty: 0, category: 'รายย่อย', details: [] };
+        }
+        menuTotals[cleanName].qty += qty;
+        menuTotals[cleanName].details.push({
+            id: t.id,
+            date: taskDate,
+            time: 'รายย่อย',
+            memberName: 'ลูกค้ารายย่อย',
+            qty: qty,
+            notes: ''
+        });
+      }
+    });
+
+    // Populate top menus for each day
+    Object.keys(days).forEach(date => {
+      days[date].topMenus = Object.entries(tempDayMenus[date])
+        .map(([name, qty]) => ({ name, qty }))
+        .sort((a, b) => b.qty - a.qty)
+        .slice(0, 3);
+    });
+
+    const filteredMenus = Object.entries(menuTotals)
+        .map(([name, data]) => ({ name, ...data }))
+        .filter(m => {
+            const matchesSearch = m.name.toLowerCase().includes(summarySearchTerm.toLowerCase());
+            const matchesCategory = summaryCategoryFilter === 'all' || m.category === summaryCategoryFilter;
+            return matchesSearch && matchesCategory;
+        })
+        .sort((a, b) => b.qty - a.qty);
+
+    return {
+      days: Object.values(days),
+      menuTotals: filteredMenus
+    };
+  }, [memberSchedules, tasks, viewMode, selectedDate, summarySearchTerm, summaryCategoryFilter]);
 
   const toggleComplete = async (_time: string, _memberId: string, item: any) => {
     const isCurrentlyDone = item.orders.every((o: any) => 
@@ -515,10 +678,22 @@ export const TodayView: React.FC = () => {
   }, [todayProduction, totalBoxes]);
 
   const changeDate = (days: number) => {
-    setSelectedDate(prev => dayjs(prev).add(days, 'day').format('YYYY-MM-DD'));
+    if (viewMode === 'week') {
+      setSelectedDate(prev => dayjs(prev).add(days * 7, 'day').format('YYYY-MM-DD'));
+    } else {
+      setSelectedDate(prev => dayjs(prev).add(days, 'day').format('YYYY-MM-DD'));
+    }
   };
 
   const getDateLabel = () => {
+    if (viewMode === 'week') {
+        const d = dayjs(selectedDate);
+        const day = d.day();
+        const diffToMonday = (day === 0 ? -6 : 1 - day);
+        const start = d.add(diffToMonday, 'day');
+        const end = start.add(6, 'day');
+        return `สัปดาห์นี้ (${start.format('D MMM')} - ${end.format('D MMM')})`;
+    }
     const diff = dayjs(selectedDate).diff(dayjs().startOf('day'), 'day');
     if (diff === 0) return 'วันนี้';
     if (diff === 1) return 'พรุ่งนี้';
@@ -657,12 +832,61 @@ export const TodayView: React.FC = () => {
             </div>
             <div>
               <h2 className="text-3xl font-bold text-slate-900 tracking-tight whitespace-nowrap">แผนงานเตรียมอาหาร</h2>
-              <p className="text-slate-500 text-xs font-semibold">รายการผลิตประจำวันที่ • {dayjs(selectedDate).locale('th').format('ddddที่ DD MMM YYYY')}</p>
+              <p className="text-slate-500 text-xs font-semibold">
+                {viewMode === 'day' ? 'รายการผลิตประจำวันที่' : (isSummaryMode ? 'สรุปภาพรวมสัปดาห์' : 'รายการผลิตประจำสัปดาห์')} • {dayjs(selectedDate).locale('th').format('ddddที่ DD MMM YYYY')}
+              </p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
             <div className="bg-white border border-slate-100 rounded-2xl p-1 flex gap-1 shadow-sm mr-2">
+                <button 
+                  onClick={() => setViewMode('day')}
+                  className={cn(
+                    "px-4 py-2 rounded-xl text-[11px] font-bold transition-all",
+                    viewMode === 'day' ? "bg-slate-900 text-white shadow-md shadow-slate-900/20" : "text-slate-400 hover:text-slate-600"
+                  )}
+                >
+                  รายวัน
+                </button>
+                <button 
+                  onClick={() => {
+                    setViewMode('week');
+                    setIsSummaryMode(true);
+                  }}
+                  className={cn(
+                    "px-4 py-2 rounded-xl text-[11px] font-bold transition-all",
+                    viewMode === 'week' ? "bg-slate-900 text-white shadow-md shadow-slate-900/20" : "text-slate-400 hover:text-slate-600"
+                  )}
+                >
+                  สัปดาห์
+                </button>
+            </div>
+
+            {viewMode === 'week' && (
+              <div className="bg-white border border-slate-100 rounded-2xl p-1 flex gap-1 shadow-sm">
+                <button 
+                  onClick={() => setIsSummaryMode(true)}
+                  className={cn(
+                    "px-4 py-2 rounded-xl text-[11px] font-bold transition-all",
+                    isSummaryMode ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/20" : "text-slate-400 hover:text-slate-600"
+                  )}
+                >
+                  ภาพรวม
+                </button>
+                <button 
+                  onClick={() => setIsSummaryMode(false)}
+                  className={cn(
+                    "px-4 py-2 rounded-xl text-[11px] font-bold transition-all",
+                    !isSummaryMode ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/20" : "text-slate-400 hover:text-slate-600"
+                  )}
+                >
+                  รายการละเอียด
+                </button>
+              </div>
+            )}
+
+            <div className="bg-white border border-slate-100 rounded-2xl p-1.5 flex items-center shadow-sm">
                 <button 
                   onClick={() => setFilterType('menu')} 
                   className={cn(
@@ -703,7 +927,15 @@ export const TodayView: React.FC = () => {
                 {filterType !== 'all' && <button onClick={() => setFilterType('all')} className="px-2 text-slate-300 hover:text-slate-500"><X size={14} /></button>}
             </div>
 
-            <button onClick={() => setSelectedDate(dayjs().format('YYYY-MM-DD'))} className="px-6 py-3 bg-white border border-slate-100 rounded-2xl text-xs font-bold text-indigo-500 hover:text-indigo-600 hover:bg-slate-50 transition-all shadow-sm flex items-center justify-center active:scale-95">วันนี้</button>
+            <button 
+              onClick={() => {
+                setSelectedDate(dayjs().format('YYYY-MM-DD'));
+                setViewMode('day');
+              }} 
+              className="px-6 py-3 bg-white border border-slate-100 rounded-2xl text-xs font-bold text-indigo-500 hover:text-indigo-600 hover:bg-slate-50 transition-all shadow-sm flex items-center justify-center active:scale-95"
+            >
+              วันนี้
+            </button>
             <div className="bg-white border border-slate-100 rounded-2xl p-1.5 flex items-center shadow-sm">
                 <button onClick={() => changeDate(-1)} className="p-2.5 hover:bg-slate-50 text-slate-400 hover:text-slate-900 rounded-xl transition-all"><ChevronLeft size={18} /></button>
                 <div className="px-6 text-center min-w-[140px]">
@@ -755,17 +987,176 @@ export const TodayView: React.FC = () => {
         </div>
 
         <div className="space-y-16">
-            {Object.keys(todayProduction.groups).length === 0 ? (
+            {viewMode === 'week' && isSummaryMode && weeklySummary && (
+                <div className="space-y-12">
+                    {/* Daily Overview Cards */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+                        {weeklySummary.days.map((day: any, idx: number) => (
+                            <motion.div 
+                            key={day.date}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: idx * 0.05 }}
+                            className="bg-white p-5 rounded-[24px] border border-slate-100 shadow-sm flex flex-col items-center text-center gap-3 hover:shadow-lg transition-all group"
+                            >
+                                <div className="flex flex-col items-center">
+                                    <span className="text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">{dayjs(day.date).locale('th').format('dddd')}</span>
+                                    <span className="text-base font-black text-slate-900">{dayjs(day.date).locale('th').format('D MMM')}</span>
+                                </div>
+                                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center border-2 border-dashed border-slate-100 group-hover:border-emerald-500 group-hover:bg-emerald-50 transition-all">
+                                    <span className="text-3xl font-black text-slate-900 group-hover:text-emerald-600">{day.total}</span>
+                                </div>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest -mt-1">กล่องรวม</p>
+                                
+                                <div className="w-full space-y-1 mt-2">
+                                    {Object.entries(day.rounds).map(([round, qty]: [any, any]) => (
+                                    <div key={round} className="flex justify-between items-center bg-slate-50 px-2.5 py-1.5 rounded-lg">
+                                        <span className="text-[11px] font-bold text-slate-500 truncate mr-2">{round}</span>
+                                        <span className="text-xs font-black text-slate-900">{qty}</span>
+                                    </div>
+                                    ))}
+                                </div>
+                            </motion.div>
+                        ))}
+                    </div>
+
+                    {/* Weekly Menu Totals */}
+                    <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden">
+                        <div className="p-8 border-b border-slate-50 flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+                            <div className="shrink-0">
+                                <h3 className="text-xl font-bold text-slate-900 tracking-tight">สรุปยอดเตรียมอาหารทั้งสัปดาห์</h3>
+                                <p className="text-slate-500 text-xs font-semibold mt-1">รายการเมนูทั้งหมดที่ต้องผลิตในสัปดาห์นี้</p>
+                            </div>
+                            
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 max-w-2xl">
+                                <div className="flex-1 relative group">
+                                    <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-emerald-500 transition-colors">
+                                        <Sparkles size={16} />
+                                    </div>
+                                    <input 
+                                        type="text"
+                                        placeholder="ค้นหาชื่อเมนู..."
+                                        value={summarySearchTerm}
+                                        onChange={(e) => setSummarySearchTerm(e.target.value)}
+                                        className="w-full pl-11 pr-4 py-3 bg-slate-50 border-none rounded-2xl text-sm font-semibold placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-all shadow-inner"
+                                    />
+                                    {summarySearchTerm && (
+                                        <button 
+                                            onClick={() => setSummarySearchTerm('')}
+                                            className="absolute inset-y-0 right-4 flex items-center text-slate-300 hover:text-slate-500 transition-colors"
+                                        >
+                                            <X size={16} />
+                                        </button>
+                                    )}
+                                </div>
+
+                                <div className="relative min-w-[180px]">
+                                    <select 
+                                        value={summaryCategoryFilter}
+                                        onChange={(e) => setSummaryCategoryFilter(e.target.value)}
+                                        className="w-full pl-4 pr-10 py-3 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-all shadow-inner appearance-none cursor-pointer"
+                                    >
+                                        <option value="all">ทุกหมวดหมู่</option>
+                                        {Array.from(new Set(Object.keys(CATEGORY_PRIORITY)))
+                                            .sort((a, b) => (CATEGORY_PRIORITY[a] || 99) - (CATEGORY_PRIORITY[b] || 99))
+                                            .map(cat => (
+                                                <option key={cat} value={cat}>{cat}</option>
+                                            ))
+                                        }
+                                    </select>
+                                    <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-slate-400">
+                                        <ChevronDown size={16} />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-3 bg-emerald-50 text-emerald-600 px-5 py-3 rounded-2xl border border-emerald-100 shadow-sm shrink-0">
+                                <UtensilsCrossed size={18} />
+                                <span className="text-sm font-black">{weeklySummary.menuTotals.length} รายการ</span>
+                            </div>
+                        </div>
+                        
+                        <div className="divide-y divide-slate-100">
+                            {Object.entries(
+                                weeklySummary.menuTotals.reduce((acc: any, menu: any) => {
+                                    const cat = menu.category || 'อื่นๆ';
+                                    if (!acc[cat]) acc[cat] = [];
+                                    acc[cat].push(menu);
+                                    return acc;
+                                }, {} as Record<string, any[]>)
+                            )
+                            .sort(([catA], [catB]) => (CATEGORY_PRIORITY[catA] || 99) - (CATEGORY_PRIORITY[catB] || 99))
+                            .map(([category, items]: [string, any]) => (
+                                <div key={category} className="p-4 md:p-6">
+                                    <div className="flex items-center gap-2 mb-4">
+                                        <div className="w-1.5 h-5 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[category] || '#cbd5e1' }} />
+                                        <h4 className="text-[13px] font-bold text-slate-600 uppercase tracking-widest">{category}</h4>
+                                        <span className="text-[11px] font-bold text-slate-300">({items.length})</span>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-2">
+                                        {items.map((menu: any, idx: number) => {
+                                            const activeDays = Array.from(new Set(menu.details.map((d: any) => dayjs(d.date).day())));
+                                            const dayLabels = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
+                                            
+                                            return (
+                                                <div 
+                                                    key={idx} 
+                                                    onClick={() => setSelectedSummaryMenu(menu)}
+                                                    className="p-2.5 bg-slate-50/50 rounded-xl hover:bg-white hover:shadow-md transition-all border border-transparent hover:border-emerald-100 flex items-center justify-between gap-2 group cursor-pointer active:scale-95"
+                                                >
+                                                    <div className="flex items-center gap-2 min-w-0">
+                                                        <div 
+                                                            className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" 
+                                                            style={{ 
+                                                                backgroundColor: `${CATEGORY_COLORS[category] || '#f1f5f9'}20`, 
+                                                                color: CATEGORY_COLORS[category] || '#64748b' 
+                                                            }}
+                                                        >
+                                                            <ChefHat size={14} />
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <p className="text-[15px] font-bold text-slate-800 truncate leading-none mb-1.5">{menu.name}</p>
+                                                            <div className="flex gap-1">
+                                                                {activeDays.sort((a: any, b: any) => (a === 0 ? 7 : a) - (b === 0 ? 7 : b)).map((d: any) => (
+                                                                    <span key={d} className="text-[9px] font-black px-1 rounded bg-emerald-50 text-emerald-600 border border-emerald-100/50">
+                                                                        {dayLabels[d]}
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="bg-slate-900 text-white px-2.5 py-1.5 rounded-lg shrink-0 min-w-[36px] text-center shadow-sm group-hover:bg-emerald-600 transition-colors">
+                                                        <span className="text-sm font-black leading-none">{menu.qty}</span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {(!isSummaryMode || viewMode === 'day') && (
+                <>
+                {Object.keys(todayProduction.groups).length === 0 ? (
                 <div className="bg-white rounded-3xl p-20 text-center border border-dashed border-slate-200 shadow-sm flex flex-col items-center"><ChefHat size={60} className="text-slate-100 mb-6" /><h3 className="text-xl font-bold text-slate-900 mb-2 italic">ไม่มีรายการผลิตในวันที่เลือก</h3><p className="text-slate-400 max-w-sm font-semibold">ระบบไม่พบแผนการจัดส่งในวันที่ {dayjs(selectedDate).locale('th').format('DD MMMM YYYY')}</p></div>
             ) : (
                 Object.entries(todayProduction.groups)
-                .sort(([a], [b]) => {
+                .sort((a, b) => {
+                    if (viewMode === 'week') {
+                        return a[1].sortKey.localeCompare(b[1].sortKey);
+                    }
+                    const [labelA] = a;
+                    const [labelB] = b;
                     const getPriority = (label: string) => {
                         if (label.includes('เช้า')) return 1;
                         if (label.includes('เย็น')) return 2;
                         return 3;
                     };
-                    return getPriority(a) - getPriority(b);
+                    return getPriority(labelA) - getPriority(labelB);
                 })
                 .map(([time, group]: [string, any]) => (
                     <section key={time} className="space-y-6 print:break-inside-avoid">
@@ -902,6 +1293,8 @@ export const TodayView: React.FC = () => {
                     </section>
                 ))
             )}
+                </>
+            )}
         </div>
       </div>
 
@@ -911,6 +1304,112 @@ export const TodayView: React.FC = () => {
           .custom-scrollbar { overflow: visible !important; }
         }
       `}</style>
+
+        {/* Summary Detail Modal */}
+        <AnimatePresence>
+            {selectedSummaryMenu && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setSelectedSummaryMenu(null)}
+                        className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
+                    />
+                    <motion.div 
+                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                        className="relative bg-white w-full max-w-2xl rounded-[32px] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+                    >
+                        <div className="p-8 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
+                            <div className="flex items-center gap-4">
+                                <div 
+                                    className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-inner"
+                                    style={{ 
+                                        backgroundColor: `${CATEGORY_COLORS[selectedSummaryMenu.category] || '#f1f5f9'}20`, 
+                                        color: CATEGORY_COLORS[selectedSummaryMenu.category] || '#64748b' 
+                                    }}
+                                >
+                                    <ChefHat size={24} />
+                                </div>
+                                <div>
+                                    <h2 className="text-xl font-black text-slate-900 leading-tight">{selectedSummaryMenu.name}</h2>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">รายละเอียดการผลิตทั้งสัปดาห์</p>
+                                </div>
+                            </div>
+                            <button 
+                                onClick={() => setSelectedSummaryMenu(null)}
+                                className="w-10 h-10 rounded-xl bg-white text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all flex items-center justify-center border border-slate-100 shadow-sm"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar">
+                            {/* Group details by date */}
+                            {Object.entries(
+                                selectedSummaryMenu.details.reduce((acc: any, d: any) => {
+                                    if (!acc[d.date]) acc[d.date] = [];
+                                    acc[d.date].push(d);
+                                    return acc;
+                                }, {})
+                            )
+                            .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
+                            .map(([date, items]: [string, any]) => (
+                                <div key={date} className="space-y-3">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                                        <h4 className="text-sm font-black text-slate-900">
+                                            {dayjs(date).locale('th').format('ddddที่ DD MMMM YYYY')}
+                                        </h4>
+                                        <div className="h-[1px] flex-1 bg-slate-100" />
+                                        <span className="text-xs font-bold text-slate-400">
+                                            รวม {items.reduce((sum: number, i: any) => sum + i.qty, 0)} กล่อง
+                                        </span>
+                                    </div>
+                                    <div className="grid grid-cols-1 gap-2">
+                                        {items.map((item: any) => (
+                                            <div key={item.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100/50 hover:bg-white hover:border-emerald-100 transition-all group">
+                                                <div className="flex items-center gap-4 min-w-0">
+                                                    <div className="w-8 h-8 rounded-lg bg-white border border-slate-100 flex items-center justify-center shrink-0 text-[10px] font-black text-slate-900 group-hover:bg-emerald-500 group-hover:text-white transition-colors shadow-sm">
+                                                        {item.qty}
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="text-sm font-bold text-slate-800 truncate">{item.memberName}</p>
+                                                        <div className="flex items-center gap-2 mt-0.5">
+                                                            <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 rounded uppercase tracking-wider">{item.time}</span>
+                                                            {item.notes && (
+                                                                <span className="text-[10px] font-medium text-amber-600 flex items-center gap-1">
+                                                                    <AlertTriangle size={10} /> {item.notes}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="p-6 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">ยอดรวมทั้งสัปดาห์:</span>
+                                <span className="text-xl font-black text-slate-900">{selectedSummaryMenu.qty} กล่อง</span>
+                            </div>
+                            <button 
+                                onClick={() => setSelectedSummaryMenu(null)}
+                                className="px-6 py-2.5 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 transition-all shadow-lg active:scale-95"
+                            >
+                                ตกลง
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+        </AnimatePresence>
 
     </div>
   );

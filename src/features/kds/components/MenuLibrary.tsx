@@ -279,12 +279,16 @@ const MenuFormModal = memo(({
   };
   const categories = [
     { value: 'ของหวาน', label: 'ของหวาน' },
+    { value: 'ทานเล่น', label: 'ทานเล่น' },
     { value: 'สลัด', label: 'สลัด' },
     { value: 'ซูวี', label: 'ซูวี (Sous-vide)' },
-    { value: 'ซุป/แกง', label: 'ซุป/แกง' },
+    { value: 'ซุป', label: 'ซุป' },
+    { value: 'แกง', label: 'แกง' },
+    { value: 'ต้ม', label: 'ต้ม' },
     { value: 'ผัด', label: 'ผัด' },
     { value: 'เส้น', label: 'เส้น' },
-    { value: 'เมนูหลัก', label: 'เมนูหลัก' }
+    { value: 'เมนูหลัก', label: 'เมนูหลัก' },
+    { value: 'ชุดเซต', label: 'ชุดเซต / โปรโมชั่น' }
   ];
 
   const groups = [
