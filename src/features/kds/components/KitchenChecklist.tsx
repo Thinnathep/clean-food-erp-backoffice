@@ -37,6 +37,116 @@ export const KitchenChecklist: React.FC = () => {
     fetchMasterChecklist();
   }, [checklistDate, viewMode, fetchChecklist, fetchChecklistHistory, fetchMasterChecklist]);
 
+  const onUpdateItem = async (item: any) => {
+    try {
+      await saveChecklistItem(item);
+      fetchChecklist(checklistDate);
+      setEditingItem(null);
+      toastSuccess('บันทึกสำเร็จ');
+    } catch (error) {
+      console.error(error);
+      Swal.fire('ข้อผิดพลาด', 'ไม่สามารถบันทึกข้อมูลได้', 'error');
+    }
+  };
+
+  const onDeleteItem = async (id: string) => {
+    const result = await Swal.fire({
+      title: 'ลบรายการนี้?',
+      text: "คุณต้องการลบรายการนี้ออกจากแผนงานวันนี้ใช่หรือไม่?",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#4f46e5',
+      cancelButtonColor: '#ef4444',
+      confirmButtonText: 'ใช่, ลบเลย!',
+      cancelButtonText: 'ยกเลิก'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await removeChecklistItem(id);
+        fetchChecklist(checklistDate);
+        toastSuccess('ลบเรียบร้อย');
+      } catch (error) {
+        console.error(error);
+        Swal.fire('ข้อผิดพลาด', 'ไม่สามารถลบข้อมูลได้', 'error');
+      }
+    }
+  };
+
+  const toastSuccess = (title: string) => {
+     Swal.fire({
+        icon: 'success',
+        title,
+        timer: 1500,
+        showConfirmButton: false,
+        toast: true,
+        position: 'top-end'
+      });
+  };
+
+  const onAddToMaster = async (item: any) => {
+    try {
+      await addItemToMaster(item);
+      fetchMasterChecklist();
+      toastSuccess('เพิ่มเข้าคลังสำเร็จ');
+    } catch (error) {
+      console.error(error);
+      Swal.fire('ข้อผิดพลาด', 'ไม่สามารถเพิ่มข้อมูลได้', 'error');
+    }
+  };
+
+  const onUpdateMaster = async (id: string, item: any) => {
+    try {
+      await updateMasterItem(id, item);
+      fetchMasterChecklist();
+      toastSuccess('แก้ไขสำเร็จ');
+    } catch (error) {
+      console.error(error);
+      Swal.fire('ข้อผิดพลาด', 'ไม่สามารถบันทึกข้อมูลได้', 'error');
+    }
+  };
+
+  const onDeleteMaster = async (id: string) => {
+    const result = await Swal.fire({
+      title: 'ลบจากคลัง?',
+      text: "คุณต้องการลบรายการนี้ออกจากคลังถาวรใช่หรือไม่?",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#4f46e5',
+      cancelButtonColor: '#ef4444',
+      confirmButtonText: 'ใช่, ลบเลย!',
+      cancelButtonText: 'ยกเลิก'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await removeMasterItem(id);
+        fetchMasterChecklist();
+        toastSuccess('ลบเรียบร้อย');
+      } catch (error) {
+        console.error(error);
+        Swal.fire('ข้อผิดพลาด', 'ไม่สามารถลบข้อมูลได้', 'error');
+      }
+    }
+  };
+
+  const onAddToDaily = async (items: any[]) => {
+    try {
+      await addItemsToDaily(items);
+      fetchChecklist(checklistDate);
+      Swal.fire({
+        icon: 'success',
+        title: 'ดึงข้อมูลลงแผนสำเร็จ',
+        text: `เพิ่ม ${items.length} รายการลงแผนงานวันนี้แล้ว`,
+        timer: 2000,
+        showConfirmButton: false
+      });
+    } catch (error) {
+      console.error(error);
+      Swal.fire('ข้อผิดพลาด', 'ไม่สามารถดึงข้อมูลลงแผนได้', 'error');
+    }
+  };
+
   const toggleCategory = (category: string) => {
     setCollapsedCategories(prev => {
       const next = new Set(prev);
@@ -74,10 +184,10 @@ export const KitchenChecklist: React.FC = () => {
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-white overflow-hidden font-prompt">
+    <div className="flex-1 flex flex-col bg-white overflow-hidden font-prompt min-h-screen">
       {/* Header Area */}
-      <div className="bg-white border-b border-slate-100 z-30">
-        <div className="px-4 py-4 max-w-[1600px] mx-auto">
+      <div className="bg-white border-b border-slate-100 z-30 sticky top-0">
+        <div className="px-6 py-4 max-w-[1600px] mx-auto">
           <div className="flex flex-col gap-4">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-3">
@@ -149,7 +259,7 @@ export const KitchenChecklist: React.FC = () => {
                 {!isManageMode && (
                   <div className="flex gap-2">
                     <button onClick={() => setIsSelectorOpen(true)} className="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center shadow-md active:scale-95 transition-transform flex-none"><Library size={18} /></button>
-                    <button onClick={() => setEditingItem({})} className="w-10 h-10 bg-slate-100 text-slate-600 rounded-xl flex items-center justify-center active:scale-95 transition-transform flex-none"><Plus size={20} /></button>
+                    <button onClick={() => setEditingItem({})} className="w-10 h-10 bg-slate-100 text-slate-600 rounded-xl flex items-center justify-center active:scale-95 transition-transform flex-none hover:bg-slate-200"><Plus size={20} /></button>
                   </div>
                 )}
                 {isManageMode && (
@@ -168,9 +278,9 @@ export const KitchenChecklist: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50/30">
+      <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50 px-4">
         {viewMode === 'list' ? (
-          <div className="max-w-4xl mx-auto pb-20 px-4 pt-4">
+          <div className="max-w-4xl mx-auto pb-20 pt-4">
             <AnimatePresence mode="popLayout">
               {Object.keys(filteredCategories).length > 0 ? (
                 Object.keys(filteredCategories).map((category) => {
@@ -179,7 +289,7 @@ export const KitchenChecklist: React.FC = () => {
                     <div key={category} className="mb-4">
                       <button 
                         onClick={() => toggleCategory(category)}
-                        className="w-full px-4 py-2 bg-white/50 backdrop-blur-sm border border-slate-100 rounded-xl flex items-center justify-between sticky top-2 z-20 shadow-sm mb-2 hover:bg-white transition-colors"
+                        className="w-full px-4 py-2 bg-white border border-slate-100 rounded-xl flex items-center justify-between sticky top-2 z-20 shadow-sm mb-2 hover:bg-slate-50 transition-colors"
                       >
                         <div className="flex items-center gap-2">
                           <ChevronDown size={14} className={`transition-transform duration-200 ${getCategoryColor(category)} ${isCollapsed ? '-rotate-90' : ''}`} />
@@ -199,8 +309,8 @@ export const KitchenChecklist: React.FC = () => {
                             {filteredCategories[category].map((item: any) => (
                               <CompactChecklistItem 
                                 key={item.id} item={item} isManageMode={isManageMode}
-                                onToggle={() => saveChecklistItem({ ...item, is_checked: !item.is_checked })}
-                                onDelete={() => removeChecklistItem(item.id)}
+                                onToggle={() => onUpdateItem({ ...item, is_checked: !item.is_checked })}
+                                onDelete={() => onDeleteItem(item.id)}
                                 onEdit={() => setEditingItem(item)}
                               />
                             ))}
@@ -215,26 +325,19 @@ export const KitchenChecklist: React.FC = () => {
                   <motion.div 
                     initial={{ scale: 0.8, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    className="w-32 h-32 bg-indigo-50 rounded-full flex items-center justify-center mb-6 relative"
+                    className="w-32 h-32 bg-indigo-50 rounded-full flex items-center justify-center mb-6"
                   >
-                    <div className="absolute inset-0 bg-indigo-100 rounded-full animate-ping opacity-20" />
-                    <ShoppingBag size={56} className="text-indigo-600 relative z-10" />
+                    <ShoppingBag size={56} className="text-indigo-600" />
                   </motion.div>
-                  <h3 className="text-2xl font-medium text-slate-800 mb-2">วันนี้ยังไม่มีรายการซื้อของ</h3>
-                  <p className="text-base text-slate-400 mb-8 max-w-[280px]">เลือกสินค้าจากคลังหรือเพิ่มรายการใหม่เพื่อเริ่มวางแผนงานวันนี้</p>
+                  <h3 className="text-xl font-medium text-slate-800 mb-2">วันนี้ยังไม่มีรายการซื้อของ</h3>
+                  <p className="text-sm text-slate-400 mb-8 max-w-[280px]">เลือกสินค้าจากคลังหรือเพิ่มรายการใหม่เพื่อเริ่มวางแผนงานวันนี้</p>
                   
-                  <motion.button 
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    animate={{ 
-                      boxShadow: ["0px 0px 0px rgba(79, 70, 229, 0)", "0px 10px 25px rgba(79, 70, 229, 0.3)", "0px 0px 0px rgba(79, 70, 229, 0)"] 
-                    }}
-                    transition={{ repeat: Infinity, duration: 2 }}
+                  <button 
                     onClick={() => setIsSelectorOpen(true)} 
-                    className="px-10 py-5 bg-indigo-600 text-white rounded-3xl text-xl font-medium shadow-xl shadow-indigo-100 flex items-center gap-3"
+                    className="px-8 py-4 bg-indigo-600 text-white rounded-2xl text-lg font-medium shadow-xl shadow-indigo-100 flex items-center gap-2"
                   >
-                    <Plus size={24} /> เริ่มวางแผนวันนี้
-                  </motion.button>
+                    <Plus size={20} /> เริ่มวางแผนวันนี้
+                  </button>
                 </div>
               )}
             </AnimatePresence>
@@ -286,10 +389,10 @@ export const KitchenChecklist: React.FC = () => {
           <MasterSelector 
             masterList={masterChecklist}
             onClose={() => setIsSelectorOpen(false)}
-            onConfirm={(selectedItems) => { addItemsToDaily(selectedItems); setIsSelectorOpen(false); }}
-            onAddToMaster={addItemToMaster}
-            onUpdateMaster={updateMasterItem}
-            onDeleteMaster={removeMasterItem}
+            onConfirm={(selectedItems) => { onAddToDaily(selectedItems); setIsSelectorOpen(false); }}
+            onAddToMaster={onAddToMaster}
+            onUpdateMaster={onUpdateMaster}
+            onDeleteMaster={onDeleteMaster}
           />
         )}
       </AnimatePresence>
@@ -304,7 +407,7 @@ export const KitchenChecklist: React.FC = () => {
                 <button onClick={() => setEditingItem(null)} className="p-2"><X size={20} /></button>
               </div>
               <div className="flex-1 overflow-y-auto p-4">
-                <ChecklistForm initialData={editingItem} onSave={(data) => { saveChecklistItem(data); setEditingItem(null); }} />
+                <ChecklistForm initialData={editingItem} onSave={(data) => onUpdateItem(data)} />
               </div>
             </motion.div>
           </>
@@ -314,12 +417,11 @@ export const KitchenChecklist: React.FC = () => {
   );
 };
 
-// Sub-components optimized with larger text and no bold
 const CompactChecklistItem: React.FC<{ item: any, isManageMode: boolean, onToggle: () => void, onDelete: () => void, onEdit: () => void }> = memo(({ item, isManageMode, onToggle, onDelete, onEdit }) => {
   return (
     <div className="relative overflow-hidden bg-white">
       <div 
-        className={`relative z-10 flex items-center gap-3 px-4 py-5 transition-colors ${item.is_checked ? 'bg-slate-50/50' : 'bg-white'}`}
+        className={`relative z-10 flex items-center gap-3 px-4 py-4 transition-colors ${item.is_checked ? 'bg-slate-50/50' : 'bg-white'}`}
       >
         {isManageMode ? (
           <div className="flex-none text-slate-300 cursor-grab active:cursor-grabbing p-1"><GripVertical size={18} /></div>
@@ -348,7 +450,6 @@ const CompactChecklistItem: React.FC<{ item: any, isManageMode: boolean, onToggl
   );
 });
 
-// MASTER SELECTOR OPTIMIZED FOR X-LARGE TEXT & NO BOLD
 const MasterSelector: React.FC<{ 
   masterList: any[], onClose: () => void, onConfirm: (items: any[]) => void, onAddToMaster: (item: any) => void, onUpdateMaster: (id: string, item: any) => void, onDeleteMaster: (id: string) => void
 }> = ({ masterList, onClose, onConfirm, onAddToMaster, onUpdateMaster, onDeleteMaster }) => {
@@ -413,7 +514,7 @@ const MasterSelector: React.FC<{
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-white overflow-hidden font-prompt md:inset-auto md:w-full md:max-w-2xl md:h-[85vh] md:rounded-3xl md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:shadow-2xl">
+    <div className="fixed inset-0 z-[100] flex flex-col bg-white overflow-hidden font-prompt md:inset-auto md:w-full md:max-w-2xl md:h-[85vh] md:rounded-3xl md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:shadow-2xl border border-slate-100">
       <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-20">
         <h3 className="text-lg font-medium text-slate-900">จัดการคลังของทั้งหมด</h3>
         <div className="flex items-center gap-2">
@@ -430,7 +531,7 @@ const MasterSelector: React.FC<{
       </div>
       
       {/* Search and Filters */}
-      <div className="p-5 flex flex-col gap-4 bg-slate-50/50">
+      <div className="p-5 flex flex-col gap-4 bg-slate-50/50 border-b border-slate-100">
         <div className="relative flex items-center gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
@@ -442,12 +543,7 @@ const MasterSelector: React.FC<{
               className="w-full pl-10 pr-10 py-3 bg-white border border-slate-200 rounded-2xl text-base outline-none shadow-sm focus:ring-1 focus:ring-indigo-500" 
             />
             {searchTerm && (
-              <button 
-                onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
-              >
-                <X size={16} />
-              </button>
+              <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"><X size={16} /></button>
             )}
           </div>
           <button onClick={() => startVoiceInput('search')} className={`p-3 rounded-2xl transition-all ${activeVoiceField === 'search' ? 'bg-red-500 text-white animate-pulse' : 'bg-white text-slate-400 border border-slate-200 shadow-sm'}`}><Mic size={20} /></button>
@@ -459,7 +555,7 @@ const MasterSelector: React.FC<{
             <button 
               key={cat} 
               onPointerDown={() => setActiveCategory(cat)}
-              className={`px-5 py-2.5 rounded-2xl text-sm font-medium whitespace-nowrap transition-all ${activeCategory === cat ? 'bg-indigo-600 text-white shadow-md shadow-indigo-100' : 'bg-white text-slate-500 border border-slate-200 shadow-sm'}`}
+              className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all border ${activeCategory === cat ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-slate-500 border-slate-200'}`}
             >
               {cat}
             </button>
@@ -467,41 +563,41 @@ const MasterSelector: React.FC<{
         </div>
       </div>
 
-      {editingMasterId && (
-        <div className="px-5 py-6 bg-indigo-50/50 border-y border-indigo-100 flex flex-col gap-4">
-          <div className="flex items-center gap-3 bg-white px-5 py-4 rounded-2xl shadow-sm">
-            <input type="text" placeholder="ชื่อสินค้าใหม่..." value={masterFormData.item_name} onChange={e => setMasterFormData({ ...masterFormData, item_name: e.target.value })} className="flex-1 bg-transparent border-none text-lg outline-none font-medium" />
-            <button onClick={() => startVoiceInput('item_name')} className={`p-2 rounded-xl transition-all ${activeVoiceField === 'item_name' ? 'bg-red-500 text-white' : 'text-slate-300'}`}><Mic size={20} /></button>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-             <div className="flex items-center gap-3 bg-white px-4 py-4 rounded-2xl shadow-sm">
-                <Store size={18} className="text-slate-400" />
-                <input type="text" placeholder="ร้านประจำ..." value={masterFormData.vendor} onChange={e => setMasterFormData({ ...masterFormData, vendor: e.target.value })} className="flex-1 bg-transparent border-none text-sm outline-none font-medium" />
-                <button onClick={() => startVoiceInput('vendor')} className={`p-1.5 rounded-lg transition-all ${activeVoiceField === 'vendor' ? 'bg-red-500 text-white' : 'text-slate-300'}`}><Mic size={16} /></button>
-             </div>
-             <div className="flex items-center gap-3 bg-white px-4 py-4 rounded-2xl shadow-sm">
-                <Clock size={18} className="text-slate-400" />
-                <input type="time" value={masterFormData.target_time} onChange={e => setMasterFormData({ ...masterFormData, target_time: e.target.value })} className="flex-1 bg-transparent border-none text-sm outline-none font-medium cursor-pointer" />
-             </div>
-          </div>
-          <div className="flex gap-3">
-            <select value={masterFormData.category} onChange={e => setMasterFormData({ ...masterFormData, category: e.target.value })} className="flex-1 px-5 py-4 bg-white rounded-2xl border-none text-base outline-none shadow-sm font-medium appearance-none"><option>เนื้อสัตว์</option><option>ผักและผลไม้</option><option>นมและโยเกิร์ต</option><option>เครื่องปรุง</option><option>บรรจุภัณฑ์</option><option>ข้าวและเส้น</option><option>อื่นๆ</option></select>
-            <div className="flex gap-2"><button onClick={() => { setEditingMasterId(null); setMasterFormData({ item_name: '', category: 'เนื้อสัตว์', vendor: '', target_time: '' }); }} className="px-5 py-4 bg-white text-slate-400 rounded-2xl text-base font-medium shadow-sm border border-slate-100">ยกเลิก</button><button onClick={() => { if (editingMasterId === 'new') onAddToMaster(masterFormData); else onUpdateMaster(editingMasterId, masterFormData); setEditingMasterId(null); setMasterFormData({ item_name: '', category: 'เนื้อสัตว์', vendor: '', target_time: '' }); }} className="px-8 py-4 bg-indigo-600 text-white rounded-2xl text-base font-medium shadow-md">บันทึก</button></div>
-          </div>
-        </div>
-      )}
-
       <div className="flex-1 overflow-y-auto p-0 custom-scrollbar bg-white">
+        {editingMasterId && (
+          <div className="px-5 py-6 bg-indigo-50 border-b border-indigo-100 flex flex-col gap-4 animate-in slide-in-from-top duration-200">
+            <div className="flex items-center gap-3 bg-white px-5 py-4 rounded-2xl border border-indigo-100 shadow-sm">
+              <input type="text" placeholder="ชื่อสินค้าใหม่..." value={masterFormData.item_name} onChange={e => setMasterFormData({ ...masterFormData, item_name: e.target.value })} className="flex-1 bg-transparent border-none text-lg outline-none font-medium" />
+              <button onClick={() => startVoiceInput('item_name')} className={`p-2 rounded-xl transition-all ${activeVoiceField === 'item_name' ? 'bg-red-500 text-white animate-pulse' : 'text-slate-300'}`}><Mic size={20} /></button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+               <div className="flex items-center gap-3 bg-white px-4 py-4 rounded-2xl border border-indigo-100 shadow-sm">
+                  <Store size={18} className="text-slate-400" />
+                  <input type="text" placeholder="ร้านประจำ..." value={masterFormData.vendor} onChange={e => setMasterFormData({ ...masterFormData, vendor: e.target.value })} className="flex-1 bg-transparent border-none text-sm outline-none font-medium" />
+                  <button onClick={() => startVoiceInput('vendor')} className={`p-1.5 rounded-lg transition-all ${activeVoiceField === 'vendor' ? 'bg-red-500 text-white animate-pulse' : 'text-slate-300'}`}><Mic size={16} /></button>
+               </div>
+               <div className="flex items-center gap-3 bg-white px-4 py-4 rounded-2xl border border-indigo-100 shadow-sm">
+                  <Clock size={18} className="text-slate-400" />
+                  <input type="time" value={masterFormData.target_time} onChange={e => setMasterFormData({ ...masterFormData, target_time: e.target.value })} className="flex-1 bg-transparent border-none text-sm outline-none font-medium cursor-pointer" />
+               </div>
+            </div>
+            <div className="flex gap-3">
+              <select value={masterFormData.category} onChange={e => setMasterFormData({ ...masterFormData, category: e.target.value })} className="flex-1 px-5 py-4 bg-white rounded-2xl border border-indigo-100 text-base outline-none shadow-sm font-medium appearance-none cursor-pointer"><option>เนื้อสัตว์</option><option>ผักและผลไม้</option><option>นมและโยเกิร์ต</option><option>เครื่องปรุง</option><option>บรรจุภัณฑ์</option><option>ข้าวและเส้น</option><option>อื่นๆ</option></select>
+              <div className="flex gap-2"><button onClick={() => { setEditingMasterId(null); setMasterFormData({ item_name: '', category: 'เนื้อสัตว์', vendor: '', target_time: '' }); }} className="px-5 py-4 bg-white text-slate-400 rounded-2xl text-base font-medium border border-slate-200">ยกเลิก</button><button onClick={() => { if (editingMasterId === 'new') onAddToMaster(masterFormData); else onUpdateMaster(editingMasterId, masterFormData); setEditingMasterId(null); setMasterFormData({ item_name: '', category: 'เนื้อสัตว์', vendor: '', target_time: '' }); }} className="px-8 py-4 bg-indigo-600 text-white rounded-2xl text-base font-medium shadow-md">บันทึก</button></div>
+            </div>
+          </div>
+        )}
+
         {Object.keys(groupedCategories).length > 0 ? Object.keys(groupedCategories).map(category => {
           const isCollapsed = collapsedCategories.has(category);
           return (
             <div key={category}>
               <button 
                 onClick={() => toggleCategory(category)}
-                className="w-full px-6 py-3 bg-slate-50 text-[11px] font-medium uppercase text-slate-400 tracking-widest sticky top-0 z-10 flex justify-between items-center hover:bg-slate-100 transition-colors"
+                className="w-full px-6 py-2 bg-slate-50 text-[10px] font-medium uppercase text-slate-400 tracking-widest sticky top-0 z-10 flex justify-between items-center border-y border-slate-100"
               >
                 <div className="flex items-center gap-2">
-                  <ChevronDown size={14} className={`transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`} />
+                  <ChevronDown size={12} className={`transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`} />
                   <span>{category}</span>
                 </div>
                 <span>{groupedCategories[category].length}</span>
@@ -526,19 +622,25 @@ const MasterSelector: React.FC<{
         }) : (
           <div className="flex flex-col items-center justify-center py-20 opacity-30 text-center px-10">
             <Search size={48} className="mb-4" />
-            <p className="text-lg font-medium">ไม่พบสินค้าที่คุณค้นหา</p>
+            <p className="text-lg font-medium">ไม่พบสินค้าในคลัง</p>
           </div>
         )}
       </div>
-      <div className="p-5 border-t border-slate-100 flex gap-4 bg-white">
-        <button onClick={onClose} className="flex-1 py-4 bg-slate-100 text-slate-600 font-medium rounded-2xl active:scale-[0.98] transition-transform text-base">ยกเลิก</button>
-        <button disabled={selectedIds.size === 0} onClick={() => onConfirm(masterList.filter(i => selectedIds.has(i.id)))} className="flex-[2] py-4 bg-indigo-600 text-white font-medium rounded-2xl shadow-xl shadow-indigo-100 disabled:opacity-50 active:scale-[0.98] transition-transform text-base">เพิ่มลงแผน ({selectedIds.size} รายการ)</button>
+
+      <div className="p-5 border-t border-slate-100 flex gap-3 bg-white sticky bottom-0 z-20">
+        <button onClick={onClose} className="flex-1 py-4 bg-slate-100 text-slate-600 font-medium rounded-2xl">ยกเลิก</button>
+        <button 
+          disabled={selectedIds.size === 0} 
+          onClick={() => onConfirm(masterList.filter(i => selectedIds.has(i.id)))} 
+          className="flex-[2] py-4 bg-indigo-600 text-white font-medium rounded-2xl shadow-lg shadow-indigo-100 disabled:opacity-50"
+        >
+          เพิ่มลงแผน ({selectedIds.size} รายการ)
+        </button>
       </div>
     </div>
   );
 };
 
-// SUB-ROW FOR MASTER SELECTOR - OPTIMIZED FOR X-LARGE TEXT & NO BOLD
 const MasterItemRow: React.FC<{ item: any, isSelected: boolean, onToggle: (id: string) => void, onEdit: (i: any) => void, onDelete: (id: string) => void }> = memo(({ item, isSelected, onToggle, onEdit, onDelete }) => {
   return (
     <div 
@@ -559,7 +661,7 @@ const MasterItemRow: React.FC<{ item: any, isSelected: boolean, onToggle: (id: s
           {isSelected && <Check size={18} strokeWidth={3} />}
         </div>
       </div>
-      <div className="flex px-2 border-l border-slate-100" onPointerDown={e => e.stopPropagation()}>
+      <div className="flex px-2 border-l border-slate-50" onPointerDown={e => e.stopPropagation()}>
         <button onClick={(e) => { e.stopPropagation(); onEdit(item); }} className="p-4 text-slate-300 hover:text-indigo-600 transition-colors"><Edit3 size={20} /></button>
         <button onClick={(e) => { e.stopPropagation(); onDelete(item.id); }} className="p-4 text-slate-300 hover:text-red-500 transition-colors"><Trash2 size={20} /></button>
       </div>
@@ -574,11 +676,7 @@ const ChecklistForm: React.FC<{ initialData?: any, onSave: (data: any) => void }
   const categories = ['เนื้อสัตว์', 'ผักและผลไม้', 'นมและโยเกิร์ต', 'เครื่องปรุง', 'บรรจุภัณฑ์', 'ข้าวและเส้น', 'อื่นๆ'];
 
   const startVoiceInput = (field: 'item_name' | 'vendor') => {
-    if (!('webkitSpeechRecognition' in window)) {
-      Swal.fire('ขออภัย', 'เบราว์เซอร์นี้ไม่รองรับระบบสั่งงานด้วยเสียง', 'error');
-      return;
-    }
-    
+    if (!('webkitSpeechRecognition' in window)) return;
     // @ts-ignore
     const recognition = new window.webkitSpeechRecognition();
     recognition.lang = 'th-TH';
@@ -593,33 +691,31 @@ const ChecklistForm: React.FC<{ initialData?: any, onSave: (data: any) => void }
 
   return (
     <div className="space-y-6 font-prompt">
-      {/* Item Name with Voice Input */}
-      <div className="bg-slate-100 rounded-2xl relative group focus-within:ring-1 focus-within:ring-indigo-200 shadow-inner">
+      <div className="bg-slate-50 rounded-2xl border border-slate-100 relative group focus-within:ring-1 focus-within:ring-indigo-200 shadow-inner">
         <div className="flex items-center px-6 py-5">
           <input 
             type="text" 
             placeholder="ระบุชื่อรายการ..." 
             value={formData.item_name} 
             onChange={e => setFormData({ ...formData, item_name: e.target.value })} 
-            className="flex-1 bg-transparent border-none outline-none font-medium text-xl text-slate-800" 
+            className="flex-1 bg-transparent border-none outline-none font-medium text-xl text-slate-800 placeholder:text-slate-400" 
           />
           <button 
             type="button"
             onClick={() => startVoiceInput('item_name')}
-            className={`p-2 rounded-xl transition-all ${activeVoiceField === 'item_name' ? 'bg-red-500 text-white animate-pulse' : 'text-slate-400 hover:bg-slate-200 hover:text-indigo-600'}`}
+            className={`p-2 rounded-xl transition-all ${activeVoiceField === 'item_name' ? 'bg-red-500 text-white animate-pulse shadow-lg' : 'text-slate-400 hover:bg-slate-200 hover:text-indigo-600'}`}
           >
             {activeVoiceField === 'item_name' ? <MicOff size={22} /> : <Mic size={22} />}
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">{categories.map(cat => (<button key={cat} onClick={() => setFormData({ ...formData, category: cat })} className={`px-2 py-4 rounded-2xl text-sm font-medium border transition-all ${formData.category === cat ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100' : 'border-slate-200 text-slate-500 bg-white hover:bg-slate-50'}`}>{cat}</button>))}</div>
+      <div className="grid grid-cols-2 gap-2">{categories.map(cat => (<button key={cat} onClick={() => setFormData({ ...formData, category: cat })} className={`px-2 py-4 rounded-xl text-xs font-medium border transition-all ${formData.category === cat ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}>{cat}</button>))}</div>
       
       <div className="space-y-4">
-        {/* Vendor with Voice Input */}
-        <div className="flex items-center gap-3 bg-slate-50 px-6 py-5 rounded-2xl border border-slate-100 shadow-sm relative group focus-within:ring-1 focus-within:ring-indigo-200">
+        <div className="flex items-center gap-3 bg-slate-50 px-6 py-4 rounded-2xl border border-slate-100 shadow-sm relative group focus-within:ring-1 focus-within:ring-indigo-200">
           <Store size={20} className="text-slate-400" />
-          <input type="text" placeholder="แหล่งซื้อ (เช่น ตลาดไท...)" value={formData.vendor} onChange={e => setFormData({ ...formData, vendor: e.target.value })} className="flex-1 bg-transparent border-none text-lg outline-none font-medium" />
+          <input type="text" placeholder="แหล่งซื้อ..." value={formData.vendor} onChange={e => setFormData({ ...formData, vendor: e.target.value })} className="flex-1 bg-transparent border-none text-lg outline-none font-medium text-slate-800 placeholder:text-slate-400" />
           <button 
             type="button"
             onClick={() => startVoiceInput('vendor')}
@@ -629,8 +725,7 @@ const ChecklistForm: React.FC<{ initialData?: any, onSave: (data: any) => void }
           </button>
         </div>
 
-        {/* Time Input (Native Time Selector) */}
-        <div className="flex items-center gap-3 bg-slate-50 px-6 py-5 rounded-2xl border border-slate-100 shadow-sm relative focus-within:ring-1 focus-within:ring-indigo-200">
+        <div className="flex items-center gap-3 bg-slate-50 px-6 py-4 rounded-2xl border border-slate-100 shadow-sm relative focus-within:ring-1 focus-within:ring-indigo-200">
           <Clock size={20} className="text-slate-400" />
           <div className="flex-1">
             <input 
@@ -643,8 +738,8 @@ const ChecklistForm: React.FC<{ initialData?: any, onSave: (data: any) => void }
         </div>
       </div>
 
-      <textarea placeholder="จจดหมายเหตุ..." value={formData.notes} onChange={e => setFormData({ ...formData, notes: e.target.value })} className="w-full px-6 py-5 bg-slate-100 border-none rounded-2xl text-lg min-h-[140px] outline-none font-medium shadow-inner" />
-      <button onClick={() => { const d = { ...formData }; if (!d.id) delete d.id; onSave(d); }} className="w-full py-6 bg-indigo-600 text-white rounded-2xl font-medium text-xl shadow-xl shadow-indigo-200 active:scale-[0.98] transition-transform">{initialData.id ? 'บันทึกแก้ไข' : 'เพิ่มลงแผนทันที'}</button>
+      <textarea placeholder="บันทึกเพิ่มเติม..." value={formData.notes} onChange={e => setFormData({ ...formData, notes: e.target.value })} className="w-full px-6 py-6 bg-slate-50 border border-slate-100 rounded-2xl text-lg min-h-[140px] outline-none font-medium text-slate-800 placeholder:text-slate-400 shadow-inner" />
+      <button onClick={() => { const d = { ...formData }; if (!d.id) delete d.id; onSave(d); }} className="w-full py-6 bg-indigo-600 text-white rounded-2xl font-medium text-xl shadow-xl shadow-indigo-100 active:scale-[0.98] transition-all hover:bg-indigo-500">บันทึกข้อมูลทันที</button>
     </div>
   );
 };

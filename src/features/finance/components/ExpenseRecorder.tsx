@@ -141,7 +141,7 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
                     className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all ${
                       selectedPool === pt 
                         ? 'border-emerald-500 bg-emerald-500/10 shadow-lg shadow-emerald-500/10' 
-                        : 'border-slate-100 bg-slate-50 opacity-60'
+                        : isDarkMode ? 'border-slate-700 bg-slate-900/40 opacity-60' : 'border-slate-100 bg-slate-50 opacity-60'
                     }`}>
                     <span className="text-lg mb-1">{cfg.icon}</span>
                     <span className={`text-[10px] font-bold ${selectedPool === pt ? 'text-emerald-600' : 'text-slate-500'}`}>
@@ -175,16 +175,20 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
 
           {/* Inventory Link (Only for MATERIAL) */}
           {selectedPool === 'MATERIAL' && (
-             <div className={`p-4 rounded-2xl border ${isStockIn ? 'bg-emerald-500/5 border-emerald-500/30' : 'bg-slate-50 border-slate-200 opacity-80'}`}>
+             <div className={`p-4 rounded-2xl border transition-all ${
+               isStockIn 
+                ? 'bg-emerald-500/10 border-emerald-500/30' 
+                : isDarkMode ? 'bg-slate-900/40 border-slate-700/30 opacity-80' : 'bg-slate-50 border-slate-200 opacity-80'
+             }`}>
                 <div className="flex items-center justify-between mb-3">
                    <div className="flex items-center gap-2">
                       <Box size={18} className={isStockIn ? 'text-emerald-500' : 'text-slate-400'} />
-                      <p className={`text-sm font-bold ${isStockIn ? 'text-emerald-700' : 'text-slate-600'}`}>เชื่อมสต็อก (Stock In)</p>
+                      <p className={`text-sm font-bold ${isStockIn ? 'text-emerald-500' : isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>เชื่อมสต็อก (Stock In)</p>
                    </div>
                    <button 
                      type="button"
                      onClick={() => setIsStockIn(!isStockIn)}
-                     className={`w-10 h-5 rounded-full relative transition-all ${isStockIn ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                     className={`w-10 h-5 rounded-full relative transition-all ${isStockIn ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'}`}
                    >
                      <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${isStockIn ? 'left-5' : 'left-0.5'}`} />
                    </button>
@@ -195,10 +199,12 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
                       <div>
                          <label className="block text-[10px] font-bold text-slate-500 mb-1">เลือกวัตถุดิบ</label>
                          <select 
-                           value={selectedInventoryItemId} 
-                           onChange={e => setSelectedInventoryItemId(e.target.value)}
-                           className="w-full p-2 text-xs border rounded-lg bg-white outline-none focus:border-emerald-500"
-                         >
+                            value={selectedInventoryItemId} 
+                            onChange={e => setSelectedInventoryItemId(e.target.value)}
+                            className={`w-full p-2 text-xs border rounded-lg outline-none focus:border-emerald-500 transition-all ${
+                              isDarkMode ? 'bg-slate-950/50 border-slate-800 text-slate-300' : 'bg-white border-slate-200'
+                            }`}
+                          >
                             <option value="">-- ค้นหาวัตถุดิบ --</option>
                             {inventoryItems.map(item => (
                                <option key={item.id} value={item.id}>{item.name} ({item.storage_unit})</option>
@@ -213,7 +219,9 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
                                  type="number" 
                                  value={stockInQty} 
                                  onChange={e => setStockInQty(e.target.value)}
-                                 className="w-full p-2 text-xs border rounded-lg bg-white outline-none"
+                                 className={`w-full p-2 text-xs border rounded-lg outline-none transition-all ${
+                                   isDarkMode ? 'bg-slate-950/50 border-slate-800 text-slate-300' : 'bg-white border-slate-200'
+                                 }`}
                                  placeholder="0"
                                />
                                <span className="text-[10px] text-slate-400">
@@ -223,7 +231,7 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
                          </div>
                          <div>
                             <label className="block text-[10px] font-bold text-slate-500 mb-1">เฉลี่ยต้นทุน</label>
-                            <p className="text-xs font-bold text-slate-700 pt-2">
+                            <p className={`text-xs font-bold pt-2 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
                                ฿{(Number(amount) / (Number(stockInQty) || 1)).toFixed(2)} / หน่วย
                             </p>
                          </div>
@@ -243,7 +251,9 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
 
           {/* Receipt Upload UI */}
           <div className={`p-4 rounded-xl border border-dashed flex flex-col items-center justify-center transition-all ${
-            receiptUrl ? 'border-emerald-500 bg-emerald-50/50' : 'border-slate-300 bg-slate-50'
+            receiptUrl 
+              ? isDarkMode ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-emerald-500 bg-emerald-50/50' 
+              : isDarkMode ? 'border-slate-700 bg-slate-900/40' : 'border-slate-300 bg-slate-50'
           }`}>
              {receiptUrl ? (
                 <div className="relative w-full flex items-center justify-between">
@@ -262,7 +272,9 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
                 </div>
              ) : (
                 <button type="button" onClick={() => setReceiptUrl('https://placehold.co/400x600?text=Receipt+Preview')}
-                  className="flex flex-col items-center gap-2 text-slate-500 hover:text-emerald-500 transition-colors">
+                  className={`flex flex-col items-center gap-2 transition-colors ${
+                     isDarkMode ? 'text-slate-500 hover:text-emerald-400' : 'text-slate-500 hover:text-emerald-500'
+                   }`}>
                    <PlusCircle size={24} />
                    <span className="text-xs font-medium">แนบไฟล์ใบเสร็จ (JPG/PNG)</span>
                 </button>
@@ -299,7 +311,7 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
                       ฿{spent.toLocaleString()} / ฿{target.toLocaleString()}
                     </span>
                   </div>
-                  <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden flex">
+                  <div className={`h-2 w-full rounded-full overflow-hidden flex ${isDarkMode ? 'bg-slate-900' : 'bg-slate-100'}`}>
                     <div className={`h-full rounded-full transition-all duration-500 ${
                       pct > 90 ? 'bg-red-500' : pct > 70 ? 'bg-amber-500' : 'bg-emerald-500'
                     }`} style={{ width: `${pct}%` }} />

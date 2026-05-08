@@ -3,7 +3,7 @@ import { ChefHat, CalendarDays, UtensilsCrossed, Calendar, MenuSquare, Package, 
 import { motion } from 'framer-motion';
 import { useKdsStore } from '../../../store/kdsStore';
 import { MenuLibrary } from './MenuLibrary';
-import { GlobalPlanner } from './GlobalPlanner';
+import { ProductionRoadmap } from './ProductionRoadmap';
 import { MemberPlanner } from './MemberPlanner';
 import { TodayView } from './TodayView';
 import { ProductionSummary } from './ProductionSummary';
@@ -100,7 +100,7 @@ export const KdsDashboard: React.FC = () => {
           <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200 overflow-x-auto scrollbar-hide w-full lg:w-auto">
             {[
               { id: 'checklist', label: 'เช็คลิสต์เตรียมของ', icon: ClipboardCheck, activeColor: 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' },
-              { id: 'global', label: 'แผนร้าน', icon: CalendarDays, activeColor: 'bg-slate-900 text-white' },
+              { id: 'global', label: 'แผนการผลิตหลัก', icon: CalendarDays, activeColor: 'bg-slate-900 text-white' },
               { id: 'member', label: 'แผนลูกค้า', icon: Calendar, activeColor: 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' },
               { id: 'today', label: 'ทำอาหารวันนี้', icon: ChefHat, activeColor: 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' },
               { id: 'summary', label: 'สรุปยอด', icon: Package, activeColor: 'bg-purple-600 text-white shadow-lg shadow-purple-500/20' },
@@ -133,7 +133,7 @@ export const KdsDashboard: React.FC = () => {
           ) : (
             <>
               {activeTab === 'checklist' && <KitchenChecklist />}
-              {activeTab === 'global' && <GlobalPlanner />}
+              {activeTab === 'global' && <ProductionRoadmap />}
               {activeTab === 'member' && <MemberPlanner />}
               {activeTab === 'today' && <TodayView />}
               {activeTab === 'summary' && <ProductionSummary />}

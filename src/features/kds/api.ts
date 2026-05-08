@@ -104,7 +104,7 @@ export const fetchGlobalPlanSlots = async (startDate: string, endDate: string): 
   const { data, error } = await supabase
     .from('pinto_meal_plan')
     .select(`
-      id, delivery_date, meal_type, menu_item_id,
+      id, delivery_date, meal_type, menu_item_id, prep_notes,
       menu_items (id, name, category, protein, calories, carbs, fat, image_url, tags)
     `)
     .gte('delivery_date', startDate)
@@ -118,7 +118,7 @@ export const fetchGlobalPlanSlots = async (startDate: string, endDate: string): 
   return data as unknown as GlobalPlanSlot[];
 };
 
-export const upsertGlobalPlanSlot = async (delivery_date: string, meal_type: 'meal_1' | 'meal_2', menu_item_id: string): Promise<void> => {
+export const upsertGlobalPlanSlot = async (delivery_date: string, meal_type: string, menu_item_id: string): Promise<void> => {
   // First check if slot exists (since we dropped unique constraint on delivery_date, we query by date AND meal_type)
   const { data: existing } = await supabase
     .from('pinto_meal_plan')
@@ -141,7 +141,7 @@ export const upsertGlobalPlanSlot = async (delivery_date: string, meal_type: 'me
   }
 };
 
-export const deleteGlobalPlanSlot = async (delivery_date: string, meal_type: 'meal_1' | 'meal_2'): Promise<void> => {
+export const deleteGlobalPlanSlot = async (delivery_date: string, meal_type: string): Promise<void> => {
   const { error } = await supabase
     .from('pinto_meal_plan')
     .delete()
@@ -506,7 +506,7 @@ export const fetchMenuRecipes = async (menuItemId: string): Promise<RecipeItem[]
     .from('erp_recipes')
     .select(`
       *,
-      erp_inventory_items (name, storage_unit, avg_unit_cost)
+      erp_inventory_items (name, storage_unit, avg_unit_cost, category)
     `)
     .eq('menu_item_id', menuItemId)
     .is('deleted_at', null);
@@ -517,7 +517,8 @@ export const fetchMenuRecipes = async (menuItemId: string): Promise<RecipeItem[]
     ...r,
     item_name: (r as any).erp_inventory_items?.name,
     storage_unit: (r as any).erp_inventory_items?.storage_unit,
-    avg_unit_cost: (r as any).erp_inventory_items?.avg_unit_cost
+    avg_unit_cost: (r as any).erp_inventory_items?.avg_unit_cost,
+    category: (r as any).erp_inventory_items?.category
   })) as RecipeItem[];
 };
 
@@ -527,7 +528,7 @@ export const fetchBulkRecipes = async (menuItemIds: string[]): Promise<RecipeIte
       .from('erp_recipes')
       .select(`
         *,
-        erp_inventory_items (name, storage_unit, avg_unit_cost)
+        erp_inventory_items (name, storage_unit, avg_unit_cost, category)
       `)
       .in('menu_item_id', menuItemIds)
       .is('deleted_at', null);
@@ -538,7 +539,8 @@ export const fetchBulkRecipes = async (menuItemIds: string[]): Promise<RecipeIte
       ...r,
       item_name: (r as any).erp_inventory_items?.name,
       storage_unit: (r as any).erp_inventory_items?.storage_unit,
-      avg_unit_cost: (r as any).erp_inventory_items?.avg_unit_cost
+      avg_unit_cost: (r as any).erp_inventory_items?.avg_unit_cost,
+      category: (r as any).erp_inventory_items?.category
     })) as RecipeItem[];
 };
 

@@ -106,8 +106,10 @@ export const SplitSimulator: React.FC<Props> = ({ isDarkMode = false }) => {
                       <button key={p.price} onClick={() => applyPreset(p.price, p.meals)}
                          className={`px-3 py-2.5 rounded-2xl text-xs border transition-all text-left ${
                            amount === p.price 
-                             ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600' 
-                             : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-emerald-300'
+                             ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500' 
+                             : isDarkMode 
+                               ? 'bg-slate-900/40 border-slate-700 text-slate-400 hover:border-emerald-500/50' 
+                               : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-emerald-300'
                          }`}>
                          <div className="font-bold">{p.label}</div>
                          <div>฿{p.price.toLocaleString()}</div>
@@ -123,8 +125,10 @@ export const SplitSimulator: React.FC<Props> = ({ isDarkMode = false }) => {
                       <button key={p.label} onClick={() => applyPreset(p.price, p.meals)}
                          className={`px-4 py-3 rounded-2xl text-xs border transition-all flex justify-between items-center ${
                            amount === p.price 
-                             ? 'bg-orange-500/10 border-orange-500/30 text-orange-600' 
-                             : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-orange-300'
+                             ? 'bg-orange-500/10 border-orange-500/30 text-orange-500' 
+                             : isDarkMode 
+                               ? 'bg-slate-900/40 border-slate-700 text-slate-400 hover:border-orange-500/50' 
+                               : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-orange-300'
                          }`}>
                          <span className="font-bold">{p.label}</span>
                          <span className="font-bold">฿{p.price.toLocaleString()}</span>
@@ -134,7 +138,7 @@ export const SplitSimulator: React.FC<Props> = ({ isDarkMode = false }) => {
              </div>
           </div>
 
-          <div className="h-px bg-slate-100 my-6" />
+          <div className={`h-px my-6 ${isDarkMode ? 'bg-slate-700/30' : 'bg-slate-100'}`} />
 
           {/* Sliders */}
           <div className="space-y-4">
@@ -166,7 +170,11 @@ export const SplitSimulator: React.FC<Props> = ({ isDarkMode = false }) => {
         </div>
 
         {/* Dynamic Advice Card */}
-        <div className={`rounded-3xl border p-6 transition-all bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-lg`}>
+        <div className={`rounded-3xl border p-6 transition-all shadow-lg ${
+          isDarkMode 
+            ? 'bg-gradient-to-br from-indigo-950 to-purple-950 border-indigo-500/20' 
+            : 'bg-gradient-to-br from-indigo-500 to-purple-600 border-transparent'
+        } text-white`}>
            <div className="flex items-center gap-2 mb-4">
               <Sparkles size={20} className="text-yellow-300 animate-pulse" />
               <h3 className="font-bold">ที่ปรึกษา AI (Thinking Outside)</h3>
@@ -210,23 +218,31 @@ export const SplitSimulator: React.FC<Props> = ({ isDarkMode = false }) => {
         <div className={`rounded-3xl border p-6 transition-all h-full ${card}`}>
           {/* Top Bar Stats */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-             <div className="text-center p-4 rounded-2xl bg-slate-50 border border-slate-100">
+             <div className={`text-center p-4 rounded-2xl border transition-all ${
+               isDarkMode ? 'bg-slate-900/60 border-slate-700/50' : 'bg-slate-50 border-slate-100'
+             }`}>
                 <p className="text-[10px] font-bold text-slate-400 mb-1">ยอดสุทธิ</p>
-                <p className="text-lg font-bold text-slate-800">฿{net.toLocaleString()}</p>
+                <p className={`text-lg font-bold ${isDarkMode ? 'text-slate-100' : 'text-slate-800'}`}>฿{net.toLocaleString()}</p>
              </div>
-             <div className="text-center p-4 rounded-2xl bg-slate-50 border border-slate-100">
+             <div className={`text-center p-4 rounded-2xl border transition-all ${
+               isDarkMode ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-slate-50 border-slate-100'
+             }`}>
                 <p className="text-[10px] font-bold text-slate-400 mb-1">ราคาเฉลี่ย</p>
-                <p className="text-lg font-bold text-emerald-600">฿{perMeal.toLocaleString()}</p>
+                <p className="text-lg font-bold text-emerald-500">฿{perMeal.toLocaleString()}</p>
              </div>
-             <div className="text-center p-4 rounded-2xl bg-slate-50 border border-slate-100">
+             <div className={`text-center p-4 rounded-2xl border transition-all ${
+               isDarkMode ? 'bg-blue-500/10 border-blue-500/20' : 'bg-slate-50 border-slate-100'
+             }`}>
                 <p className="text-[10px] font-bold text-slate-400 mb-1">กำไร / มื้อ</p>
-                <p className="text-lg font-bold text-blue-600">฿{profitPerMeal.toLocaleString()}</p>
+                <p className="text-lg font-bold text-blue-500">฿{profitPerMeal.toLocaleString()}</p>
              </div>
-             <div className="text-center p-4 rounded-2xl bg-slate-50 border border-slate-100">
+             <div className={`text-center p-4 rounded-2xl border transition-all ${
+               isDarkMode ? 'bg-slate-900/60 border-slate-700/50' : 'bg-slate-50 border-slate-100'
+             }`}>
                 <p className="text-[10px] font-bold text-slate-400 mb-1">Business Health</p>
                 <div className={`text-xs font-bold mt-1 px-2 py-1 rounded-full inline-block ${
-                   healthScore === 'GOOD' ? 'bg-emerald-100 text-emerald-700' :
-                   healthScore === 'OK' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'
+                   healthScore === 'GOOD' ? 'bg-emerald-500/20 text-emerald-500' :
+                   healthScore === 'OK' ? 'bg-blue-500/20 text-blue-500' : 'bg-red-500/20 text-red-500'
                 }`}>
                    {healthScore}
                 </div>
@@ -278,21 +294,27 @@ export const SplitSimulator: React.FC<Props> = ({ isDarkMode = false }) => {
                 ]).map(item => {
                   const cfg = POOL_CONFIG[item.pt];
                   return (
-                    <div key={item.pt} className="p-4 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:shadow-lg hover:border-transparent transition-all">
+                    <div key={item.pt} className={`p-4 rounded-2xl border transition-all ${
+                      isDarkMode 
+                        ? 'bg-slate-900/40 border-slate-700/50 hover:bg-slate-800/60 hover:border-slate-500/50' 
+                        : 'bg-slate-50/50 border-slate-100 hover:bg-white hover:shadow-lg hover:border-transparent'
+                    }`}>
                        <div className="flex items-center justify-between mb-2">
                           <span className="flex items-center gap-2 text-xs font-bold" style={{ color: cfg.color }}>
                              {cfg.icon} {cfg.label}
                           </span>
-                          <span className="text-xs font-bold text-slate-400">{item.pct}%</span>
+                          <span className="text-xs font-bold text-slate-500">{item.pct}%</span>
                        </div>
                        <div className="flex items-end justify-between">
                           <div>
-                             <p className="text-lg font-bold text-slate-800">฿{item.amt.toLocaleString()}</p>
-                             <p className="text-[10px] text-slate-400 mt-1 italic">{item.tip}</p>
+                             <p className={`text-lg font-bold ${isDarkMode ? 'text-slate-100' : 'text-slate-800'}`}>฿{item.amt.toLocaleString()}</p>
+                             <p className="text-[10px] text-slate-500 mt-1 italic">{item.tip}</p>
                           </div>
                           {meals > 1 && (
                              <div className="text-right">
-                                <p className="text-[10px] font-bold text-slate-500 bg-white px-2 py-1 rounded-lg shadow-sm">฿{(item.amt / meals).toFixed(2)}/มื้อ</p>
+                                <p className={`text-[10px] font-bold px-2 py-1 rounded-lg shadow-sm ${
+                                  isDarkMode ? 'bg-slate-950 text-slate-400 border border-slate-800' : 'bg-white text-slate-500'
+                                }`}>฿{(item.amt / meals).toFixed(2)}/มื้อ</p>
                              </div>
                           )}
                        </div>
@@ -303,8 +325,10 @@ export const SplitSimulator: React.FC<Props> = ({ isDarkMode = false }) => {
           </div>
 
           {/* Safety Check */}
-          <div className={`mt-8 p-4 rounded-2xl flex items-center gap-4 ${
-             totalPct === 100 ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-red-50 text-red-700 border border-red-100'
+          <div className={`mt-8 p-4 rounded-2xl flex items-center gap-4 border transition-all ${
+             totalPct === 100 
+              ? isDarkMode ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-emerald-50 text-emerald-700 border border-emerald-100' 
+              : isDarkMode ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-red-50 text-red-700 border border-red-100'
           }`}>
              {totalPct === 100 ? <ShieldCheck size={24} /> : <AlertCircle size={24} />}
              <div>

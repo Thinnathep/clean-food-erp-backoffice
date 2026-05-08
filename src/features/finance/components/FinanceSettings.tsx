@@ -108,7 +108,9 @@ export const FinanceSettings: React.FC<Props> = ({ configs, onRefresh, isDarkMod
       <div className={`p-6 rounded-3xl border transition-all ${card}`}>
         <div className="flex items-center justify-between mb-6">
            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+                isDarkMode ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-500'
+              }`}>
                  <Settings size={20} />
               </div>
               <div>
@@ -183,7 +185,9 @@ export const FinanceSettings: React.FC<Props> = ({ configs, onRefresh, isDarkMod
         <div className="overflow-hidden rounded-2xl border border-slate-700/10">
            <table className="w-full text-left">
               <thead>
-                 <tr className="bg-slate-50 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                 <tr className={`text-[10px] font-bold uppercase tracking-widest transition-all ${
+                   isDarkMode ? 'bg-slate-900/60 text-slate-500' : 'bg-slate-50 text-slate-400'
+                 }`}>
                     <th className="px-6 py-4">ชื่อสูตร / ประเภท</th>
                     <th className="px-6 py-4">สัดส่วน (%)</th>
                     <th className="px-6 py-4">สถานะ</th>
@@ -195,7 +199,9 @@ export const FinanceSettings: React.FC<Props> = ({ configs, onRefresh, isDarkMod
                     <tr key={c.id} className={`hover:bg-slate-500/5 transition-colors group ${editingId === c.id ? 'bg-emerald-500/5' : ''}`}>
                        <td className="px-6 py-4">
                           <p className={`text-sm font-bold ${heading}`}>{c.config_name}</p>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 font-bold uppercase">{c.promotion_type}</span>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase transition-all ${
+                             isDarkMode ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-500'
+                           }`}>{c.promotion_type}</span>
                        </td>
                        <td className="px-6 py-4">
                           <div className="flex gap-2">
@@ -242,16 +248,18 @@ export const FinanceSettings: React.FC<Props> = ({ configs, onRefresh, isDarkMod
         </div>
       </div>
 
-      <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-5 flex gap-4">
-         <Info className="text-blue-500 shrink-0" size={20} />
-         <div>
-            <p className="text-sm font-bold text-blue-600 uppercase">คำแนะนำในการตั้งค่า</p>
-            <p className="text-xs text-blue-500 mt-1 leading-relaxed">
-               การแก้ไขสูตรจะมีผลกับการบันทึกรายรับใหม่หลังจากนี้เท่านั้น ข้อมูลที่เคยบันทึกไปแล้วจะยังคงใช้สัดส่วนเดิม 
-               สัดส่วนรวม (M+L+O+P) **ต้องเท่ากับ 100% เสมอ** เพื่อความถูกต้องของบัญชีครับ
-            </p>
-         </div>
-      </div>
+     <div className={`border rounded-2xl p-5 flex gap-4 transition-all ${
+       isDarkMode ? 'bg-blue-500/10 border-blue-500/20' : 'bg-blue-50 border-blue-200'
+     }`}>
+        <Info className="text-blue-500 shrink-0" size={20} />
+        <div>
+           <p className={`text-sm font-bold uppercase ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>คำแนะนำในการตั้งค่า</p>
+           <p className={`text-xs mt-1 leading-relaxed ${isDarkMode ? 'text-blue-400/80' : 'text-blue-500'}`}>
+              การแก้ไขสูตรจะมีผลกับการบันทึกรายรับใหม่หลังจากนี้เท่านั้น ข้อมูลที่เคยบันทึกไปแล้วจะยังคงใช้สัดส่วนเดิม 
+              สัดส่วนรวม (M+L+O+P) **ต้องเท่ากับ 100% เสมอ** เพื่อความถูกต้องของบัญชีครับ
+           </p>
+        </div>
+     </div>
     </div>
   );
 };

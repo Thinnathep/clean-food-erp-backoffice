@@ -5,7 +5,15 @@ import { useAuthStore } from '../../store/authStore';
 
 const navItems = [
   { path: '/kds', icon: ChefHat, label: 'งานห้องครัว (KDS)' },
-  { path: '/members', icon: Users, label: 'สมาชิก & ปิ่นโต' },
+  { 
+    label: 'สมาชิก & โปรโมชั่น', 
+    icon: Users, 
+    path: '/members',
+    children: [
+      { path: '/members', label: 'ข้อมูลสมาชิก' },
+      { path: '/promotions', label: 'จัดการโปรโมชั่น' },
+    ]
+  },
   { 
     label: 'สต็อกวัตถุดิบ', 
     icon: Package, 

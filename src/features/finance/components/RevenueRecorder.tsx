@@ -234,8 +234,10 @@ export const RevenueRecorder: React.FC<Props> = ({ configs, onSaved, isDarkMode 
                     </option>
                   ))}
                 </select>
-                <div className="mt-2 p-3 rounded-lg bg-slate-100/50 border border-slate-200 text-[10px] text-slate-500">
-                   ใช้สูตร: <span className="font-bold text-emerald-600">{activeConfig?.config_name || 'System Default'}</span>
+                <div className={`mt-2 p-3 rounded-lg border text-[10px] transition-all ${
+                   isDarkMode ? 'bg-slate-900/40 border-slate-700/50 text-slate-500' : 'bg-slate-100/50 border-slate-200 text-slate-500'
+                }`}>
+                   ใช้สูตร: <span className="font-bold text-emerald-500">{activeConfig?.config_name || 'System Default'}</span>
                 </div>
              </div>
           </div>
@@ -250,7 +252,11 @@ export const RevenueRecorder: React.FC<Props> = ({ configs, onSaved, isDarkMode 
                     key={p.label}
                     type="button"
                     onClick={() => handleApplyPreset(p)}
-                    className={`px-3 py-2 rounded-xl text-xs border transition-all bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 text-slate-600`}
+                    className={`px-3 py-2 rounded-xl text-xs border transition-all ${
+                      isDarkMode 
+                        ? 'bg-slate-900/40 border-slate-700 text-slate-400 hover:border-emerald-500/50 hover:bg-emerald-500/5' 
+                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-emerald-50 hover:border-emerald-300'
+                    }`}
                   >
                     {p.label}
                   </button>
@@ -300,12 +306,16 @@ export const RevenueRecorder: React.FC<Props> = ({ configs, onSaved, isDarkMode 
                       type="number" 
                       value={vatPct} 
                       onChange={e => setVatPct(e.target.value)}
-                      className="w-12 p-1 text-center text-xs border rounded-lg bg-slate-50"
+                      className={`w-12 p-1 text-center text-xs border rounded-lg outline-none ${
+                        isDarkMode ? 'bg-slate-950 border-slate-700 text-slate-400' : 'bg-slate-50 border-slate-200'
+                      }`}
                     />
                     <select 
                       value={isVatIncluded ? 'IN' : 'EX'}
                       onChange={e => setIsVatIncluded(e.target.value === 'IN')}
-                      className="text-[10px] p-1 border rounded-lg bg-slate-50"
+                      className={`text-[10px] p-1 border rounded-lg outline-none ${
+                        isDarkMode ? 'bg-slate-950 border-slate-700 text-slate-400' : 'bg-slate-50 border-slate-200'
+                      }`}
                     >
                       <option value="IN">รวมแล้ว</option>
                       <option value="EX">บวกเพิ่ม</option>

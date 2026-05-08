@@ -97,8 +97,9 @@ export interface PintoPackage {
 export interface GlobalPlanSlot {
   id: string;
   delivery_date: string;
-  meal_type: 'meal_1' | 'meal_2';
+  meal_type: MealType;
   menu_item_id: string;
+  prep_notes?: string;
   
   // Joined
   menu_items?: MenuItem;
@@ -128,7 +129,7 @@ export interface MemberMealSchedule {
 
 // ── KDS Weekly Planner Types (Added) ──
 
-export type MealType = 'meal_1' | 'meal_2';
+export type MealType = string;
 export type PlanStatus = 'draft' | 'published';
 
 export interface WeeklyPlan {
@@ -204,6 +205,7 @@ export interface RecipeItem {
   item_name?: string;
   storage_unit?: string;
   avg_unit_cost?: number;
+  category?: string;
 }
 
 export interface InventoryBatch {

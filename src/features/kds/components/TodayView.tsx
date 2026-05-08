@@ -76,6 +76,7 @@ export const TodayView: React.FC = () => {
   const [isLoadingPrep, setIsLoadingPrep] = useState(false);
   const [prepSummary, setPrepSummary] = useState<any[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(dayjs().format('YYYY-MM-DD'));
+  const [isKitchenMode, setIsKitchenMode] = useState(false);
 
 
   useEffect(() => {
@@ -776,7 +777,21 @@ export const TodayView: React.FC = () => {
 
 
   return (
-    <div className="flex-1 overflow-y-auto bg-[#F8FAFC] custom-scrollbar print:bg-white print:p-0">
+    <div className={cn(
+      "flex-1 overflow-y-auto bg-[#F8FAFC] custom-scrollbar print:bg-white print:p-0 transition-all duration-300",
+      isKitchenMode && "bg-slate-900 p-2 sm:p-4"
+    )}>
+      {/* Kitchen Mode UI Overlay */}
+      {isKitchenMode && (
+        <div className="fixed top-4 right-4 z-[120] flex gap-2">
+          <button 
+            onClick={() => setIsKitchenMode(false)}
+            className="px-8 py-4 bg-rose-600 text-white rounded-[24px] text-xl font-black shadow-2xl border-4 border-rose-500 active:scale-95 transition-all"
+          >
+            ออกจากโหมดครัว
+          </button>
+        </div>
+      )}
       {/* Nutrition Modal */}
       <AnimatePresence>
         {nutritionModal && (
@@ -985,6 +1000,13 @@ export const TodayView: React.FC = () => {
             >
               วันนี้
             </button>
+            <button 
+              onClick={() => setIsKitchenMode(true)}
+              className="px-6 py-3 bg-slate-900 text-white rounded-2xl text-xs font-bold flex items-center justify-center gap-2 shadow-lg active:scale-95"
+            >
+              <ChefHat size={16} />
+              โหมดครัว (iPad)
+            </button>
             <div className="bg-white border border-slate-100 rounded-2xl p-1.5 flex items-center shadow-sm">
                 <button onClick={() => changeDate(-1)} className="p-2.5 hover:bg-slate-50 text-slate-400 hover:text-slate-900 rounded-xl transition-all"><ChevronLeft size={18} /></button>
                 <div className="px-6 text-center min-w-[140px]">
@@ -1035,7 +1057,10 @@ export const TodayView: React.FC = () => {
           </div>
         </div>
 
-        <div className="space-y-16">
+        <div className={cn(
+          "space-y-16",
+          isKitchenMode && "space-y-24 pb-40"
+        )}>
             {viewMode === 'week' && isSummaryMode && weeklySummary && (
                 <div className="space-y-12">
                     {/* Daily Overview Cards */}
@@ -1217,19 +1242,45 @@ export const TodayView: React.FC = () => {
                 })
                 .map(([time, group]: [string, any]) => (
                     <section key={time} className="space-y-6 print:break-inside-avoid">
-                        <div className="flex flex-col gap-4 border-b-2 border-slate-100 pb-6">
+                        <div className={cn(
+                          "flex items-center justify-between px-2",
+                          isKitchenMode && "bg-slate-800/80 p-6 rounded-[32px] mb-8 border border-slate-700"
+                        )}>
                             <div className="flex items-center gap-6">
-                                <div className={`h-10 w-1.5 rounded-full ${time.includes('เย็น') ? 'bg-indigo-500 shadow-lg shadow-indigo-500/20' : 'bg-orange-500 shadow-lg shadow-orange-500/20'}`}></div>
-                                <div><h3 className="text-2xl font-semibold text-slate-900 tracking-tight uppercase">รอบจัดส่ง: {time}</h3><div className="flex items-center gap-4 mt-0.5"><span className="text-sm font-medium text-slate-400 flex items-center gap-2"><Package size={14} /> ยอดผลิตรวม {group.totalRoundQty} กล่อง</span></div></div>
+                                <div className={cn(
+                                  "h-10 w-1.5 rounded-full",
+                                  time.includes('เย็น') ? 'bg-indigo-500 shadow-lg shadow-indigo-500/20' : 'bg-orange-500 shadow-lg shadow-orange-500/20',
+                                  isKitchenMode && "h-16 w-3 bg-emerald-500"
+                                )}></div>
+                                <div>
+                                  <h3 className={cn(
+                                    "text-2xl font-semibold text-slate-900 tracking-tight uppercase",
+                                    isKitchenMode && "text-3xl text-white font-bold"
+                                  )}>
+                                    รอบจัดส่ง: {time}
+                                  </h3>
+                                  <div className="flex items-center gap-4 mt-0.5">
+                                    <span className={cn(
+                                      "text-sm font-medium text-slate-400 flex items-center gap-2",
+                                      isKitchenMode && "text-xl text-emerald-400 font-bold"
+                                    )}>
+                                      <Package size={isKitchenMode ? 20 : 14} /> 
+                                      ยอดผลิตรวม {group.totalRoundQty} กล่อง
+                                    </span>
+                                  </div>
+                                </div>
                             </div>
-                            <div className="flex flex-wrap gap-2 ml-8 print:hidden">
-                                {Object.entries(group.categoryStats).sort((a, b) => (CATEGORY_PRIORITY[a[0]] || 99) - (CATEGORY_PRIORITY[b[0]] || 99)).map(([cat, qty]) => (
+                            <div className={cn("flex flex-wrap gap-2 ml-8 print:hidden", isKitchenMode && "hidden")}>
+                                {Object.entries(group.categoryStats).sort((a: any, b: any) => (CATEGORY_PRIORITY[a[0]] || 99) - (CATEGORY_PRIORITY[b[0]] || 99)).map(([cat, qty]) => (
                                     <div key={cat} className="px-3 py-1 bg-white border border-slate-200 rounded-full flex items-center gap-2 shadow-sm"><div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[cat] || '#CBD5E1' }}></div><span className="text-[10px] font-bold text-slate-500">{cat}</span><span className="text-[11px] font-black text-slate-900">{qty as number}</span></div>
                                 ))}
                             </div>
                         </div>
 
-                        <div ref={parent} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
+                        <div ref={parent} className={cn(
+                          "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4",
+                          isKitchenMode && "grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-2 gap-10"
+                        )}>
 
                             {Object.entries(group.members)
                                 .sort(([a], [b]) => a.localeCompare(b, 'th'))
@@ -1238,63 +1289,102 @@ export const TodayView: React.FC = () => {
                                 return (
                                 <div 
                                   key={memberName} 
-                                  className={`bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col overflow-hidden hover:shadow-xl transition-all duration-300 group relative ${isDone ? 'border-slate-300 shadow-inner' : ''}`}
+                                  className={cn(
+                                    "bg-white rounded-[32px] border border-slate-100 shadow-sm flex flex-col overflow-hidden hover:shadow-xl transition-all duration-300 group relative",
+                                    isDone && "border-slate-300 shadow-inner opacity-40 grayscale-[0.5]",
+                                    isKitchenMode && "border-4 border-slate-800 shadow-2xl",
+                                    !isDone && isKitchenMode && "bg-slate-800 ring-8 ring-emerald-500/10"
+                                  )}
                                 >
                                     {/* Header Section (Always Prominent) */}
-                                    <div className="p-4 pb-0 flex justify-between items-start gap-2 relative z-10">
+                                    <div className={cn("p-5 pb-0 flex justify-between items-start gap-2 relative z-10", isKitchenMode && "p-8")}>
                                         <div className="flex flex-col gap-2">
                                             <div className="flex items-center gap-2">
                                                 <motion.button 
                                                   whileTap={{ scale: 0.9 }}
                                                   onClick={(e) => handleToggleClick(time, memberName, item, e)}
-                                                  className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all shadow-md ${isDone ? 'bg-emerald-500 text-white shadow-emerald-500/40' : 'bg-emerald-50 text-emerald-500 hover:bg-emerald-100 border border-emerald-100'}`}
+                                                  className={cn(
+                                                    "w-10 h-10 rounded-2xl flex items-center justify-center transition-all shadow-md",
+                                                    isDone ? 'bg-emerald-500 text-white shadow-emerald-500/40' : 'bg-emerald-50 text-emerald-500 hover:bg-emerald-100 border border-emerald-100',
+                                                    isKitchenMode && "w-16 h-16 rounded-[24px]"
+                                                  )}
                                                 >
-                                                    <CheckCircle2 size={22} strokeWidth={2} />
+                                                    <CheckCircle2 size={isKitchenMode ? 36 : 24} strokeWidth={3} />
                                                 </motion.button>
-                                                {item.isRetail && <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded bg-slate-900 text-white shadow-sm">รายย่อย</span>}
-                                                {item.hasExtraOrder && <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded bg-orange-500 text-white shadow-sm">สั่งแยก</span>}
-                                                {item.hasNotes && !isDone && <AlertTriangle size={16} className="text-red-500 animate-pulse" />}
+                                                {item.isRetail && <span className={cn("text-[10px] font-semibold uppercase tracking-widest px-2 py-1 rounded-lg bg-slate-900 text-white", isKitchenMode && "text-base px-4 py-2")}>Retail</span>}
+                                                {item.hasExtraOrder && <span className={cn("text-[10px] font-semibold uppercase tracking-widest px-2 py-1 rounded-lg bg-orange-500 text-white", isKitchenMode && "text-base px-4 py-2")}>สั่งแยก</span>}
+                                                {item.hasNotes && !isDone && <AlertTriangle size={isKitchenMode ? 40 : 20} className="text-red-500 animate-pulse" />}
                                             </div>
-                                            <h4 className={`text-lg font-semibold transition-colors ${isDone ? 'text-slate-400 line-through' : 'text-slate-900 group-hover:text-emerald-600'}`}>{memberName}</h4>
+                                            <h4 className={cn(
+                                              "text-xl font-semibold transition-colors",
+                                              isDone ? 'text-slate-400 line-through' : 'text-slate-900 group-hover:text-emerald-600',
+                                              isKitchenMode && "text-3xl text-white mt-2"
+                                            )}>{memberName}</h4>
                                         </div>
                                         <div 
                                           onClick={(e) => handleToggleClick(time, memberName, item, e)}
-                                          className={`cursor-pointer ${isDone ? 'bg-slate-300' : 'bg-slate-900'} text-white px-2.5 py-2 rounded-xl flex flex-col items-center justify-center shrink-0 min-w-[44px] shadow-lg transition-all hover:scale-105 active:scale-95`}
+                                          className={cn(
+                                            "cursor-pointer text-white px-3 py-2 rounded-2xl flex flex-col items-center justify-center shrink-0 min-w-[50px] shadow-lg transition-all hover:scale-105 active:scale-95",
+                                            isDone ? 'bg-slate-300' : 'bg-slate-900',
+                                            isKitchenMode && "bg-emerald-600 px-8 py-6 rounded-[32px] min-w-[100px]"
+                                          )}
                                         >
-                                            <span className="text-[20px] font-bold leading-none">{item.totalQty}</span>
-                                            <span className="text-[8px] font-bold uppercase opacity-60 leading-none mt-1">BOX</span>
+                                            <span className={cn("text-2xl font-semibold leading-none", isKitchenMode && "text-5xl")}>{item.totalQty}</span>
+                                            <span className={cn("text-[8px] font-semibold uppercase opacity-60 leading-none mt-1", isKitchenMode && "text-sm")}>BOX</span>
                                         </div>
                                     </div>
 
                                     {/* Content Section (Faded when Done) */}
-                                    <div className={`px-4 pt-3 flex flex-col gap-3 flex-1 ${isDone ? 'opacity-25 grayscale-[1]' : ''}`}>
-                                        <div className="space-y-2">
+                                    <div className={cn(`px-5 pt-4 flex flex-col gap-4 flex-1`, isDone ? 'opacity-25 grayscale-[1]' : '', isKitchenMode && "p-8")}>
+                                        <div className="space-y-3">
                                             {item.orders.map((order: any, oIdx: number) => {
                                                 const orderDone = order.status === 'ready' || order.status === 'done' || order.status === 'เสร็จสิ้น';
                                                 return (
                                                 <div 
                                                   key={oIdx} 
                                                   onClick={(e) => toggleSingleItem(order, e)}
-                                                  className={`p-2 rounded-xl border transition-all cursor-pointer ${orderDone ? 'bg-slate-50 border-transparent opacity-60' : 'bg-slate-50 border-slate-100 hover:border-emerald-300 hover:bg-white hover:shadow-sm'}`}
+                                                  className={cn(
+                                                    "p-3 rounded-2xl border transition-all cursor-pointer relative overflow-hidden",
+                                                    orderDone ? 'bg-slate-50 border-transparent opacity-60' : 'bg-slate-50 border-slate-100 hover:border-emerald-300 hover:bg-white hover:shadow-sm',
+                                                    isKitchenMode && "p-8 rounded-[32px] border-4",
+                                                    isKitchenMode && !orderDone && "bg-slate-700/50 border-slate-600 text-white"
+                                                  )}
                                                 >
-                                                    <div className="flex justify-between items-start gap-2">
+                                                    <div className="flex justify-between items-start gap-4">
                                                         <div className="flex-1">
-                                                            <div className="flex items-center gap-1.5 mb-0.5">
-                                                                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[order.category] || '#CBD5E1' }}></span>
-                                                                <span className="text-[11px] font-semibold text-slate-900 uppercase tracking-tight">{order.category}</span>
-                                                                {order.isExtra && <span className="text-[9px] font-black bg-orange-100 text-orange-600 px-1 rounded uppercase tracking-widest ml-1">สั่งแยก</span>}
+                                                            <div className="flex items-center gap-2 mb-1.5">
+                                                                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[order.category] || '#CBD5E1' }}></span>
+                                                                <span className={cn("text-[11px] font-bold text-slate-900 uppercase tracking-widest", isKitchenMode && "text-xl text-emerald-400 font-bold")}>{order.category}</span>
                                                             </div>
-                                                            <p className={`text-[14px] font-medium leading-tight ${orderDone ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{order.menuName}</p>
+                                                            <p className={cn(
+                                                              "text-base font-bold leading-tight",
+                                                              orderDone ? 'text-slate-400 line-through' : 'text-slate-800',
+                                                              isKitchenMode && "text-3xl",
+                                                              isKitchenMode && !orderDone && "text-white"
+                                                            )}>{order.menuName}</p>
                                                         </div>
                                                         <div className="flex flex-col items-end gap-1">
-                                                            <span className={`text-[14px] font-bold ${orderDone ? 'text-slate-300' : 'text-slate-900'}`}>x{order.qty}</span>
-                                                            {orderDone && <CheckCircle2 size={12} className="text-emerald-500" />}
+                                                            <span className={cn(
+                                                              "text-lg font-bold",
+                                                              orderDone ? 'text-slate-300' : 'text-slate-900',
+                                                              isKitchenMode && "text-5xl font-bold",
+                                                              isKitchenMode && !orderDone && "text-emerald-400"
+                                                            )}>x{order.qty}</span>
+                                                            {orderDone && <CheckCircle2 size={isKitchenMode ? 32 : 16} className="text-emerald-500" />}
                                                         </div>
                                                     </div>
                                                     {order.note && (
-                                                        <div className={`mt-1.5 flex gap-1.5 items-start p-1.5 rounded-lg ${orderDone ? 'bg-slate-100/30' : 'bg-amber-50'}`}>
-                                                            <AlertTriangle size={10} className={`${orderDone ? 'text-slate-200' : 'text-amber-500'} shrink-0 mt-0.5`} />
-                                                            <p className={`text-[11px] font-bold leading-tight italic ${orderDone ? 'text-slate-300' : 'text-amber-700'}`}>{order.note}</p>
+                                                        <div className={cn(
+                                                          `mt-3 flex gap-3 items-start p-3 rounded-2xl`,
+                                                          orderDone ? 'bg-slate-100/30' : 'bg-rose-50 border border-rose-100',
+                                                          isKitchenMode && "p-6 bg-rose-600 border-none shadow-xl animate-pulse mt-6"
+                                                        )}>
+                                                            <AlertTriangle size={isKitchenMode ? 32 : 14} className={cn(orderDone ? 'text-slate-200' : 'text-rose-500', isKitchenMode && "text-white")} />
+                                                            <p className={cn(
+                                                              `text-xs font-bold leading-tight italic`,
+                                                              orderDone ? 'text-slate-300' : 'text-rose-700',
+                                                              isKitchenMode && "text-2xl text-white not-italic font-bold"
+                                                            )}>{order.note}</p>
                                                         </div>
                                                     )}
                                                 </div>

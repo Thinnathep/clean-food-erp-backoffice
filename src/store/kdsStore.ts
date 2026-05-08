@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { toast } from 'sonner';
 import Swal from 'sweetalert2';
 import { supabase } from '../config/supabase';
 import { persist, createJSONStorage } from 'zustand/middleware';
@@ -55,8 +56,10 @@ interface KdsState {
   fetchAllMembers: () => Promise<void>;
   
   // Mutators (Global)
-  assignGlobalSlot: (date: string, meal: 'meal_1' | 'meal_2', menuId: string) => Promise<void>;
-  removeGlobalSlot: (date: string, meal: 'meal_1' | 'meal_2') => Promise<void>;
+  assignGlobalSlot: (date: string, meal: string, menuId: string) => Promise<void>;
+  removeGlobalSlot: (date: string, meal: string) => Promise<void>;
+  updateGlobalSlotNote: (date: string, meal: string, note: string) => Promise<void>;
+  applyDailyMenuToAll: (date: string, meal: string, menuId: string) => Promise<void>;
   
   assignMemberSlot: (
     scheduleId: string | null, 
@@ -371,7 +374,7 @@ export const useKdsStore = create<KdsState>()(
       
       assignGlobalSlot: async (date, meal, menuId) => {
         try {
-          await upsertGlobalPlanSlot(date, meal, menuId);
+          await upsertGlobalPlanSlot(date, meal as any, menuId);
           const menu = get().menus.find(m => m.id === menuId);
           const newSlot: GlobalPlanSlot = { id: Math.random().toString(), delivery_date: date, meal_type: meal, menu_item_id: menuId, menu_items: menu };
           set(state => ({
@@ -384,12 +387,109 @@ export const useKdsStore = create<KdsState>()(
 
       removeGlobalSlot: async (date, meal) => {
         try {
-          await deleteGlobalPlanSlot(date, meal);
+          await deleteGlobalPlanSlot(date, meal as any);
           set(state => ({
             globalPlanSlots: state.globalPlanSlots.filter(s => !(s.delivery_date === date && s.meal_type === meal))
           }));
         } catch (error: any) {
           set({ error: error.message });
+        }
+      },
+
+      updateGlobalSlotNote: async (date, meal, note) => {
+        try {
+          const { error } = await supabase
+            .from('pinto_meal_plan')
+            .update({ prep_notes: note })
+            .eq('delivery_date', date)
+            .eq('meal_type', meal);
+          
+          if (error) throw error;
+
+          set(state => ({
+            globalPlanSlots: state.globalPlanSlots.map(s => 
+              (s.delivery_date === date && s.meal_type === meal) 
+                ? { ...s, prep_notes: note } 
+                : s
+            )
+          }));
+        } catch (error: any) {
+          console.error(error);
+        }
+      },
+
+      applyDailyMenuToAll: async (date, mealType, menuId) => {
+        const { activePackages, menus, memberSchedules } = get();
+        const menu = menus.find(m => m.id === menuId);
+        if (!menu) return;
+
+        const result = await Swal.fire({
+          title: 'ยืนยันการลงเมนูหลัก?',
+          text: `ต้องการลงเมนู "${menu.name}" ให้กับลูกค้าทุกคนที่มีแพ็กเกจในวันที่ ${date} ใช่หรือไม่?`,
+          icon: 'question',
+          showCancelButton: true,
+          confirmButtonText: 'ยืนยัน',
+          cancelButtonText: 'ยกเลิก'
+        });
+
+        if (!result.isConfirmed) return;
+
+        set({ isLoadingData: true });
+        try {
+          const newSchedules = [...memberSchedules];
+          
+          activePackages.forEach(pkg => {
+            const member = Array.isArray(pkg.members) ? pkg.members[0] : pkg.members;
+            if (member?.is_banned) return;
+
+            // Find existing slot for this member on this date/meal
+            const existingIdx = newSchedules.findIndex(s => 
+              s.delivery_date === date && 
+              s.meal_type === mealType && 
+              s.package_id === pkg.id
+            );
+
+            if (existingIdx !== -1) {
+              // Update existing
+              newSchedules[existingIdx] = {
+                ...newSchedules[existingIdx],
+                menu_item_id: menuId,
+                menu_items: menu,
+                kitchen_status: 'pending'
+              };
+            } else {
+              // Create new slot
+              newSchedules.push({
+                id: `temp_${Math.random()}`,
+                package_id: pkg.id,
+                member_id: pkg.member_id,
+                delivery_date: date,
+                meal_type: mealType as any,
+                menu_item_id: menuId,
+                quantity: 1,
+                box_size: 'regular',
+                delivery_time: member?.delivery_time || '',
+                kitchen_status: 'pending',
+                notes: '',
+                is_extra_order: false,
+                meal_order_type: 'subscription',
+                menu_items: menu
+              });
+            }
+          });
+
+          set({ 
+            memberSchedules: newSchedules, 
+            hasUnsavedChanges: true,
+            isLoadingData: false 
+          });
+
+          toast.success(`ลงเมนู "${menu.name}" ให้ลูกค้าทุกคนแล้ว`, {
+            description: "อย่าลืมกดปุ่ม 'ยืนยันบันทึกแผนงาน' เพื่อบันทึกข้อมูล"
+          });
+        } catch (error: any) {
+          set({ error: error.message, isLoadingData: false });
+          Swal.fire('Error', 'ไม่สามารถลงเมนูได้: ' + error.message, 'error');
         }
       },
 

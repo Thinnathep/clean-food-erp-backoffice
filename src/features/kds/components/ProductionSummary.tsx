@@ -4,22 +4,24 @@ import { useAuthStore } from '../../../store/authStore';
 import {
   UtensilsCrossed, ChevronLeft, ChevronRight, Package, BarChart3,
   Calendar as CalendarIcon, Printer,
-  User, Sparkles, AlertCircle, TrendingUp, ChefHat
+  User, Sparkles, AlertCircle, TrendingUp, ChefHat, ClipboardList, CheckCircle2
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip,
   PieChart, Pie, Cell
 } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
+import { cn } from '../../../lib/utils';
 import dayjs from 'dayjs';
 import 'dayjs/locale/th';
 
-type TabType = 'dashboard' | 'production' | 'calendar';
+type TabType = 'dashboard' | 'production' | 'calendar' | 'prep';
 
 // ─── Shared Design Tokens ───────────────────────────────────────────────────
 const TAB_CONFIG = [
   { key: 'dashboard' as TabType, label: 'วิเคราะห์ข้อมูล', icon: BarChart3, adminOnly: true },
   { key: 'production' as TabType, label: 'รายการผลิต', icon: ChefHat, adminOnly: false },
+  { key: 'prep' as TabType, label: 'รายการซื้อของ', icon: ClipboardList, adminOnly: false },
   { key: 'calendar' as TabType, label: 'ปฏิทิน', icon: CalendarIcon, adminOnly: false },
 ];
 
@@ -448,6 +450,213 @@ function ProductionTab({ dailySummary }: { dailySummary: any[] }) {
   );
 }
 
+// ─── Prep Tab (Mobile Shopping List) ──────────────────────────────────────────
+import { fetchBulkRecipes } from '../api';
+import { toast } from 'sonner';
+
+function PrepTab({ dailySummary }: { dailySummary: any[] }) {
+  const [prepData, setPrepData] = useState<Record<string, any[]>>({});
+  const [missingRecipes, setMissingRecipes] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const loadPrepData = async () => {
+      if (dailySummary.length === 0) {
+        setPrepData({});
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        const menuItemIds = dailySummary.map(item => {
+           return item.members[0]?.menuId || dailySummary.find(d => d.name === item.name)?.id;
+        }).filter(id => id && id.length > 20);
+
+        const recipes = await fetchBulkRecipes(menuItemIds);
+        
+        const aggregates: Record<string, any> = {};
+        const menusWithRecipes = new Set<string>();
+
+        dailySummary.forEach(prodItem => {
+          const menuId = prodItem.members[0]?.menuId || prodItem.id;
+          const menuRecipes = recipes.filter(r => r.menu_item_id === menuId);
+          
+          if (menuRecipes.length > 0) {
+            menusWithRecipes.add(prodItem.name);
+          }
+
+          menuRecipes.forEach(recipe => {
+            const key = recipe.item_id;
+            if (!aggregates[key]) {
+              aggregates[key] = {
+                id: key,
+                name: recipe.item_name || 'Unknown',
+                unit: recipe.storage_unit || 'หน่วย',
+                total: 0,
+                category: recipe.category || 'อื่นๆ',
+                menus: []
+              };
+            }
+            const amount = recipe.quantity_required * prodItem.total;
+            aggregates[key].total += amount;
+            aggregates[key].menus.push({ name: prodItem.name, qty: prodItem.total });
+          });
+        });
+
+        // Audit: Find menus without any recipes
+        const missing = dailySummary
+          .map(p => p.name)
+          .filter(name => !menusWithRecipes.has(name));
+        
+        setMissingRecipes(missing);
+
+        // Group by category
+        const grouped = Object.values(aggregates).reduce((acc: any, item: any) => {
+          const cat = item.category || 'อื่นๆ';
+          if (!acc[cat]) acc[cat] = [];
+          acc[cat].push(item);
+          return acc;
+        }, {});
+
+        // Sort items within each category
+        Object.keys(grouped).forEach(cat => {
+          grouped[cat].sort((a: any, b: any) => a.name.localeCompare(b.name, 'th'));
+        });
+
+        setPrepData(grouped);
+      } catch (err) {
+        toast.error("ไม่สามารถโหลดรายการซื้อของได้");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadPrepData();
+  }, [dailySummary]);
+
+  const toggleCheck = (id: string) => {
+    const newChecked = new Set(checkedItems);
+    if (newChecked.has(id)) newChecked.delete(id);
+    else newChecked.add(id);
+    setCheckedItems(newChecked);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 bg-white rounded-2xl border border-slate-100">
+        <div className="w-12 h-12 border-4 border-slate-200 border-t-slate-900 rounded-full animate-spin mb-4" />
+        <p className="text-sm text-slate-500 font-medium">กำลังคำนวณรายการซื้อของ...</p>
+      </div>
+    );
+  }
+
+  const hasData = Object.keys(prepData).length > 0;
+
+  if (!hasData) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 bg-white rounded-2xl border border-dashed border-slate-200">
+        <ClipboardList className="text-slate-200 mb-4" size={56} />
+        <h3 className="text-lg font-light text-slate-400">ไม่มีข้อมูลวัตถุดิบ (กรุณาลงสูตรอาหารก่อน)</h3>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 max-w-2xl mx-auto pb-20">
+      {/* Recipe Audit Alert */}
+      {missingRecipes.length > 0 && (
+        <div className="bg-rose-50 border border-rose-100 p-4 rounded-[24px] flex items-start gap-3 shadow-sm">
+          <AlertCircle className="text-rose-500 shrink-0 mt-0.5" size={20} />
+          <div>
+            <p className="text-sm font-black text-rose-800 uppercase tracking-tight">ตรวจพบเมนูที่ยังไม่ได้ลงสูตรอาหาร!</p>
+            <p className="text-xs font-medium text-rose-600 mt-1">
+              ยอดซื้อของด้านล่างอาจไม่ครบถ้วนเนื่องจากยังไม่มีข้อมูลของเมนู:
+            </p>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {missingRecipes.map(name => (
+                <span key={name} className="px-2 py-0.5 bg-white/50 border border-rose-200 rounded-lg text-[10px] font-bold text-rose-700">
+                  {name}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-[24px] flex items-center gap-3 shadow-sm">
+        <Sparkles className="text-emerald-500" size={20} />
+        <p className="text-sm font-bold text-emerald-800">
+          รายการนี้คำนวณจากยอดผลิตรวม {dailySummary.reduce((a, b) => a + b.total, 0)} กล่อง
+        </p>
+      </div>
+
+      <div className="space-y-8">
+        {Object.entries(prepData).sort().map(([category, items]) => (
+          <div key={category} className="space-y-3">
+            <div className="flex items-center gap-3 px-2">
+              <div className="w-1.5 h-5 bg-slate-300 rounded-full" />
+              <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">{category}</h3>
+              <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{items.length} รายการ</span>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2">
+              {items.map((item) => (
+                <motion.div
+                  key={item.id}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => toggleCheck(item.id)}
+                  className={cn(
+                    "flex items-center gap-4 p-4 rounded-[24px] border transition-all cursor-pointer",
+                    checkedItems.has(item.id) 
+                      ? 'bg-slate-50 border-slate-100 opacity-60' 
+                      : 'bg-white border-slate-100 shadow-sm hover:border-emerald-200'
+                  )}
+                >
+                  <div className={cn(
+                    "w-6 h-6 rounded-xl flex items-center justify-center transition-colors",
+                    checkedItems.has(item.id) ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-300'
+                  )}>
+                    <CheckCircle2 size={16} />
+                  </div>
+                  
+                  <div className="flex-1 min-w-0">
+                    <p className={cn(
+                      "font-bold text-base truncate",
+                      checkedItems.has(item.id) ? 'text-slate-400 line-through' : 'text-slate-900'
+                    )}>
+                      {item.name}
+                    </p>
+                    <div className="flex gap-2 mt-0.5 overflow-hidden">
+                      {item.menus.slice(0, 2).map((m: any, i: number) => (
+                        <span key={i} className="text-[10px] text-slate-400 font-medium whitespace-nowrap opacity-60">#{m.name}</span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="text-right shrink-0">
+                    <p className={cn(
+                      "text-xl font-black leading-none",
+                      checkedItems.has(item.id) ? 'text-slate-400' : 'text-slate-900'
+                    )}>
+                      {item.total.toLocaleString()}
+                    </p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{item.unit}</p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      
+      <p className="text-center text-[10px] text-slate-400 py-12 uppercase tracking-[0.3em] font-black opacity-30">
+        จบรายการเตรียมวัตถุดิบ
+      </p>
+    </div>
+  );
+}
+
 
 
 // ─── Calendar Tab ─────────────────────────────────────────────────────────────
@@ -784,6 +993,12 @@ export const ProductionSummary: React.FC = () => {
           )}
 
 
+
+          {activeTab === 'prep' && (
+            <motion.div key="prep" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+              <PrepTab dailySummary={dailySummary} />
+            </motion.div>
+          )}
 
           {activeTab === 'calendar' && (
             <motion.div key="cal" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
