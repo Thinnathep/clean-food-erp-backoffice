@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, X, Plus, Upload, ImageIcon, Edit2, Trash2, Eye, Beaker } from 'lucide-react';
 import Swal from 'sweetalert2';
-import { useKdsStore } from '../../../store/kdsStore';
+import { useMenuStore } from '../../../store/menuStore';
 import type { MenuItem, RecipeItem, InventoryItem } from '../../../types';
 import { fetchMenuRecipes, fetchInventoryForRecipes, addMenuRecipe, deleteMenuRecipe, updateMenuTargetCost } from '../api';
 
@@ -618,17 +618,17 @@ const MenuFormModal = memo(({
 });
 
 export const MenuLibrary: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
-  const menus = useKdsStore(state => state.menus);
-  const searchTerm = useKdsStore(state => state.searchTerm);
-  const setSearchTerm = useKdsStore(state => state.setSearchTerm);
-  const categoryFilter = useKdsStore(state => state.categoryFilter);
-  const setCategoryFilter = useKdsStore(state => state.setCategoryFilter);
-  const selectedMenuId = useKdsStore(state => state.selectedMenuId);
-  const setSelectedMenuId = useKdsStore(state => state.setSelectedMenuId);
-  const addMenuItem = useKdsStore(state => state.addMenuItem);
-  const updateMenuItem = useKdsStore(state => state.updateMenuItem);
-  const deleteMenuItem = useKdsStore(state => state.deleteMenuItem);
-  const uploadImage = useKdsStore(state => state.uploadImage);
+  const menus = useMenuStore(state => state.menus);
+  const searchTerm = useMenuStore(state => state.searchTerm);
+  const setSearchTerm = useMenuStore(state => state.setSearchTerm);
+  const categoryFilter = useMenuStore(state => state.categoryFilter);
+  const setCategoryFilter = useMenuStore(state => state.setCategoryFilter);
+  const selectedMenuId = useMenuStore(state => state.selectedMenuId);
+  const setSelectedMenuId = useMenuStore(state => state.setSelectedMenuId);
+  const addMenuItem = useMenuStore(state => state.addMenuItem);
+  const updateMenuItem = useMenuStore(state => state.updateMenuItem);
+  const deleteMenuItem = useMenuStore(state => state.deleteMenuItem);
+  const uploadImage = useMenuStore(state => state.uploadImage);
 
   const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
   const [isModalOpen, setIsModalOpen] = useState(false);

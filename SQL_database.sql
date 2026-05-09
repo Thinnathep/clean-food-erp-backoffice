@@ -191,8 +191,7 @@ CREATE TABLE public.erp_inventory_items (
   deleted_at timestamp with time zone,
   is_test boolean DEFAULT false,
   CONSTRAINT erp_inventory_items_pkey PRIMARY KEY (id),
-  CONSTRAINT erp_inv_items_default_supplier_fkey FOREIGN KEY (default_supplier_id) REFERENCES public.erp_suppliers(id),
-  CONSTRAINT fk_inventory_default_supplier FOREIGN KEY (default_supplier_id) REFERENCES public.erp_suppliers(id)
+  CONSTRAINT erp_inv_items_default_supplier_fkey FOREIGN KEY (default_supplier_id) REFERENCES public.erp_suppliers(id)
 );
 CREATE TABLE public.erp_inventory_locations (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
@@ -244,6 +243,8 @@ CREATE TABLE public.erp_kitchen_checklist_master (
   category text NOT NULL,
   item_name text NOT NULL,
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
+  vendor text,
+  target_time text,
   CONSTRAINT erp_kitchen_checklist_master_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.erp_kitchen_sessions (
@@ -806,7 +807,15 @@ CREATE TABLE public.promotions (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   deleted_at timestamp with time zone,
-  CONSTRAINT promotions_pkey PRIMARY KEY (id)
+  price numeric DEFAULT 0,
+  meals_count integer DEFAULT 0,
+  days_count integer DEFAULT 0,
+  sales_script text,
+  promotion_type text DEFAULT 'PINTO'::text,
+  conditions text,
+  split_config_id uuid,
+  CONSTRAINT promotions_pkey PRIMARY KEY (id),
+  CONSTRAINT promotions_split_config_id_fkey FOREIGN KEY (split_config_id) REFERENCES public.erp_split_configs(id)
 );
 CREATE TABLE public.shop_holidays (
   id uuid NOT NULL DEFAULT gen_random_uuid(),

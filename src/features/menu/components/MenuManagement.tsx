@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Swal from 'sweetalert2';
-import { useKdsStore } from '../../../store/kdsStore';
+import { useMenuStore } from '../../../store/menuStore';
 import type { MenuItem } from '../../../types';
 
 interface MenuManagementProps {
@@ -93,12 +93,12 @@ const MenuCard = React.memo(({
 export const MenuManagement: React.FC<MenuManagementProps> = ({ type }) => {
   const { 
     menus, 
-    addMenuItem, 
-    updateMenuItem, 
-    deleteMenuItem,
+    addMenu, 
+    updateMenu, 
+    removeMenu,
     uploadImage,
-    isLoadingData 
-  } = useKdsStore();
+    isLoading 
+  } = useMenuStore();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ทั้งหมด');
@@ -153,8 +153,8 @@ export const MenuManagement: React.FC<MenuManagementProps> = ({ type }) => {
     }
 
     const promise = editingItem.id 
-      ? updateMenuItem(editingItem.id, editingItem)
-      : addMenuItem(editingItem as Omit<MenuItem, 'id'>);
+      ? updateMenu(editingItem.id, editingItem)
+      : addMenu(editingItem as Omit<MenuItem, 'id'>);
 
     toast.promise(promise, {
       loading: 'กำลังบันทึกข้อมูล...',
@@ -185,7 +185,7 @@ export const MenuManagement: React.FC<MenuManagementProps> = ({ type }) => {
     });
 
     if (result.isConfirmed) {
-      toast.promise(deleteMenuItem(item.id), {
+      toast.promise(removeMenu(item.id), {
         loading: 'กำลังลบเมนู...',
         success: 'ลบเมนูอาหารสำเร็จ',
         error: 'เกิดข้อผิดพลาดในการลบเมนู'
@@ -261,7 +261,7 @@ export const MenuManagement: React.FC<MenuManagementProps> = ({ type }) => {
           </div>
 
           {/* Grid Layout */}
-          {isLoadingData ? (
+          {isLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {[1, 2, 3, 4, 5, 6, 7, 8].map(n => (
                 <div key={n} className="h-64 bg-slate-100 rounded-3xl animate-pulse" />

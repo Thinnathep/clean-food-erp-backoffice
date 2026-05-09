@@ -5,6 +5,7 @@ export const fetchInventoryItems = async (): Promise<InventoryItem[]> => {
   const { data, error } = await supabase
     .from('erp_inventory_items')
     .select('*')
+    .is('deleted_at', null)
     .order('name', { ascending: true });
 
   if (error) throw error;
@@ -47,7 +48,7 @@ export const updateInventoryItem = async (id: string, updates: Partial<Inventory
 export const deleteInventoryItem = async (id: string) => {
   const { error } = await supabase
     .from('erp_inventory_items')
-    .delete()
+    .update({ deleted_at: new Date().toISOString() })
     .eq('id', id);
 
   if (error) throw error;

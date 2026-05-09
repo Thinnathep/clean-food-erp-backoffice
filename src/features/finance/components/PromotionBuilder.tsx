@@ -172,40 +172,87 @@ export const PromotionBuilder: React.FC<Props> = ({ isDarkMode = false }) => {
     if (!promoName) return toast.error('กรุณาตั้งชื่อโปรโมชั่น');
     setIsSubmitting(true);
     try {
-      // 1. Save to Split Configs (Accounting)
-      const { data: splitData, error: splitError } = await supabase.from('erp_split_configs').insert({
+      // 1. Check if a Split Config with this name already exists
+      const { data: existingConfigs } = await supabase
+        .from('erp_split_configs')
+        .select('id')
+        .eq('config_name', promoName)
+        .eq('is_active', true)
+        .limit(1);
+
+      let splitDataId: string;
+
+      const configData = {
         config_name: promoName,
         promotion_type: meals > 1 ? 'PINTO' : 'RETAIL',
         material_pct: calculations.split.MATERIAL,
         labor_pct: calculations.split.LABOR,
         ops_pct: calculations.split.OPS,
         profit_pct: calculations.split.PROFIT,
-        is_active: true, is_default: false,
+        is_active: true,
         notes: JSON.stringify({
           strategy: 'PROMOTION_BUILDER_V2',
           input: { price, meals, deliveryCount, includeVat, gpPercentage, materialPerMeal, laborPerMeal, packagingPerMeal, billMonthly, rentMonthly, adBudget, deliveryCostPerTrip, gasCostPerTrip, depreciationMonthly, insuranceMonthly, contingencyPct, promoCustomers, promoDays },
           results: calculations
         })
-      }).select().single();
+      };
 
-      if (splitError) throw splitError;
+      if (existingConfigs && existingConfigs.length > 0) {
+        // Update existing
+        splitDataId = existingConfigs[0].id;
+        const { error: updateError } = await supabase
+          .from('erp_split_configs')
+          .update(configData)
+          .eq('id', splitDataId);
+        
+        if (updateError) throw updateError;
+      } else {
+        // Insert new
+        const { data: newData, error: insertError } = await supabase
+          .from('erp_split_configs')
+          .insert({ ...configData, is_default: false })
+          .select()
+          .single();
+        
+        if (insertError) throw insertError;
+        splitDataId = newData.id;
+      }
 
       // 2. Save to Promotions (Sales/Marketing)
-      const { error: promoError } = await supabase.from('promotions').insert({
+      // Check if promotion with same code already exists
+      const resolvedCode = promoCode || promoName.replace(/\s+/g, '_').toUpperCase();
+      const promoPayload = {
         name: promoName,
-        code: promoCode || promoName.replace(/\s+/g, '_').toUpperCase(),
+        code: resolvedCode,
         price: price,
         meals_count: meals,
         days_count: promoDays,
         promotion_type: meals > 1 ? 'PINTO' : 'RETAIL',
         is_active: true,
         sales_script: `แพ็กเกจ ${promoName} (${promoCode}) ราคาเพียง ฿${price.toLocaleString()} ได้ทั้งหมด ${meals} มื้อ (เฉลี่ยมื้อละ ฿${calculations.revenuePerMeal}) คุ้มค่าที่สุดสำหรับดูแลสุขภาพต่อเนื่อง ${promoDays} วันครับ`,
-        split_config_id: splitData.id,
+        split_config_id: splitDataId,
         discount_type: 'FIXED',
         discount_value: 0
-      });
+      };
 
-      if (promoError) throw promoError;
+      const { data: existingPromo } = await supabase
+        .from('promotions')
+        .select('id')
+        .eq('code', resolvedCode)
+        .limit(1);
+
+      if (existingPromo && existingPromo.length > 0) {
+        const { error: promoError } = await supabase
+          .from('promotions')
+          .update(promoPayload)
+          .eq('id', existingPromo[0].id);
+        if (promoError) throw promoError;
+      } else {
+        const { error: promoError } = await supabase
+          .from('promotions')
+          .insert(promoPayload);
+        if (promoError) throw promoError;
+      }
 
       toast.success('บันทึกแผนกลยุทธ์และโปรโมชั่นเรียบร้อยแล้ว');
     } catch (err: any) { toast.error('ล้มเหลว: ' + err.message); }

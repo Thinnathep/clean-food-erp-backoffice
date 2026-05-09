@@ -3,7 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChefHat, CheckCircle2, AlertTriangle, Package, UtensilsCrossed, ChevronLeft, ChevronRight, ChevronDown, X, Printer, Sparkles } from 'lucide-react';
 import dayjs from 'dayjs';
 import 'dayjs/locale/th';
+import { usePlannerStore } from '../../../store/plannerStore';
+import { useMemberStore } from '../../../store/memberStore';
 import { useKdsStore } from '../../../store/kdsStore';
+import { useMenuStore } from '../../../store/menuStore';
 import { useAuthStore } from '../../../store/authStore';
 import { closeKitchenSession, updateSchedulesKitchenStatus, updateOrdersKitchenStatus, fetchBulkRecipes } from '../api';
 import { supabase } from '../../../config/supabase';
@@ -58,11 +61,12 @@ const getCleanTimeLabel = (rawTime: string) => {
 };
 
 export const TodayView: React.FC = () => {
-  const memberSchedules = useKdsStore(state => state.memberSchedules);
+  const memberSchedules = usePlannerStore(state => state.memberSchedules);
   const tasks = useKdsStore(state => state.tasks);
-  const loadMemberPlanner = useKdsStore(state => state.loadMemberPlanner);
+  const loadMemberPlanner = usePlannerStore(state => state.loadMemberPlanner);
   const fetchTasks = useKdsStore(state => state.fetchTasks);
-  const menus = useKdsStore(state => state.menus);
+  const menus = useMenuStore(state => state.menus);
+  const loadMasterData = useMemberStore(state => state.loadMemberData);
   
   const [parent] = useAutoAnimate();
   
@@ -529,19 +533,20 @@ export const TodayView: React.FC = () => {
       .map((o: any) => o.id);
 
     // --- Optimistic Update ---
-    const store = useKdsStore.getState();
-    const newSchedules = store.memberSchedules.map(s => {
+    const plannerStore = usePlannerStore.getState();
+    const kdsStore = useKdsStore.getState();
+    
+    const newSchedules = plannerStore.memberSchedules.map(s => {
       if (memberOrderIds.includes(s.id)) return { ...s, kitchen_status: newMemberStatus };
       return s;
     });
-    const newTasks = store.tasks.map(t => {
+    const newTasks = kdsStore.tasks.map(t => {
       if (retailOrderIds.includes(t.id)) return { ...t, kitchen_status: newRetailStatus };
       return t;
     });
-    useKdsStore.setState({ 
-      memberSchedules: newSchedules as MemberMealSchedule[], 
-      tasks: newTasks as KdsTask[] 
-    });
+    
+    usePlannerStore.setState({ memberSchedules: newSchedules as MemberMealSchedule[] });
+    useKdsStore.setState({ tasks: newTasks as KdsTask[] });
     // --------------------------
 
     try {
@@ -597,7 +602,7 @@ export const TodayView: React.FC = () => {
             });
           }
         }
-        useKdsStore.getState().loadMasterData(true);
+        await loadMasterData(true);
       }
 
       toast.success(isCurrentlyDone ? 'ยกเลิกสถานะสำเร็จ' : 'บันทึกสถานะเสร็จสิ้น', {
@@ -618,13 +623,14 @@ export const TodayView: React.FC = () => {
       : (isCurrentlyDone ? 'ยืนยันแล้ว' : 'เสร็จสิ้น');
 
     // --- Optimistic Update ---
-    const store = useKdsStore.getState();
     if (order.type === 'member') {
+      const store = usePlannerStore.getState();
       const newSchedules = store.memberSchedules.map(s => 
         s.id === order.id ? { ...s, kitchen_status: newStatus as 'done' | 'pending' | 'cooking' } : s
       );
-      useKdsStore.setState({ memberSchedules: newSchedules as MemberMealSchedule[] });
+      usePlannerStore.setState({ memberSchedules: newSchedules as MemberMealSchedule[] });
     } else {
+      const store = useKdsStore.getState();
       const newTasks = store.tasks.map(t => 
         t.id === order.id ? { ...t, kitchen_status: newStatus } : t
       );
@@ -668,7 +674,7 @@ export const TodayView: React.FC = () => {
 
       loadMemberPlanner(selectedDate, selectedDate, undefined, true);
       fetchTasks(true);
-      useKdsStore.getState().loadMasterData(true);
+      await loadMasterData(true);
     } catch (error: any) {
       console.error('Toggle single item error:', error);
       Swal.fire('Error', 'ไม่สามารถเปลี่ยนสถานะได้: ' + error.message, 'error');

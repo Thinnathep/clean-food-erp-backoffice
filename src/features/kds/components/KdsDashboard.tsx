@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react'; 
 import { ChefHat, CalendarDays, UtensilsCrossed, Calendar, MenuSquare, Package, ClipboardCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useKdsStore } from '../../../store/kdsStore';
+import { useMenuStore } from '../../../store/menuStore';
+import { useMemberStore } from '../../../store/memberStore';
 import { MenuLibrary } from './MenuLibrary';
 import { ProductionRoadmap } from './ProductionRoadmap';
 import { MemberPlanner } from './MemberPlanner';
@@ -12,9 +13,13 @@ import { KitchenChecklist } from './KitchenChecklist';
 type Tab = 'checklist' | 'today' | 'global' | 'member' | 'summary';
 
 export const KdsDashboard: React.FC = () => {
-  const loadMasterData = useKdsStore(state => state.loadMasterData);
-  const isLoadingData = useKdsStore(state => state.isLoadingData);
-  const error = useKdsStore(state => state.error);
+  const loadMenus = useMenuStore(state => state.loadMenus);
+  const loadMemberData = useMemberStore(state => state.loadMemberData);
+  const isLoadingMenu = useMenuStore(state => state.isLoading);
+  const isLoadingMember = useMemberStore(state => state.isLoading);
+  const menuError = useMenuStore(state => state.error);
+  const memberError = useMemberStore(state => state.error);
+
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     const saved = localStorage.getItem('kds_active_tab');
     return (saved as Tab) || 'today';
@@ -22,12 +27,16 @@ export const KdsDashboard: React.FC = () => {
   const [isMenuDrawerOpen, setIsMenuDrawerOpen] = useState(false);
 
   useEffect(() => {
-    loadMasterData();
-  }, [loadMasterData]);
+    loadMenus();
+    loadMemberData();
+  }, [loadMenus, loadMemberData]);
 
   useEffect(() => {
     localStorage.setItem('kds_active_tab', activeTab);
   }, [activeTab]);
+
+  const isLoadingData = isLoadingMenu || isLoadingMember;
+  const error = menuError || memberError;
 
   // If Error, show error screen
   if (error) {

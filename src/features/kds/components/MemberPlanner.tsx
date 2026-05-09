@@ -7,7 +7,9 @@ import { motion } from 'framer-motion';
 import dayjs from 'dayjs';
 import Swal from 'sweetalert2';
 import { supabase } from '../../../config/supabase';
-import { useKdsStore } from '../../../store/kdsStore';
+import { usePlannerStore } from '../../../store/plannerStore';
+import { useMemberStore } from '../../../store/memberStore';
+import { useMenuStore } from '../../../store/menuStore';
 import { useAuthStore } from '../../../store/authStore';
 import { getWeekDays, formatDisplayDate } from '../../../lib/dateUtils';
 import { fetchMemberSchedules } from '../../../features/kds/api';
@@ -61,26 +63,19 @@ export const MemberPlanner: React.FC = () => {
 
 
 
-  const menus = useKdsStore(state => state.menus);
-  const activePackages = useKdsStore(state => state.activePackages);
-  const memberSchedules = useKdsStore(state => state.memberSchedules);
-  const selectedPackageId = useKdsStore(state => state.selectedPackageId);
-  const setSelectedPackageId = useKdsStore(state => state.setSelectedPackageId);
-  const loadMemberPlanner = useKdsStore(state => state.loadMemberPlanner);
-  const assignMemberSlot = useKdsStore(state => state.assignMemberSlot);
-  const removeMemberSlot = useKdsStore(state => state.removeMemberSlot);
-  const copyDayPlan = useKdsStore(state => state.copyDayPlan);
-  const pasteDayPlan = useKdsStore(state => state.pasteDayPlan);
-  const clearDayPlan = useKdsStore(state => state.clearDayPlan);
-  const clearCopiedPlan = useKdsStore(state => state.clearCopiedPlan);
-  const copiedDaySlots = useKdsStore(state => state.copiedDaySlots);
-  const hasUnsavedChanges = useKdsStore(state => state.hasUnsavedChanges);
-  const saveMemberSchedules = useKdsStore(state => state.saveMemberSchedules);
-  const updateMemberProfile = useKdsStore(state => state.updateMemberProfile);
-  const addPintoPackage = useKdsStore(state => state.addPintoPackage);
-  const members = useKdsStore(state => state.members);
-  const isLoadingData = useKdsStore(state => state.isLoadingData);
-  const loadMasterData = useKdsStore(state => state.loadMasterData);
+  const { menus } = useMenuStore();
+  const { 
+    activePackages, members, 
+    loadMemberData, updateProfile, addPackage 
+  } = useMemberStore();
+  const { 
+    memberSchedules, selectedPackageId, setSelectedPackageId,
+    loadMemberPlanner, assignMemberSlot, removeMemberSlot,
+    copyDayPlan, pasteDayPlan, clearDayPlan,
+    copiedDaySlots, clearCopiedPlan,
+    hasUnsavedChanges, saveChanges, isSaving
+  } = usePlannerStore();
+
 
   const getDayColorClass = (dayName: string, isToday: boolean) => {
     if (isToday) return 'text-white';
@@ -206,13 +201,19 @@ export const MemberPlanner: React.FC = () => {
 
   const projectedRemaining = useMemo(() => {
     if (!selectedPackage) return 0;
-    // Count only subscription meals (exclude extra orders)
-    const packageSchedules = memberSchedules.filter(s => s.package_id === selectedPackage.id);
-    const totalSubscriptionPlanned = packageSchedules
-      .filter(s => !s.is_extra_order)
+    
+    // DB value is the source of truth for all SAVED schedules across all time
+    const dbRemaining = selectedPackage.meals_remaining ?? 0;
+    
+    // For the active package, we adjust the DB value by the "Net Change" in the current week view
+    // Net Change = Current Subscription Quantity - Initial Saved Quantity for this week
+    const currentWeekSubQty = memberSchedules
+      .filter(s => s.package_id === selectedPackage.id && !s.is_extra_order)
       .reduce((sum, s) => sum + (s.quantity || 1), 0);
     
-    return selectedPackage.meals_total - totalSubscriptionPlanned;
+    const delta = currentWeekSubQty - usePlannerStore.getState().initialWeekSubscriptionQty;
+    
+    return Math.max(0, dbRemaining - delta);
   }, [selectedPackage, memberSchedules]);
 
   const getSchedulesForDate = (date: string): MemberMealSchedule[] => {
@@ -365,7 +366,7 @@ export const MemberPlanner: React.FC = () => {
       });
 
       // 1. Update Member Profile
-      await updateMemberProfile(selectedPackage.members.id, memberUpdates);
+      await updateProfile(selectedPackage.members.id, memberUpdates);
       
       // 2. Update Package Details (if needed)
       const { error } = await supabase
@@ -391,7 +392,7 @@ export const MemberPlanner: React.FC = () => {
         .eq('id', selectedPackage.id);
       
       // 4. Refresh All Master Data to reflect everywhere
-      await loadMasterData();
+      await loadMemberData();
       
       setIsProfileModalOpen(false);
       
@@ -422,7 +423,7 @@ export const MemberPlanner: React.FC = () => {
     }
 
     try {
-      await addPintoPackage({
+      await addPackage({
         ...newPackage,
         meals_remaining: newPackage.meals_total,
         days_total: dayjs(newPackage.end_date).diff(dayjs(newPackage.start_date), 'day'),
@@ -488,11 +489,17 @@ export const MemberPlanner: React.FC = () => {
         <div className="flex items-center gap-3 w-full lg:w-auto">
            {hasUnsavedChanges && (
              <button 
-               onClick={saveMemberSchedules}
-               disabled={isLoadingData}
+               onClick={async () => {
+                 await saveChanges();
+                 // Refresh the current view to get real IDs from DB
+                 const startStr = dayjs(currentWeekStart).format('YYYY-MM-DD');
+                 const endStr = dayjs(currentWeekStart).add(6, 'day').format('YYYY-MM-DD');
+                 await loadMemberPlanner(startStr, endStr, selectedPackageId || undefined, true);
+               }}
+               disabled={isSaving}
                className="flex items-center gap-2 px-6 py-2.5 bg-red-500 text-white rounded-xl text-base font-bold shadow-lg shadow-red-500/30 hover:bg-red-600 transition-all animate-bounce-subtle w-full lg:w-auto justify-center"
              >
-               {isLoadingData ? <Clock className="animate-spin" size={18} /> : <Save size={18} />}
+               {isSaving ? <Clock className="animate-spin" size={18} /> : <Save size={18} />}
                ยืนยันบันทึกแผนงานทั้งหมด
              </button>
            )}
@@ -577,10 +584,15 @@ export const MemberPlanner: React.FC = () => {
                 </div>
                 <div className="space-y-1">
                   {group.packages.map((pkg: any) => {
+                    const isSelected = selectedPackageId === pkg.id;
+                    
+                    // IF selected: use the reactive projected calculation from the component
+                    // IF NOT selected: use the DB value directly
+                    const rem = isSelected ? projectedRemaining : (pkg.meals_remaining ?? 0);
+                    
                     const pkgSchedules = memberSchedules.filter(s => s.package_id === pkg.id);
                     const subSchedules = pkgSchedules.filter(s => !s.is_extra_order);
-                    const planned = subSchedules.reduce((sum, s) => sum + (s.quantity || 1), 0);
-                    const rem = (pkg.meals_total || 0) - planned;
+                    
                     const today = dayjs().startOf('day');
                     const hasUpcoming = pkgSchedules.some(s => !dayjs(s.delivery_date).isBefore(today));
                     const isPinned = rem > 0 || hasUpcoming;

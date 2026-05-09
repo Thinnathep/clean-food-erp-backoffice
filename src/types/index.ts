@@ -21,12 +21,17 @@ export interface MenuItem {
   calories: number;
   carbs: number;
   fat: number;
+  fiber?: number;
+  sodium?: number;
   base_price: number;
+  target_cost?: number;
+  cost_percentage?: number;
   description?: string | null;
   image_url: string;
   tags: string[]; 
   is_available: boolean;
   prep_time_minutes: number;
+  sort_order?: number;
   created_at?: string;
   deleted_at?: string | null;
 }
@@ -36,6 +41,7 @@ export interface Member {
   full_name: string;
   phone: string;
   line_id?: string;
+  line_user_id?: string;
   line_display_name?: string;
   line_picture_url?: string;
   avatar_url?: string;
@@ -44,12 +50,14 @@ export interface Member {
   gender?: string;
   health_goal?: string;
   allergy_notes?: string;
+  
   // Demographic & Marketing
   age_range?: string;
   occupation?: string;
   delivery_time?: string;
   source?: string;
-  food_preferences?: string[];
+  referral_member_id?: string;
+  food_preferences?: string[] | any;
   
   // Address Details
   address?: string;
@@ -57,6 +65,7 @@ export interface Member {
   district?: string;
   province?: string;
   postal_code?: string;
+  default_address_id?: string;
   
   // Internal
   internal_notes?: string;
@@ -65,21 +74,29 @@ export interface Member {
   tags?: string[];
   total_orders?: number;
   lifetime_value?: number;
+  last_order_at?: string;
   created_at?: string;
   updated_at?: string;
+  
+  // Banning/Blocking
   is_banned?: boolean;
   ban_reason?: string;
   banned_at?: string;
+  is_blocked?: boolean;
+  blocked_reason?: string;
 }
 
 export interface PintoPackage {
   id: string;
   member_id: string;
   package_name: string;
+  package_code?: string;
   days_total: number;
   days_remaining: number;
   meals_total: number;
   meals_remaining: number;
+  price_paid?: number;
+  promotion_id?: string;
   start_date: string;
   end_date: string;
   status: 'active' | 'paused' | 'cancelled' | 'completed';

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { supabase } from '../../../config/supabase';
 import type { SplitConfig } from '../types';
-import { Settings, Trash2, CheckCircle2, Info, Plus, Edit2, Check } from 'lucide-react';
+import { Settings, Trash2, CheckCircle2, Info, Plus, Edit2, Check, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+import Swal from 'sweetalert2';
 
 interface Props {
   configs: SplitConfig[];
@@ -52,6 +53,14 @@ export const FinanceSettings: React.FC<Props> = ({ configs, onRefresh, isDarkMod
 
   const handleSave = async () => {
     if (!formData.config_name) return toast.error('กรุณาตั้งชื่อสูตร');
+    
+    // Check for duplicates (locally)
+    const isDuplicate = configs.find(c => 
+      c.config_name.trim().toLowerCase() === formData.config_name.trim().toLowerCase() && 
+      c.id !== editingId
+    );
+    if (isDuplicate) return toast.error('ชื่อสูตรนี้มีอยู่ในระบบแล้ว กรุณาใช้ชื่ออื่น');
+
     const total = formData.material_pct + formData.labor_pct + formData.ops_pct + formData.profit_pct;
     if (total !== 100) return toast.error(`สัดส่วนต้องรวมกันได้ 100% (ตอนนี้ ${total}%)`);
 
@@ -73,15 +82,53 @@ export const FinanceSettings: React.FC<Props> = ({ configs, onRefresh, isDarkMod
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('คุณแน่ใจหรือไม่ว่าต้องการลบสูตรนี้?')) return;
+    const config = configs.find(c => c.id === id);
+    if (!config) return;
+
+    const result = await Swal.fire({
+      title: 'ยืนยันการลบสูตร?',
+      text: `คุณต้องการลบสูตร "${config.config_name}" ใช่หรือไม่?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#94a3b8',
+      confirmButtonText: 'ยืนยัน ลบเลย',
+      cancelButtonText: 'ยกเลิก',
+      background: isDarkMode ? '#1e293b' : '#fff',
+      color: isDarkMode ? '#fff' : '#1e293b'
+    });
+
+    if (!result.isConfirmed) return;
+
     setIsDeleting(id);
     try {
       const { error } = await supabase.from('erp_split_configs').delete().eq('id', id);
-      if (error) throw error;
-      toast.success('ลบสูตรเรียบร้อยแล้ว');
+      
+      if (error) {
+        if (error.code === '23503') { // Foreign key constraint
+          throw new Error('ไม่สามารถลบได้ เนื่องจากสูตรนี้กำลังถูกใช้งานอยู่ใน "โปรโมชั่น" กรุณาเปลี่ยนโปรโมชั่นไปใช้สูตรอื่นก่อนทำการลบ');
+        }
+        throw error;
+      }
+
+      Swal.fire({
+        icon: 'success',
+        title: 'ลบเรียบร้อย!',
+        text: 'สูตรการแยกเงินถูกลบออกจากระบบแล้ว',
+        timer: 1500,
+        showConfirmButton: false,
+        background: isDarkMode ? '#1e293b' : '#fff',
+        color: isDarkMode ? '#fff' : '#1e293b'
+      });
       onRefresh();
     } catch (err: any) {
-      toast.error('ไม่สามารถลบได้: ' + err.message);
+      Swal.fire({
+        icon: 'error',
+        title: 'ล้มเหลว',
+        text: err.message,
+        background: isDarkMode ? '#1e293b' : '#fff',
+        color: isDarkMode ? '#fff' : '#1e293b'
+      });
     } finally {
       setIsDeleting(null);
     }
@@ -96,6 +143,49 @@ export const FinanceSettings: React.FC<Props> = ({ configs, onRefresh, isDarkMod
       onRefresh();
     } catch (err: any) {
       toast.error('ล้มเหลว: ' + err.message);
+    }
+  };
+
+  const handleCleanupDuplicates = async () => {
+    const result = await Swal.fire({
+      title: 'ต้องการล้างข้อมูลซ้ำหรือไม่?',
+      text: 'ระบบจะรวมสูตรที่มีชื่อซ้ำกันให้เหลือเพียงอันเดียว และลบตัวที่เกินทิ้งโดยไม่กระทบข้อมูลโปรโมชั่น',
+      icon: 'info',
+      showCancelButton: true,
+      confirmButtonText: 'เริ่มล้างข้อมูล',
+      cancelButtonText: 'ยกเลิก'
+    });
+
+    if (!result.isConfirmed) return;
+
+    toast.loading('กำลังล้างข้อมูลซ้ำ...');
+    try {
+      // 1. Group by name
+      const groups: Record<string, SplitConfig[]> = {};
+      configs.forEach(c => {
+        if (!groups[c.config_name]) groups[c.config_name] = [];
+        groups[c.config_name].push(c);
+      });
+
+      for (const name in groups) {
+        const list = groups[name];
+        if (list.length > 1) {
+          const primary = list[0];
+          const duplicateIds = list.slice(1).map(d => d.id);
+
+          // Update promotions
+          await supabase.from('promotions').update({ split_config_id: primary.id }).in('split_config_id', duplicateIds);
+          // Update revenue buckets
+          await supabase.from('erp_revenue_buckets').update({ split_config_id: primary.id }).in('split_config_id', duplicateIds);
+          // Delete duplicates
+          await supabase.from('erp_split_configs').delete().in('id', duplicateIds);
+        }
+      }
+
+      Swal.fire('สำเร็จ!', 'ล้างข้อมูลที่ซ้ำกันเรียบร้อยแล้ว', 'success');
+      onRefresh();
+    } catch (err: any) {
+      Swal.fire('ล้มเหลว', err.message, 'error');
     }
   };
 
@@ -118,14 +208,29 @@ export const FinanceSettings: React.FC<Props> = ({ configs, onRefresh, isDarkMod
                  <p className="text-xs text-slate-500">จัดการสูตรมาตรฐานที่ใช้ในการคำนวณรายรับทั้งหมดของระบบ</p>
               </div>
            </div>
-           {!showAddForm && !editingId && (
-              <button 
-                onClick={() => setShowAddForm(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-xl text-sm font-bold hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
-              >
-                 <Plus size={18} /> เพิ่มสูตรใหม่
-              </button>
-           )}
+           <div className="flex items-center gap-2">
+                {/* Only show cleanup button when duplicate config names exist */}
+                {(() => {
+                  const names = configs.map(c => c.config_name.trim().toLowerCase());
+                  const hasDuplicates = names.length !== new Set(names).size;
+                  return hasDuplicates ? (
+                    <button 
+                      onClick={handleCleanupDuplicates}
+                      className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-xl text-sm font-bold hover:bg-amber-600 transition-all shadow-lg shadow-amber-500/20"
+                    >
+                       <RefreshCw size={18} /> ล้างข้อมูลซ้ำ ({names.length - new Set(names).size} รายการ)
+                    </button>
+                  ) : null;
+                })()}
+               {!showAddForm && !editingId && (
+                   <button 
+                     onClick={() => setShowAddForm(true)}
+                     className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-xl text-sm font-bold hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
+                   >
+                      <Plus size={18} /> เพิ่มสูตรใหม่
+                   </button>
+                )}
+             </div>
         </div>
 
         {(showAddForm || editingId) && (

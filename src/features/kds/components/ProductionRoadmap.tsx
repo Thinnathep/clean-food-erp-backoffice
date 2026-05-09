@@ -15,7 +15,8 @@ import {
 } from 'lucide-react';
 import dayjs from 'dayjs';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useKdsStore } from '../../../store/kdsStore';
+import { usePlannerStore } from '../../../store/plannerStore';
+import { useMenuStore } from '../../../store/menuStore';
 import { useAuthStore } from '../../../store/authStore';
 import { getWeekDays } from '../../../lib/dateUtils';
 import { clsx, type ClassValue } from 'clsx';
@@ -279,15 +280,15 @@ export const ProductionRoadmap: React.FC = () => {
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [pendingAddMealDate, setPendingAddMealDate] = useState<string | null>(null);
   
-  const globalPlanSlots = useKdsStore(state => state.globalPlanSlots);
-  const menus = useKdsStore(state => state.menus);
-  const loadGlobalPlanner = useKdsStore(state => state.loadGlobalPlanner);
-  const selectedMenuId = useKdsStore(state => state.selectedMenuId);
-  const setSelectedMenuId = useKdsStore(state => state.setSelectedMenuId);
-  const assignGlobalSlot = useKdsStore(state => state.assignGlobalSlot);
-  const removeGlobalSlot = useKdsStore(state => state.removeGlobalSlot);
-  const updateGlobalSlotNote = useKdsStore(state => state.updateGlobalSlotNote);
-  const applyDailyMenuToAll = useKdsStore(state => state.applyDailyMenuToAll);
+  const globalPlanSlots = usePlannerStore(state => state.globalPlanSlots);
+  const menus = useMenuStore(state => state.menus);
+  const loadGlobalPlanner = usePlannerStore(state => state.loadGlobalPlanner);
+  const selectedMenuId = useMenuStore(state => state.selectedMenuId);
+  const setSelectedMenuId = useMenuStore(state => state.setSelectedMenuId);
+  const assignGlobalSlot = usePlannerStore(state => state.assignGlobalSlot);
+  const removeGlobalSlot = usePlannerStore(state => state.removeGlobalSlot);
+  const updateGlobalSlotNote = usePlannerStore(state => state.updateGlobalSlotNote);
+  const applyDailyMenuToAll = usePlannerStore(state => state.applyDailyMenuToAll);
   
   const [isPrepModalOpen, setIsPrepModalOpen] = useState(false);
   const [prepSummary, setPrepSummary] = useState<any[]>([]);

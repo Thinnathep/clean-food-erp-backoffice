@@ -9,7 +9,7 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useKdsStore } from '../../../store/kdsStore';
+import { useChecklistStore } from '../../../store/checklistStore';
 import dayjs from 'dayjs';
 import 'dayjs/locale/th';
 import Swal from 'sweetalert2';
@@ -19,10 +19,10 @@ dayjs.locale('th');
 export const KitchenChecklist: React.FC = () => {
   const { 
     checklist, checklistDate, setChecklistDate, 
-    fetchChecklist, saveChecklistItem, removeChecklistItem,
-    masterChecklist, fetchMasterChecklist, addItemsToDaily, addItemToMaster, updateMasterItem, removeMasterItem,
-    checklistHistory, fetchChecklistHistory, bulkClearChecklist
-  } = useKdsStore();
+    loadChecklist, saveItem, removeItem,
+    masterChecklist, loadMasterChecklist, addMasterToDaily, addToMaster, updateMaster, removeMaster,
+    checklistHistory, loadHistory, clearDaily
+  } = useChecklistStore();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'list' | 'history'>('history');
@@ -32,15 +32,15 @@ export const KitchenChecklist: React.FC = () => {
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    if (viewMode === 'list') fetchChecklist(checklistDate);
-    else fetchChecklistHistory();
-    fetchMasterChecklist();
-  }, [checklistDate, viewMode, fetchChecklist, fetchChecklistHistory, fetchMasterChecklist]);
+    if (viewMode === 'list') loadChecklist(checklistDate);
+    else loadHistory();
+    loadMasterChecklist();
+  }, [checklistDate, viewMode, loadChecklist, loadHistory, loadMasterChecklist]);
 
   const onUpdateItem = async (item: any) => {
     try {
-      await saveChecklistItem(item);
-      fetchChecklist(checklistDate);
+      await saveItem(item);
+      loadChecklist(checklistDate);
       setEditingItem(null);
       toastSuccess('บันทึกสำเร็จ');
     } catch (error) {
@@ -63,8 +63,8 @@ export const KitchenChecklist: React.FC = () => {
 
     if (result.isConfirmed) {
       try {
-        await removeChecklistItem(id);
-        fetchChecklist(checklistDate);
+        await removeItem(id);
+        loadChecklist(checklistDate);
         toastSuccess('ลบเรียบร้อย');
       } catch (error) {
         console.error(error);
@@ -86,8 +86,8 @@ export const KitchenChecklist: React.FC = () => {
 
   const onAddToMaster = async (item: any) => {
     try {
-      await addItemToMaster(item);
-      fetchMasterChecklist();
+      await addToMaster(item);
+      loadMasterChecklist();
       toastSuccess('เพิ่มเข้าคลังสำเร็จ');
     } catch (error) {
       console.error(error);
@@ -97,8 +97,8 @@ export const KitchenChecklist: React.FC = () => {
 
   const onUpdateMaster = async (id: string, item: any) => {
     try {
-      await updateMasterItem(id, item);
-      fetchMasterChecklist();
+      await updateMaster(id, item);
+      loadMasterChecklist();
       toastSuccess('แก้ไขสำเร็จ');
     } catch (error) {
       console.error(error);
@@ -120,8 +120,8 @@ export const KitchenChecklist: React.FC = () => {
 
     if (result.isConfirmed) {
       try {
-        await removeMasterItem(id);
-        fetchMasterChecklist();
+        await removeMaster(id);
+        loadMasterChecklist();
         toastSuccess('ลบเรียบร้อย');
       } catch (error) {
         console.error(error);
@@ -132,8 +132,8 @@ export const KitchenChecklist: React.FC = () => {
 
   const onAddToDaily = async (items: any[]) => {
     try {
-      await addItemsToDaily(items);
-      fetchChecklist(checklistDate);
+      await addMasterToDaily(items);
+      loadChecklist(checklistDate);
       Swal.fire({
         icon: 'success',
         title: 'ดึงข้อมูลลงแผนสำเร็จ',
@@ -265,7 +265,7 @@ export const KitchenChecklist: React.FC = () => {
                 {isManageMode && (
                    <button 
                     onClick={() => {
-                      Swal.fire({ title: 'ล้างทั้งหมด?', text: 'ลบรายการของวันนี้ทิ้งทั้งหมด?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: 'ลบทั้งหมด' }).then(r => { if (r.isConfirmed) bulkClearChecklist(); });
+                      Swal.fire({ title: 'ล้างทั้งหมด?', text: 'ลบรายการของวันนี้ทิ้งทั้งหมด?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444', confirmButtonText: 'ลบทั้งหมด' }).then(r => { if (r.isConfirmed) clearDaily(); });
                     }}
                     className="w-10 h-10 bg-red-100 text-red-600 rounded-xl flex items-center justify-center active:scale-95 transition-transform flex-none"
                   >

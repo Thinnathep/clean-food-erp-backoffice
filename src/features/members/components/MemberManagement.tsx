@@ -5,7 +5,8 @@ import {
   X, Save, Clock, Package, 
   CheckCircle2, AlertCircle, Trash2, ShieldAlert
 } from 'lucide-react';
-import { useKdsStore } from '../../../store/kdsStore';
+import { useMemberStore } from '../../../store/memberStore';
+import { useMenuStore } from '../../../store/menuStore';
 import dayjs from 'dayjs';
 import { formatDisplayDate } from '../../../lib/dateUtils';
 import type { Member } from '../../../types';
@@ -13,11 +14,13 @@ import Swal from 'sweetalert2';
 
 export const MemberManagement: React.FC = () => {
   const { 
-    members, activePackages, isLoadingData, 
-    loadMasterData, addNewMember, updateMemberProfile, 
-    addPintoPackage, cancelPintoPackage,
-    createQuickRetailOrder, banMember, unbanMember, menus
-  } = useKdsStore();
+    members, activePackages, isLoading: isLoadingMember, 
+    loadMemberData, addMember, updateProfile, 
+    addPackage, cancelPackage,
+    createQuickRetailOrder, banMember, unbanMember
+  } = useMemberStore();
+  
+  const { menus, loadMenus } = useMenuStore();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
@@ -98,8 +101,9 @@ export const MemberManagement: React.FC = () => {
   });
 
   useEffect(() => {
-    loadMasterData();
-  }, []);
+    loadMemberData();
+    loadMenus();
+  }, [loadMemberData, loadMenus]);
 
   const filteredMembers = useMemo(() => {
     return members
@@ -138,7 +142,7 @@ export const MemberManagement: React.FC = () => {
         }
       });
 
-      await addNewMember(newMember);
+      await addMember(newMember);
       setIsAddModalOpen(false);
       setNewMember({
         full_name: '',
@@ -196,7 +200,7 @@ export const MemberManagement: React.FC = () => {
         }
       });
 
-      await updateMemberProfile(editMember.id, editMember);
+      await updateProfile(editMember.id, editMember);
       setIsEditModalOpen(false);
       
       Swal.fire({
@@ -226,7 +230,7 @@ export const MemberManagement: React.FC = () => {
         }
       });
 
-      await addPintoPackage({
+      await addPackage({
         member_id: selectedMemberId,
         package_name: newPackage.package_name,
         meals_total: newPackage.meals_total,
@@ -256,7 +260,7 @@ export const MemberManagement: React.FC = () => {
     }
   };
 
-  if (isLoadingData && members.length === 0) {
+  if (isLoadingMember && members.length === 0) {
     return (
       <div className="flex h-full items-center justify-center bg-[#F8FAFC]">
          <div className="animate-pulse flex flex-col items-center">
@@ -608,7 +612,7 @@ export const MemberManagement: React.FC = () => {
                                         {pkg.status === 'active' ? <CheckCircle2 size={24}/> : <Clock size={24}/>}
                                      </div>
                                      <button 
-                                        onClick={() => cancelPintoPackage(pkg.id)}
+                                        onClick={() => cancelPackage(pkg.id)}
                                         className="w-10 h-10 flex items-center justify-center rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all border border-red-100"
                                         title="ยกเลิกแพ็กเกจ"
                                      >
