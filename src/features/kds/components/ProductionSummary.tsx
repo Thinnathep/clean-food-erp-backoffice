@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { usePlannerStore } from '../../../store/plannerStore';
 import { useMemberStore } from '../../../store/memberStore';
-import { useKdsStore } from '../../../store/kdsStore';
 import { useAuthStore } from '../../../store/authStore';
 import {
   UtensilsCrossed, ChevronLeft, ChevronRight, Package, BarChart3,
@@ -812,11 +811,8 @@ export const ProductionSummary: React.FC = () => {
   const { user } = useAuthStore();
   const memberSchedules = usePlannerStore(state => state.memberSchedules);
   const activePackages = useMemberStore(state => state.activePackages);
-  const tasks = useKdsStore(state => state.tasks);
   const loadMemberPlanner = usePlannerStore(state => state.loadMemberPlanner);
   const loadGlobalPlanner = usePlannerStore(state => state.loadGlobalPlanner);
-  const loadMasterData = useMemberStore(state => state.loadMemberData);
-  const fetchTasks = useKdsStore(state => state.fetchTasks);
 
   const [activeTab, setActiveTab] = useState<TabType>('production');
   const [selectedDate, setSelectedDate] = useState(dayjs().add(1, 'day').format('YYYY-MM-DD'));

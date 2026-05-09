@@ -12,7 +12,7 @@ interface KdsState {
   markAsDone: (orderUuid: string) => Promise<void>;
 }
 
-export const useKdsStore = create<KdsState>((set, get) => ({
+export const useKdsStore = create<KdsState>((set) => ({
   tasks: [],
   isLoading: false,
   error: null,

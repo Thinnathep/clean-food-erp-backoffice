@@ -625,9 +625,9 @@ export const MenuLibrary: React.FC<{ onClose?: () => void }> = ({ onClose }) => 
   const setCategoryFilter = useMenuStore(state => state.setCategoryFilter);
   const selectedMenuId = useMenuStore(state => state.selectedMenuId);
   const setSelectedMenuId = useMenuStore(state => state.setSelectedMenuId);
-  const addMenuItem = useMenuStore(state => state.addMenuItem);
-  const updateMenuItem = useMenuStore(state => state.updateMenuItem);
-  const deleteMenuItem = useMenuStore(state => state.deleteMenuItem);
+  const addMenu = useMenuStore(state => state.addMenu);
+  const updateMenu = useMenuStore(state => state.updateMenu);
+  const removeMenu = useMenuStore(state => state.removeMenu);
   const uploadImage = useMenuStore(state => state.uploadImage);
 
   const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm);
@@ -751,10 +751,10 @@ export const MenuLibrary: React.FC<{ onClose?: () => void }> = ({ onClose }) => 
     });
 
     if (result.isConfirmed) {
-      await deleteMenuItem(menu.id);
+      await removeMenu(menu.id);
       Swal.fire({ title: 'เก็บเข้าคลังเรียบร้อย!', icon: 'success', timer: 1500, showConfirmButton: false });
     }
-  }, [deleteMenuItem]);
+  }, [removeMenu]);
 
   const handleSave = React.useCallback(async (formData: any, file: File | null) => {
     let finalImageUrl = formData.image_url;
@@ -763,14 +763,14 @@ export const MenuLibrary: React.FC<{ onClose?: () => void }> = ({ onClose }) => 
     }
 
     if (editingMenuId) {
-      await updateMenuItem(editingMenuId, { ...formData, image_url: finalImageUrl });
+      await updateMenu(editingMenuId, { ...formData, image_url: finalImageUrl });
     } else {
-      await addMenuItem({ ...formData, image_url: finalImageUrl });
+      await addMenu({ ...formData, image_url: finalImageUrl });
     }
 
     setIsModalOpen(false);
     Swal.fire({ title: 'สำเร็จ!', icon: 'success', timer: 1500, showConfirmButton: false });
-  }, [editingMenuId, uploadImage, updateMenuItem, addMenuItem]);
+  }, [editingMenuId, uploadImage, updateMenu, addMenu]);
 
   return (
     <div className="w-full bg-white border-l xl:border-l-0 xl:border-r border-slate-200 h-full flex flex-col flex-shrink-0 relative overflow-hidden">

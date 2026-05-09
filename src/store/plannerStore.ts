@@ -19,10 +19,21 @@ interface PlannerState {
   selectedPackageId: string | null;
   copiedDaySlots: MemberMealSchedule[] | null;
   initialWeekSubscriptionQty: number; // Sum of subscription meal qty when loaded from DB
+  
+  // UI Selection State
+  selectedDate: string | null;
+  selectedMealType: string | null;
+  isPanelOpen: boolean;
+  categoryFilter: string;
 
   setSelectedPackageId: (id: string | null) => void;
   loadGlobalPlanner: (start: string, end: string) => Promise<void>;
   loadMemberPlanner: (start: string, end: string, packageId?: string, silent?: boolean) => Promise<void>;
+  
+  // Selection Actions
+  setCategoryFilter: (cat: string) => void;
+  clearSelection: () => void;
+  openMenuPanel: (date: string, meal: string) => void;
   
   assignGlobalSlot: (date: string, meal: string, menuId: string) => Promise<void>;
   removeGlobalSlot: (date: string, meal: string) => Promise<void>;
@@ -64,6 +75,14 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
   selectedPackageId: null,
   copiedDaySlots: null,
   initialWeekSubscriptionQty: 0,
+  selectedDate: null,
+  selectedMealType: null,
+  isPanelOpen: false,
+  categoryFilter: '',
+
+  setCategoryFilter: (cat) => set({ categoryFilter: cat }),
+  clearSelection: () => set({ selectedDate: null, selectedMealType: null, isPanelOpen: false }),
+  openMenuPanel: (date, meal) => set({ selectedDate: date, selectedMealType: meal, isPanelOpen: true }),
 
   clearCopiedPlan: () => set({ copiedDaySlots: null }),
 

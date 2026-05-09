@@ -29,7 +29,7 @@ interface MenuState {
 
 export const useMenuStore = create<MenuState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       menus: [],
       isLoading: false,
       error: null,

@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Search, X, ChevronRight } from 'lucide-react'
 import { fetchMenuItems, upsertMealSlot, upsertWeeklyPlan } from '../api'
-import { usePlannerStore } from '../../../store/kdsStore'
+import { usePlannerStore } from '../../../store/plannerStore'
 import { CATEGORY_COLORS, DAY_LABELS, MEAL_TYPE_LABELS, type MenuItem, type MealType } from '../../../types'
 import { dayjs } from '../../../lib/dateUtils'
 
