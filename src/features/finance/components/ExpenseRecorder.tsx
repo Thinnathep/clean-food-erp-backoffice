@@ -7,8 +7,9 @@ import type { InventoryItem } from '../../../types';
 import { toast } from 'sonner';
 import { 
   TrendingDown, X, 
-  AlertCircle, Calculator, Box, PlusCircle
+  AlertCircle, Calculator, Box, PlusCircle, Calendar, Store, Loader2, History as HistoryIcon
 } from 'lucide-react';
+import dayjs from 'dayjs';
 
 interface Props {
   onSaved: () => void;
@@ -23,8 +24,12 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [notes, setNotes] = useState('');
+  const [vendor, setVendor] = useState('');
+  const [date, setDate] = useState(dayjs().format('YYYY-MM-DD'));
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [continuousEntry, setContinuousEntry] = useState(false);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
+  const [sessionEntries, setSessionEntries] = useState<any[]>([]);
 
   // Inventory Integration State
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
@@ -70,20 +75,22 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
         direction: 'OUT',
         amount: amt,
         category: selectedCat,
-        description,
+        description: `${description}${vendor ? ` (จ่ายให้: ${vendor})` : ''}${notes ? ` [หมายเหตุ: ${notes}]` : ''}`,
         source_type: 'EXPENSE',
         receipt_url: receiptUrl,
-        notes
+        created_at: date ? dayjs(date).toISOString() : undefined
       }).select().single();
 
       if (txErr) throw txErr;
 
-      // 2. Update Fund Balance
-      const { error: rpcErr } = await supabase.rpc('increment_fund_pool', { 
-        p_pool_type: selectedPool, 
-        p_amount: -amt 
-      });
-      if (rpcErr) throw rpcErr;
+      // 2. Update Fund Balance (Direct update fallback)
+      const { data: pool } = await supabase.from('erp_fund_pools').select('current_balance, total_out').eq('pool_type', selectedPool).single();
+      if (pool) {
+        await supabase.from('erp_fund_pools').update({ 
+          current_balance: (pool.current_balance || 0) - amt,
+          total_out: (pool.total_out || 0) + amt
+        }).eq('pool_type', selectedPool);
+      }
 
       // 3. Inventory Stock In (Optional)
       if (isStockIn && selectedInventoryItemId && stockInQty) {
@@ -102,8 +109,27 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
         }
       }
 
+      // Add to session tracking
+      setSessionEntries(prev => [{
+        id: Date.now(),
+        vendorName: vendor,
+        amount: amt,
+        date: date,
+        cat: selectedCat
+      }, ...prev].slice(0, 5));
+
       toast.success('บันทึกรายจ่ายเรียบร้อย');
-      setAmount(''); setDescription(''); setNotes(''); setReceiptUrl(null); setIsStockIn(false); setSelectedInventoryItemId(''); setStockInQty('');
+      setAmount(''); 
+      setDescription('');
+      if (!continuousEntry) {
+        setNotes('');
+        setVendor('');
+        setReceiptUrl(null);
+        setSelectedPool('');
+        setSelectedCat('');
+        setDate(dayjs().format('YYYY-MM-DD'));
+      }
+      setIsStockIn(false); setSelectedInventoryItemId(''); setStockInQty('');
       onSaved();
     } catch (err: any) {
       toast.error('Error: ' + err.message);
@@ -155,7 +181,15 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
           </div>
 
           {/* Category & Amount */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div>
+              <label className={`block text-xs font-bold mb-1 ${subtext}`}>วันที่จ่าย</label>
+              <div className="relative">
+                <input type="date" value={date} onChange={e => setDate(e.target.value)}
+                  className={`w-full p-2.5 pl-10 border rounded-xl text-sm outline-none transition-all ${inputBase}`} />
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+              </div>
+            </div>
             <div>
               <label className={`block text-xs font-bold mb-1 ${subtext}`}>หมวดหมู่</label>
               <select value={selectedCat} onChange={e => setSelectedCat(e.target.value)}
@@ -170,6 +204,16 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
                 placeholder="0.00"
                 className={`w-full p-2.5 border rounded-xl text-lg font-bold text-red-500 outline-none transition-all ${inputBase}`}
                 required />
+            </div>
+          </div>
+
+          <div>
+            <label className={`block text-xs font-bold mb-1 ${subtext}`}>จ่ายให้ใคร / ร้านค้า (ถ้าจำได้)</label>
+            <div className="relative">
+              <input type="text" value={vendor} onChange={e => setVendor(e.target.value)}
+                placeholder="เช่น ตลาดไท, แม็คโคร, ค่าน้ำแข็ง..."
+                className={`w-full p-2.5 pl-10 border rounded-xl text-sm outline-none transition-all ${inputBase}`} />
+              <Store className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             </div>
           </div>
 
@@ -281,10 +325,26 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
              )}
           </div>
 
-          <button type="submit" disabled={isSubmitting || !selectedPool || !amount}
-            className="w-full py-3.5 bg-gradient-to-r from-red-500 to-rose-600 text-white font-bold rounded-xl shadow-lg shadow-red-500/20 hover:shadow-red-500/40 transition-all disabled:opacity-40">
-            {isSubmitting ? 'กำลังบันทึก...' : '💸 บันทึกรายจ่าย'}
-          </button>
+          <div className="flex items-center gap-4">
+            <button 
+              type="button"
+              onClick={() => setContinuousEntry(!continuousEntry)}
+              className={`flex-1 py-3.5 border rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+                continuousEntry 
+                  ? 'bg-red-500/10 border-red-500 text-red-600' 
+                  : isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-500'
+              }`}
+            >
+              <div className={`w-4 h-4 rounded border flex items-center justify-center ${continuousEntry ? 'bg-red-500 border-red-500' : 'border-slate-300'}`}>
+                 {continuousEntry && <span className="text-white text-[10px]">✓</span>}
+              </div>
+              บันทึกต่อเนื่อง
+            </button>
+            <button type="submit" disabled={isSubmitting || !selectedPool || !amount}
+              className="flex-[2] py-3.5 bg-gradient-to-r from-red-500 to-rose-600 text-white font-bold rounded-xl shadow-lg shadow-red-500/20 hover:shadow-red-500/40 transition-all disabled:opacity-40 flex items-center justify-center gap-2">
+              {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : '💸 ยืนยันบันทึก'}
+            </button>
+          </div>
         </form>
       </div>
 
@@ -339,6 +399,26 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
                  </p>
               </div>
            </div>
+        )}
+
+        {/* Session History (Quick Check) */}
+        {sessionEntries.length > 0 && (
+          <div className={`p-5 rounded-2xl border border-dashed transition-all ${card}`}>
+             <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                <HistoryIcon size={12} /> เพิ่งบันทึกไป (เซสชั่นนี้)
+             </h4>
+             <div className="space-y-2">
+                {sessionEntries.map(entry => (
+                   <div key={entry.id} className="flex justify-between items-center text-xs p-2.5 rounded-lg bg-slate-500/5 border border-slate-500/10">
+                      <div>
+                         <p className={`font-bold ${heading}`}>{entry.cat || 'ค่าใช้จ่าย'} {entry.vendorName && `(${entry.vendorName})`}</p>
+                         <p className="text-[10px] text-slate-500">{dayjs(entry.date).format('DD/MM/YYYY')}</p>
+                      </div>
+                      <p className="font-bold text-red-500">฿{entry.amount.toLocaleString()}</p>
+                   </div>
+                ))}
+             </div>
+          </div>
         )}
       </div>
     </div>

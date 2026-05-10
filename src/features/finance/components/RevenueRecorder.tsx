@@ -5,7 +5,7 @@ import type { SplitConfig, PoolType } from '../types';
 import type { Member } from '../../../types';
 import { toast } from 'sonner';
 import dayjs from 'dayjs';
-import { TrendingUp, Package, Dumbbell, ShoppingBag, Percent, Users, User } from 'lucide-react';
+import { TrendingUp, Package, Dumbbell, ShoppingBag, Percent, Users, User, Loader2, History as HistoryIcon } from 'lucide-react';
 
 interface Props {
   configs: SplitConfig[];
@@ -36,7 +36,12 @@ export const RevenueRecorder: React.FC<Props> = ({ configs, onSaved, isDarkMode 
   const [periodEnd, setPeriodEnd] = useState('');
   const [selectedDays, setSelectedDays] = useState<number>(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [continuousEntry, setContinuousEntry] = useState(false);
+  const [tempMemberName, setTempMemberName] = useState('');
   const [selectedConfigId, setSelectedConfigId] = useState('');
+  
+  // Track recently saved items for this session
+  const [sessionEntries, setSessionEntries] = useState<any[]>([]);
   
   // Member Selection State
   const [members, setMembers] = useState<Member[]>([]);
@@ -52,7 +57,7 @@ export const RevenueRecorder: React.FC<Props> = ({ configs, onSaved, isDarkMode 
   }, []);
 
   const fetchMembers = async () => {
-    const { data } = await supabase.from('erp_members').select('id, full_name, phone').order('full_name');
+    const { data } = await supabase.from('erp_members').select('id, full_name, phone, total_spent').order('full_name');
     setMembers(data || []);
   };
 
@@ -113,7 +118,8 @@ export const RevenueRecorder: React.FC<Props> = ({ configs, onSaved, isDarkMode 
         material_amount: materialAmt, labor_amount: laborAmt, ops_amount: opsAmt, profit_amount: profitAmt,
         description, private_note: privateNote,
         period_start: periodStart || null, period_end: periodEnd || null,
-        notes: notes + (hasVat ? `\nVAT ${vatPct}%: ${vatAmount.toFixed(2)} (${isVatIncluded ? 'รวมในยอด' : 'แยกต่างหาก'})` : ''),
+        notes: (tempMemberName ? `ลูกค้า: ${tempMemberName}\n` : '') + notes + (hasVat ? `\nVAT ${vatPct}%: ${vatAmount.toFixed(2)} (${isVatIncluded ? 'รวมในยอด' : 'แยกต่างหาก'})` : ''),
+        created_at: periodStart ? dayjs(periodStart).toISOString() : undefined
       }).select().single();
       if (bucketErr) throw bucketErr;
 
@@ -141,10 +147,39 @@ export const RevenueRecorder: React.FC<Props> = ({ configs, onSaved, isDarkMode 
       if (txErr) throw txErr;
 
       for (const s of splits) {
-        await supabase.rpc('increment_fund_pool', { p_pool_type: s.pool_type, p_amount: s.amount });
+        // Direct update fallback (instead of RPC)
+        const { data: pool } = await supabase.from('erp_fund_pools').select('current_balance, total_in').eq('pool_type', s.pool_type).single();
+        if (pool) {
+          await supabase.from('erp_fund_pools').update({ 
+            current_balance: (pool.current_balance || 0) + s.amount,
+            total_in: (pool.total_in || 0) + s.amount
+          }).eq('pool_type', s.pool_type);
+        }
       }
+
+      // Add to session tracking
+      setSessionEntries(prev => [{
+        id: Date.now(),
+        memberName: selectedMemberId ? members.find(m => m.id === selectedMemberId)?.full_name : tempMemberName,
+        amount: gross,
+        date: periodStart,
+        type: sourceType
+      }, ...prev].slice(0, 5));
+
       toast.success('บันทึกรายรับและแยกเงินเรียบร้อย!');
-      setGrossAmount(''); setDeliveryFee(''); setDescription(''); setNotes(''); setPrivateNote(''); setSelectedMemberId('');
+      
+      // Clear specific fields but keep date if continuous entry is ON
+      setGrossAmount('');
+      setDeliveryFee('');
+      setDescription('');
+      if (!continuousEntry) {
+        setNotes('');
+        setPrivateNote('');
+        setSelectedMemberId('');
+        setTempMemberName('');
+        setPeriodStart(dayjs().format('YYYY-MM-DD'));
+      }
+      
       onSaved();
     } catch (err: any) {
       toast.error('เกิดข้อผิดพลาด: ' + err.message);
@@ -179,23 +214,43 @@ export const RevenueRecorder: React.FC<Props> = ({ configs, onSaved, isDarkMode 
           <TrendingUp size={20} className="text-emerald-500" /> บันทึกรายรับใหม่
         </h3>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Member Selection */}
-          <div>
-             <label className={`block text-xs font-medium mb-1 ${subtext}`}>ระบุลูกค้า (เพื่อสะสม LTV)</label>
-             <div className="relative">
-                <select 
-                  value={selectedMemberId}
-                  onChange={e => setSelectedMemberId(e.target.value)}
-                  className={`w-full p-3 pl-10 border rounded-xl text-sm outline-none transition-all ${selectStyle}`}
-                >
-                  <option value="">-- ไม่ระบุลูกค้า (ขายปลีกทั่วไป) --</option>
-                  {members.map(m => (
-                    <option key={m.id} value={m.id}>
-                      {m.full_name} ({m.phone})
-                    </option>
-                  ))}
-                </select>
-                <Users className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+             <div>
+                <label className={`block text-xs font-medium mb-1 ${subtext}`}>ระบุลูกค้า (ถ้าเป็นสมาชิก)</label>
+                <div className="relative">
+                    <select 
+                      value={selectedMemberId}
+                      onChange={e => {
+                        setSelectedMemberId(e.target.value);
+                        if (e.target.value) setTempMemberName('');
+                      }}
+                      className={`w-full p-3 pl-10 border rounded-xl text-sm outline-none transition-all ${selectStyle}`}
+                    >
+                      <option value="">-- ไม่พบในระบบ / จำไม่ได้ --</option>
+                      {members.map(m => (
+                        <option key={m.id} value={m.id}>
+                          {m.full_name} ({m.phone})
+                        </option>
+                      ))}
+                    </select>
+                    <Users className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                </div>
+             </div>
+             <div>
+                <label className={`block text-xs font-medium mb-1 ${subtext}`}>ชื่อลูกค้าชั่วคราว (ถ้าจำชื่อสมาชิกไม่ได้)</label>
+                <div className="relative">
+                   <input 
+                      type="text"
+                      value={tempMemberName}
+                      onChange={e => {
+                        setTempMemberName(e.target.value);
+                        if (e.target.value) setSelectedMemberId('');
+                      }}
+                      placeholder="พิมพ์ชื่อลูกค้า หรือจุดสังเกต..."
+                      className={`w-full p-3 pl-10 border rounded-xl text-sm outline-none transition-all ${inputBase}`}
+                   />
+                   <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                </div>
              </div>
           </div>
 
@@ -352,10 +407,26 @@ export const RevenueRecorder: React.FC<Props> = ({ configs, onSaved, isDarkMode 
               className={`w-full p-3 border rounded-xl text-sm outline-none transition-all ${inputBase}`} />
           </div>
 
-          <button type="submit" disabled={isSubmitting || gross <= 0}
-            className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-all disabled:opacity-40">
-            {isSubmitting ? 'กำลังบันทึก...' : '✅ บันทึกรายรับ'}
-          </button>
+          <div className="flex items-center gap-4">
+            <button 
+              type="button"
+              onClick={() => setContinuousEntry(!continuousEntry)}
+              className={`flex-1 py-3.5 border rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+                continuousEntry 
+                  ? 'bg-emerald-500/10 border-emerald-500 text-emerald-600' 
+                  : isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-500'
+              }`}
+            >
+              <div className={`w-4 h-4 rounded border flex items-center justify-center ${continuousEntry ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300'}`}>
+                 {continuousEntry && <span className="text-white text-[10px]">✓</span>}
+              </div>
+              บันทึกต่อเนื่อง (คงค่าวันที่)
+            </button>
+            <button type="submit" disabled={isSubmitting || gross <= 0}
+              className="flex-[2] py-3.5 bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-all disabled:opacity-40 flex items-center justify-center gap-2">
+              {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : '✅ ยืนยันบันทึก'}
+            </button>
+          </div>
         </form>
       </div>
 
@@ -369,7 +440,11 @@ export const RevenueRecorder: React.FC<Props> = ({ configs, onSaved, isDarkMode 
               {members.filter(m => m.id === selectedMemberId).map(m => (
                  <div key={m.id}>
                     <p className={`font-bold ${heading}`}>{m.full_name}</p>
-                    <p className="text-xs text-slate-500">{m.phone}</p>
+                    <p className="text-xs text-slate-500 mb-2">{m.phone}</p>
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/10 mt-1">
+                       <span className="text-[10px] text-slate-500">ยอดสะสม (LTV)</span>
+                       <span className="text-xs font-bold text-emerald-600">฿{(m as any).total_spent?.toLocaleString() || '0'}</span>
+                    </div>
                  </div>
               ))}
            </div>
@@ -406,6 +481,26 @@ export const RevenueRecorder: React.FC<Props> = ({ configs, onSaved, isDarkMode 
               <p className="text-xs text-slate-400 text-center py-4">ใส่จำนวนเงินเพื่อดูพรีวิว</p>
            )}
         </div>
+
+        {/* Session History (Quick Check) */}
+        {sessionEntries.length > 0 && (
+          <div className={`p-4 rounded-2xl border border-dashed transition-all ${card}`}>
+             <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                <HistoryIcon size={12} /> เพิ่งบันทึกไป (เซสชั่นนี้)
+             </h4>
+             <div className="space-y-2">
+                {sessionEntries.map(entry => (
+                   <div key={entry.id} className="flex justify-between items-center text-xs p-2 rounded-lg bg-slate-500/5 border border-slate-500/10">
+                      <div>
+                         <p className={`font-bold ${heading}`}>{entry.memberName || 'ทั่วไป'}</p>
+                         <p className="text-[10px] text-slate-500">{dayjs(entry.date).format('DD/MM/YYYY')} · {entry.type}</p>
+                      </div>
+                      <p className="font-bold text-emerald-500">฿{entry.amount.toLocaleString()}</p>
+                   </div>
+                ))}
+             </div>
+          </div>
+        )}
       </div>
     </div>
   );

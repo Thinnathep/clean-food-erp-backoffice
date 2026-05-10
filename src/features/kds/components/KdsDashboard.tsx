@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'; 
-import { ChefHat, CalendarDays, UtensilsCrossed, Calendar, MenuSquare, Package, ClipboardCheck } from 'lucide-react';
+import { ChefHat, CalendarDays, UtensilsCrossed, Calendar, MenuSquare, Package, ClipboardCheck, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useMenuStore } from '../../../store/menuStore';
 import { useMemberStore } from '../../../store/memberStore';
@@ -15,6 +15,10 @@ type Tab = 'checklist' | 'today' | 'global' | 'member' | 'summary';
 export const KdsDashboard: React.FC = () => {
   const loadMenus = useMenuStore(state => state.loadMenus);
   const loadMemberData = useMemberStore(state => state.loadMemberData);
+  const menus = useMenuStore(state => state.menus);
+  const members = useMemberStore(state => state.members);
+  const activePackages = useMemberStore(state => state.activePackages);
+  
   const isLoadingMenu = useMenuStore(state => state.isLoading);
   const isLoadingMember = useMemberStore(state => state.isLoading);
   const menuError = useMenuStore(state => state.error);
@@ -94,7 +98,17 @@ export const KdsDashboard: React.FC = () => {
               </div>
               <div>
                 <h1 className="text-base md:text-lg font-bold text-slate-900 tracking-tight leading-none">KDS Control</h1>
-                <p className="text-[10px] md:text-xs font-normal text-slate-500 mt-1">ระบบจัดแผนอาหารและห้องครัว</p>
+                <div className="flex items-center gap-3 mt-1.5">
+                   <div className="flex items-center gap-1 text-[9px] font-bold text-slate-400 uppercase bg-slate-100 px-1.5 py-0.5 rounded">
+                      <MenuSquare size={10} /> {menus.length} เมนู
+                   </div>
+                   <div className="flex items-center gap-1 text-[9px] font-bold text-slate-400 uppercase bg-slate-100 px-1.5 py-0.5 rounded">
+                      <Users size={10} /> {members.length} สมาชิก
+                   </div>
+                   <div className="flex items-center gap-1 text-[9px] font-bold text-emerald-600 uppercase bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
+                      <Package size={10} /> {activePackages.length} ACTIVE
+                   </div>
+                </div>
               </div>
             </div>
             
@@ -102,7 +116,7 @@ export const KdsDashboard: React.FC = () => {
               onClick={() => setIsMenuDrawerOpen(true)}
               className="flex bg-emerald-50 text-emerald-600 hover:bg-emerald-500 hover:text-white px-4 py-2.5 rounded-xl items-center gap-2 font-medium text-[11px] md:text-xs transition-all border border-emerald-100 shadow-sm"
             >
-              <MenuSquare size={16} /> รายการเมนู
+               <MenuSquare size={16} /> รายการเมนู
             </button>
           </div>
           

@@ -40,8 +40,16 @@ export const FinanceDashboard: React.FC = () => {
     try {
       const [poolsRes, bucketsRes, txRes, configRes] = await Promise.all([
         supabase.from('erp_fund_pools').select('*').order('sort_order'),
-        supabase.from('erp_revenue_buckets').select('*, members(full_name, phone)').order('created_at', { ascending: false }).limit(50),
-        supabase.from('erp_fund_transactions').select('*').order('created_at', { ascending: false }).limit(100),
+        supabase.from('erp_revenue_buckets')
+          .select('*, members(full_name, phone)')
+          .gte('created_at', dayjs(selectedMonth).startOf('month').toISOString())
+          .lte('created_at', dayjs(selectedMonth).endOf('month').toISOString())
+          .order('created_at', { ascending: false }),
+        supabase.from('erp_fund_transactions')
+          .select('*')
+          .gte('created_at', dayjs(selectedMonth).startOf('month').toISOString())
+          .lte('created_at', dayjs(selectedMonth).endOf('month').toISOString())
+          .order('created_at', { ascending: false }),
         supabase.from('erp_split_configs').select('*').eq('is_active', true).order('promotion_type'),
       ]);
       if (poolsRes.error) throw poolsRes.error;
@@ -58,7 +66,7 @@ export const FinanceDashboard: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [selectedMonth]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -72,9 +80,9 @@ export const FinanceDashboard: React.FC = () => {
 
 
 
-  // Monthly stats
-  const monthBuckets = buckets.filter(b => dayjs(b.created_at).format('YYYY-MM') === selectedMonth);
-  const monthTx = transactions.filter(t => dayjs(t.created_at).format('YYYY-MM') === selectedMonth);
+  // Monthly stats (Already filtered by query, but double checking locally)
+  const monthBuckets = buckets;
+  const monthTx = transactions;
   const monthIncome = monthBuckets.reduce((s, b) => s + b.gross_amount, 0);
   const monthDeliveryFees = monthBuckets.reduce((s, b) => s + b.delivery_fee, 0);
   const monthExpense = monthTx.filter(t => t.direction === 'OUT').reduce((s, t) => s + t.amount, 0);
@@ -267,7 +275,9 @@ export const FinanceDashboard: React.FC = () => {
                 </div>
 
                 {/* Charts Section */}
-                <FinanceCharts transactions={transactions} buckets={buckets} isDarkMode={isDarkMode} />
+                <div className="mt-10">
+                   <FinanceCharts transactions={transactions} buckets={buckets} isDarkMode={isDarkMode} />
+                </div>
 
                 {/* Split Bar */}
                 <div className={`rounded-2xl border p-5 transition-all mt-6 ${

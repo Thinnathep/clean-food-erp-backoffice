@@ -5,9 +5,11 @@ import {
   Package, User, Plus, X, RefreshCw
 } from 'lucide-react';
 import dayjs from 'dayjs';
+import { useNavigate } from 'react-router-dom';
 import { useLogisticsStore } from '../../../store/logisticsStore';
 
 export const LogisticsDashboard: React.FC = () => {
+  const navigate = useNavigate();
   const { 
     deliveries, riders, isLoading, 
     loadLogisticsData, syncDeliveries, updateDeliveryStatus, assignRider 
@@ -61,6 +63,14 @@ export const LogisticsDashboard: React.FC = () => {
           >
              <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
              ซิงค์งาน
+          </button>
+          <div className="w-px h-6 bg-slate-200 mx-1" />
+          <button 
+            onClick={() => navigate('/logistics/calculator')}
+            className="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-sm hover:bg-emerald-500 hover:text-white transition-all flex items-center gap-2 border border-emerald-100"
+          >
+            <Navigation size={16} />
+            คำนวณค่าส่ง
           </button>
           <div className="w-px h-6 bg-slate-200 mx-1" />
           <button 

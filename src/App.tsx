@@ -13,6 +13,7 @@ import { Toaster } from 'sonner';
 import { FinanceDashboard } from './features/finance/components/FinanceDashboard';
 import { MenuManagement } from './features/menu/components/MenuManagement';
 import { LogisticsDashboard } from './features/logistics/components/LogisticsDashboard';
+import { ShippingCalculator } from './features/logistics/components/ShippingCalculator';
 import { PromotionManagement } from './features/members/components/PromotionManagement';
 
 
@@ -94,6 +95,7 @@ function App() {
 
         <Route path="/finance" element={<ProtectedRoute><MainLayout><FinanceDashboard /></MainLayout></ProtectedRoute>} />
         <Route path="/logistics" element={<ProtectedRoute><MainLayout><LogisticsDashboard /></MainLayout></ProtectedRoute>} />
+        <Route path="/logistics/calculator" element={<ProtectedRoute><MainLayout><ShippingCalculator /></MainLayout></ProtectedRoute>} />
         <Route path="/promotions" element={<ProtectedRoute><MainLayout><PromotionManagement /></MainLayout></ProtectedRoute>} />
 
       </Routes>

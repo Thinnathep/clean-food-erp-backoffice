@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../../../config/supabase';
 import type { SplitConfig } from '../types';
-import { Settings, Trash2, CheckCircle2, Info, Plus, Edit2, Check, RefreshCw } from 'lucide-react';
+import { Settings, Trash2, CheckCircle2, Info, Plus, Edit2, Check, RefreshCw, AlertTriangle, Package } from 'lucide-react';
 import { toast } from 'sonner';
 import Swal from 'sweetalert2';
 
@@ -189,6 +189,128 @@ export const FinanceSettings: React.FC<Props> = ({ configs, onRefresh, isDarkMod
     }
   };
 
+  const handleResetEverything = async () => {
+    const result = await Swal.fire({
+      title: '⚠️ ล้างข้อมูลทั้งหมด?',
+      html: `
+        <div class="text-left text-sm space-y-2">
+          <p class="font-bold text-red-500">คำเตือน: การกระทำนี้ไม่สามารถย้อนกลับได้!</p>
+          <ul class="list-disc pl-5 text-slate-500">
+            <li>ลบประวัติรายรับทั้งหมด</li>
+            <li>ลบประวัติรายจ่ายทั้งหมด</li>
+            <li>Reset ยอดคงเหลือทุกกองทุนเป็น ฿0</li>
+          </ul>
+          <p class="mt-4">พิมพ์คำว่า <span class="font-mono font-bold text-red-500">RESET ALL</span> เพื่อยืนยัน</p>
+        </div>
+      `,
+      input: 'text',
+      inputPlaceholder: 'RESET ALL',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#94a3b8',
+      confirmButtonText: 'ล้างข้อมูลและเริ่มใหม่',
+      cancelButtonText: 'ยกเลิก',
+      background: isDarkMode ? '#1e293b' : '#fff',
+      color: isDarkMode ? '#fff' : '#1e293b',
+      preConfirm: (value) => {
+        if (value !== 'RESET ALL') {
+          Swal.showValidationMessage('กรุณาพิมพ์ข้อความให้ถูกต้อง');
+        }
+      }
+    });
+
+    if (!result.isConfirmed) return;
+
+    toast.loading('กำลังล้างข้อมูลระบบ...');
+    try {
+      // 1. Delete all records
+      await supabase.from('erp_revenue_buckets').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await supabase.from('erp_fund_transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      
+      // 2. Reset pool balances
+      const { error: poolErr } = await supabase.from('erp_fund_pools').update({
+        current_balance: 0,
+        total_in: 0,
+        total_out: 0
+      }).neq('id', '00000000-0000-0000-0000-000000000000');
+      
+      if (poolErr) throw poolErr;
+
+      Swal.fire({
+        icon: 'success',
+        title: 'ล้างข้อมูลสำเร็จ!',
+        text: 'ระบบของคุณสะอาดพร้อมใช้งานใหม่แล้ว',
+        background: isDarkMode ? '#1e293b' : '#fff',
+        color: isDarkMode ? '#fff' : '#1e293b'
+      });
+      onRefresh();
+    } catch (err: any) {
+      Swal.fire('ล้มเหลว', err.message, 'error');
+    }
+  };
+
+  const handleSyncBalances = async () => {
+    const result = await Swal.fire({
+      title: 'Sync ยอดเงินกองทุน?',
+      text: 'ระบบจะคำนวณยอดเงินใหม่ทั้งหมดจากประวัติการทำรายการ เพื่อให้ยอดคงเหลือตรงกับความเป็นจริง',
+      icon: 'info',
+      showCancelButton: true,
+      confirmButtonText: 'เริ่ม Sync ข้อมูล',
+      cancelButtonText: 'ยกเลิก',
+      background: isDarkMode ? '#1e293b' : '#fff',
+      color: isDarkMode ? '#fff' : '#1e293b'
+    });
+
+    if (!result.isConfirmed) return;
+
+    const toastId = toast.loading('กำลังคำนวณยอดเงินใหม่...');
+    try {
+      // 1. Fetch all transactions
+      const { data: txs } = await supabase.from('erp_fund_transactions').select('pool_type, direction, amount');
+      if (!txs) {
+        toast.dismiss(toastId);
+        return;
+      }
+
+      // 2. Group by pool
+      const poolStats: Record<string, { in: number; out: number }> = {
+        MATERIAL: { in: 0, out: 0 },
+        LABOR: { in: 0, out: 0 },
+        OPS: { in: 0, out: 0 },
+        PROFIT: { in: 0, out: 0 }
+      };
+
+      txs.forEach(t => {
+        if (t.direction === 'IN') poolStats[t.pool_type].in += t.amount;
+        else poolStats[t.pool_type].out += t.amount;
+      });
+
+      // 3. Update every pool
+      for (const pt in poolStats) {
+        const stats = poolStats[pt];
+        await supabase.from('erp_fund_pools').update({
+          current_balance: stats.in - stats.out,
+          total_in: stats.in,
+          total_out: stats.out
+        }).eq('pool_type', pt);
+      }
+
+      toast.success('Sync ยอดเงินสำเร็จ!', { id: toastId });
+      Swal.fire({
+        icon: 'success',
+        title: 'สำเร็จ!',
+        text: 'ยอดเงินกองทุนถูก Sync เรียบร้อยแล้ว',
+        background: isDarkMode ? '#1e293b' : '#fff',
+        color: isDarkMode ? '#fff' : '#1e293b'
+      });
+      onRefresh();
+    } catch (err: any) {
+      toast.error('เกิดข้อผิดพลาด', { id: toastId });
+      Swal.fire('ล้มเหลว', err.message, 'error');
+    }
+  };
+
   const card = isDarkMode ? 'bg-slate-800/40 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm';
   const heading = isDarkMode ? 'text-white' : 'text-slate-800';
   const input = isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-700';
@@ -247,7 +369,7 @@ export const FinanceSettings: React.FC<Props> = ({ configs, onRefresh, isDarkMod
                  </div>
                  <div>
                     <label className="block text-[10px] font-bold text-slate-500 mb-1">ประเภทสินค้า</label>
-                    <select value={formData.promotion_type} onChange={e => setFormData({...formData, promotion_type: e.target.value as any})}
+                 <select value={formData.promotion_type} onChange={e => setFormData({...formData, promotion_type: e.target.value as any})}
                        className={`w-full p-2.5 rounded-xl border text-sm outline-none focus:border-emerald-500 ${input}`}>
                        <option value="PINTO">PINTO (ปิ่นโต)</option>
                        <option value="MUSCLE">MUSCLE (เพิ่มกล้าม)</option>
@@ -278,7 +400,32 @@ export const FinanceSettings: React.FC<Props> = ({ configs, onRefresh, isDarkMod
                        className={`w-full p-2.5 rounded-xl border text-sm outline-none focus:border-emerald-500 ${input}`} />
                  </div>
               </div>
-              <div className="flex justify-end gap-2">
+              
+              <div className="flex items-center justify-between mb-6">
+                  <button 
+                    type="button"
+                    onClick={() => setFormData({
+                      ...formData,
+                      material_pct: 40,
+                      labor_pct: 20,
+                      ops_pct: 15,
+                      profit_pct: 25
+                    })}
+                    className={`text-[10px] font-bold flex items-center gap-1 transition-all px-3 py-1.5 rounded-xl border border-dashed ${
+                      isDarkMode ? 'text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10' : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50'
+                    }`}
+                  >
+                     <Package size={14} /> ใช้สัดส่วนแนะนำ (Healthy Split 40/20/15/25)
+                  </button>
+                  <div className={`text-xs font-bold ${
+                     (formData.material_pct + formData.labor_pct + formData.ops_pct + formData.profit_pct) === 100 
+                     ? 'text-emerald-500' : 'text-red-500'
+                  }`}>
+                     รวม: {formData.material_pct + formData.labor_pct + formData.ops_pct + formData.profit_pct}%
+                  </div>
+               </div>
+
+               <div className="flex justify-end gap-2">
                  <button onClick={resetForm} className="px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100 rounded-xl transition-all">ยกเลิก</button>
                  <button onClick={handleSave} className="px-6 py-2 bg-emerald-500 text-white rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-emerald-600 transition-all">
                     <Check size={18} /> บันทึกสูตร
@@ -365,6 +512,55 @@ export const FinanceSettings: React.FC<Props> = ({ configs, onRefresh, isDarkMod
            </p>
         </div>
      </div>
+      {/* Danger Zone */}
+      <div className={`p-6 rounded-3xl border border-dashed transition-all mt-6 ${
+        isDarkMode ? 'bg-red-500/5 border-red-500/20' : 'bg-red-50 border-red-200'
+      }`}>
+         <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+               <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                 isDarkMode ? 'bg-red-500/20 text-red-400' : 'bg-red-100 text-red-500'
+               }`}>
+                  <AlertTriangle size={20} />
+               </div>
+               <div>
+                  <h3 className={`text-sm font-bold ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>Danger Zone (ส่วนอันตราย)</h3>
+                  <p className="text-[10px] text-slate-500">ใช้สำหรับล้างข้อมูลทดสอบและเริ่มระบบใหม่ทั้งหมด</p>
+               </div>
+            </div>
+            <button 
+              onClick={handleResetEverything}
+              className="px-4 py-2 bg-red-500 text-white rounded-xl text-xs font-bold hover:bg-red-600 transition-all shadow-lg shadow-red-500/20"
+            >
+               Reset ข้อมูลทั้งหมด
+            </button>
+         </div>
+      </div>
+
+      {/* Sync Tool */}
+      <div className={`p-6 rounded-3xl border border-dashed transition-all mt-6 ${
+        isDarkMode ? 'bg-blue-500/5 border-blue-500/20' : 'bg-blue-50 border-blue-200'
+      }`}>
+         <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+               <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                 isDarkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-500'
+               }`}>
+                  <RefreshCw size={20} />
+               </div>
+               <div>
+                  <h3 className={`text-sm font-bold ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>Sync & Repair (ซ่อมแซมยอดเงิน)</h3>
+                  <p className="text-[10px] text-slate-500">กรณีตัวเลขยอดคงเหลือไม่ตรงกับประวัติการทำรายการ</p>
+               </div>
+            </div>
+            <button 
+              onClick={handleSyncBalances}
+              className="px-4 py-2 bg-blue-500 text-white rounded-xl text-xs font-bold hover:bg-blue-600 transition-all shadow-lg shadow-blue-500/20"
+            >
+               เริ่ม Sync ยอดเงิน
+            </button>
+         </div>
+      </div>
     </div>
   );
 };

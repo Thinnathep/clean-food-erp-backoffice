@@ -33,7 +33,15 @@ const navItems = [
     ]
   },
   { path: '/finance', icon: Wallet, label: 'บัญชี' },
-  { path: '/logistics', icon: Truck, label: 'ระบบจัดส่ง' },
+  { 
+    label: 'ระบบจัดส่ง', 
+    icon: Truck, 
+    path: '/logistics',
+    children: [
+      { path: '/logistics', label: 'สรุปการจัดส่ง' },
+      { path: '/logistics/calculator', label: 'คำนวณค่าส่ง' },
+    ]
+  },
 ];
 
 export const Sidebar: React.FC<{ 
@@ -139,6 +147,7 @@ export const Sidebar: React.FC<{
                       <NavLink
                         key={child.path}
                         to={child.path}
+                        end={child.path === '/logistics' || child.path === '/members' || child.path === '/inventory/stock'}
                         onClick={() => setMobileOpen(false)}
                         className={({ isActive }) =>
                           `flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all font-normal text-xs whitespace-nowrap
