@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMapEvents, useMap } from 'react-leaflet';
+// @ts-ignore
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Truck, Info, Copy, Calculator, ShoppingBag, Loader2, Settings as SettingsIcon, X, Search, Map as MapIcon, Plus, AlertCircle, TrendingDown, TrendingUp, Gauge, Lightbulb } from 'lucide-react';
@@ -121,7 +122,7 @@ export const ShippingCalculator: React.FC = () => {
   // --- Map Helper Components ---
   const MapEvents = () => {
     useMapEvents({
-      click(e) {
+      click(e: L.LeafletMouseEvent) {
         setCustomerCoords([e.latlng.lat, e.latlng.lng]);
       },
     });
