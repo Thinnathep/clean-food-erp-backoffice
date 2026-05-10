@@ -60,6 +60,7 @@ export const MemberPlanner: React.FC = () => {
   const [sidebarSearchQuery, setSidebarSearchQuery] = useState('');
   const [sidebarSortBy, setSidebarSortBy] = useState<'latest' | 'name'>('latest');
   const [sidebarFilterType, setSidebarFilterType] = useState<'all' | 'member' | 'retail'>('all');
+  const [lastOrderDates, setLastOrderDates] = useState<Record<string, string>>({});
 
 
 
@@ -73,7 +74,8 @@ export const MemberPlanner: React.FC = () => {
     loadMemberPlanner, assignMemberSlot, removeMemberSlot,
     copyDayPlan, pasteDayPlan, clearDayPlan,
     copiedDaySlots, clearCopiedPlan,
-    hasUnsavedChanges, saveChanges, isSaving
+    hasUnsavedChanges, saveChanges, isSaving,
+    isLoading, initialWeekSubscriptionQty
   } = usePlannerStore();
 
 
@@ -184,6 +186,27 @@ export const MemberPlanner: React.FC = () => {
     }
   }, [currentWeekStart, selectedPackageId, loadMemberPlanner]);
 
+  useEffect(() => {
+    const fetchLastDates = async () => {
+      if (activePackages.length === 0) return;
+      const { data } = await supabase
+        .from('erp_member_meal_schedules')
+        .select('package_id, delivery_date')
+        .in('package_id', activePackages.map(p => p.id));
+        
+      if (data) {
+         const map: Record<string, string> = {};
+         data.forEach(s => {
+           if (!map[s.package_id] || dayjs(s.delivery_date).isAfter(dayjs(map[s.package_id]))) {
+             map[s.package_id] = s.delivery_date;
+           }
+         });
+         setLastOrderDates(map);
+      }
+    };
+    fetchLastDates();
+  }, [activePackages]);
+
   // Auto-deselect if member gets banned
   useEffect(() => {
     const member = selectedPackage ? (Array.isArray(selectedPackage.members) ? selectedPackage.members[0] : selectedPackage.members) : null;
@@ -211,10 +234,10 @@ export const MemberPlanner: React.FC = () => {
       .filter(s => s.package_id === selectedPackage.id && !s.is_extra_order)
       .reduce((sum, s) => sum + (s.quantity || 1), 0);
     
-    const delta = currentWeekSubQty - usePlannerStore.getState().initialWeekSubscriptionQty;
+    const delta = currentWeekSubQty - initialWeekSubscriptionQty;
     
     return Math.max(0, dbRemaining - delta);
-  }, [selectedPackage, memberSchedules]);
+  }, [selectedPackage, memberSchedules, initialWeekSubscriptionQty]);
 
   const getSchedulesForDate = (date: string): MemberMealSchedule[] => {
     return memberSchedules
@@ -594,14 +617,16 @@ export const MemberPlanner: React.FC = () => {
                     const subSchedules = pkgSchedules.filter(s => !s.is_extra_order);
                     
                     const today = dayjs().startOf('day');
-                    const hasUpcoming = pkgSchedules.some(s => !dayjs(s.delivery_date).isBefore(today));
-                    const isPinned = rem > 0 || hasUpcoming;
+                    const lastOrderDate = lastOrderDates[pkg.id];
+                    const hasFutureOrders = lastOrderDate ? !dayjs(lastOrderDate).isBefore(today) : false;
+                    const isPinned = rem > 0 || hasFutureOrders;
 
                     const member = Array.isArray(pkg.members) ? pkg.members[0] : pkg.members;
                     const isRetail = member?.member_type === 'retail' || pkg.id.toString().startsWith('retail_');
 
                     let statusBadgeClass = 'bg-slate-100 text-slate-700 border border-slate-200';
-                    let statusText = `เหลือ ${rem} มื้อ`;
+                    const isPkgLoading = isLoading && isSelected;
+                    let statusText = isPkgLoading ? '...' : `เหลือ ${Math.max(0, rem)}/${pkg.meals_total || 0} มื้อ`;
 
                     if (isRetail) {
                       const activeOrders = pkgSchedules.filter(s => !dayjs(s.delivery_date).isBefore(today)).reduce((sum, s) => sum + (s.quantity || 1), 0);
@@ -609,6 +634,7 @@ export const MemberPlanner: React.FC = () => {
                       statusText = activeOrders > 0 ? `สั่งไว้ ${activeOrders} มื้อ` : 'ไม่มีออเดอร์';
                     } else if (rem < 0) {
                       statusBadgeClass = 'bg-red-500 text-white border border-red-600';
+                      statusText = `เกินมา ${Math.abs(rem)} มื้อ`;
                     } else if (rem === 0) {
                       statusBadgeClass = 'bg-slate-50 text-slate-400 border border-slate-100';
                     } else if (rem < 3) {
@@ -741,7 +767,7 @@ export const MemberPlanner: React.FC = () => {
                                                ? 'bg-purple-50 text-purple-600 border-purple-100'
                                                : 'bg-slate-100 text-slate-600 border-slate-200'
                                  }`}>
-                                   {isRetail ? `สั่งไว้ ${totalSubscriptionOrdered} มื้อ` : `เหลือ ${projectedRemaining} มื้อ`}
+                                   {isRetail ? `สั่งไว้ ${totalSubscriptionOrdered} มื้อ` : (isLoading ? 'กำลังคำนวณ...' : `เหลือ ${Math.max(0, projectedRemaining)}/${selectedPackage.meals_total || 0} มื้อ`)}
                                  </span>
                                  {(() => {
                                    const extraCount = packageSchedules
@@ -870,15 +896,15 @@ export const MemberPlanner: React.FC = () => {
                                         มื้อที่ {idx + 1}
                                       </span>
                                     </div>
-                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="flex items-center gap-1 transition-opacity">
                                       {isAdmin && (
                                         <button 
                                           onClick={(e) => handleRemoveClick(e, schedule.id)}
-                                          className="p-1 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded transition-all"
+                                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 border border-slate-100 hover:border-red-200 rounded-lg transition-all shadow-sm bg-white"
                                           title="ลบมื้อนี้"
                                         >
-                                          <Trash2 size={12} />
-                                    </button>
+                                          <Trash2 size={13} />
+                                        </button>
                                       )}
                                     </div>
                                   </div>
