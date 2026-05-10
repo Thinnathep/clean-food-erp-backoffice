@@ -47,6 +47,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@tailwindcss/vite": "^4.2.4",
+    "@types/leaflet": "^1.9.21",
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
@@ -62,7 +63,6 @@
     "tailwindcss": "^4.2.4",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.2",
-    "@types/leaflet": "^1.9.12",
     "vite": "^8.0.10",
     "vite-plugin-pwa": "^1.2.0"
   }
