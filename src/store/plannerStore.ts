@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { dayjs } from '../lib/dateUtils';
 import type { MemberMealSchedule, GlobalPlanSlot } from '../types';
 import { 
   fetchGlobalPlanSlots, upsertGlobalPlanSlot, deleteGlobalPlanSlot,
@@ -64,6 +65,8 @@ interface PlannerState {
   clearDayPlan: (date: string, pkgId: string) => Promise<void>;
   clearCopiedPlan: () => void;
   updateGlobalSlotNote: (date: string, meal: string, note: string) => Promise<void>;
+  applyCycleTemplate: (startDate: string, endDate: string, category?: string) => Promise<void>;
+  applyTemplateToMember: (pkgId: string, memberId: string, weekStartDate: string, category: string) => Promise<void>;
 }
 
 export const usePlannerStore = create<PlannerState>((set, get) => ({
@@ -365,5 +368,159 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
       memberSchedules: state.memberSchedules.filter(s => !(s.delivery_date === date && s.package_id === pkgId)),
       hasUnsavedChanges: true
     }));
+  },
+
+  applyCycleTemplate: async (start: string, end: string, category: string = 'normal') => {
+    try {
+      set({ isSaving: true });
+      
+      // 1. Fetch templates for this category
+      const { data: templates, error: fetchErr } = await supabase
+        .from('menu_cycle_templates')
+        .select('*')
+        .eq('category', category)
+        .order('week_number')
+        .order('day_of_week')
+        .order('meal_slot');
+
+      if (fetchErr) throw fetchErr;
+      if (!templates || templates.length === 0) {
+        throw new Error(`ไม่พบข้อมูลเมนูในระบบ Template หมวด ${category}`);
+      }
+
+      // 2. Fetch all menus to map by name
+      const allMenus = useMenuStore.getState().menus;
+
+      const startDate = dayjs(start);
+      const endDate = dayjs(end);
+      let curr = startDate;
+      
+      const insertData: any[] = [];
+
+      while (curr.isBefore(endDate) || curr.isSame(endDate, 'day')) {
+        const dateStr = curr.format('YYYY-MM-DD');
+        const dayOfWeek = curr.day(); // 0=Sun, 1=Mon, ..., 6=Sat
+        
+        // Skip Sunday if no template (day 0)
+        if (dayOfWeek !== 0) {
+          // Determine week index (1-4)
+          // Simple logic: Use (day of year / 7 % 4) or just relative to start
+          // For now, let's use week of year % 4
+          let weekNum = (curr.isoWeek() % 4);
+          if (weekNum === 0) weekNum = 4;
+
+          const dailyTemplates = templates.filter(t => t.week_number === weekNum && t.day_of_week === dayOfWeek);
+          
+          dailyTemplates.forEach(t => {
+            const menu = allMenus.find(m => m.name === t.menu_name);
+            if (menu) {
+              insertData.push({
+                delivery_date: dateStr,
+                meal_type: `meal_${t.meal_slot}`,
+                menu_item_id: menu.id,
+                menu_name: menu.name,
+                calories: menu.calories,
+                protein: menu.protein,
+                carbs: menu.carbs,
+                fat: menu.fat,
+                price: menu.base_price
+              });
+            }
+          });
+        }
+        curr = curr.add(1, 'day');
+      }
+
+      if (insertData.length === 0) {
+        throw new Error('ไม่พบเมนูที่ตรงกันในระบบฐานข้อมูลหลัก');
+      }
+
+      // 3. Bulk Upsert
+      const { error } = await supabase
+        .from('pinto_meal_plan')
+        .upsert(insertData, { onConflict: 'delivery_date,meal_type' });
+
+      if (error) throw error;
+
+      await get().loadGlobalPlanner(start, end);
+      set({ isSaving: false });
+      toast.success('ลงเมนูรอบ 4 สัปดาห์เรียบร้อย');
+    } catch (error: any) {
+      set({ isSaving: false });
+      console.error(error);
+      toast.error(error.message || 'เกิดข้อผิดพลาดในการลงเมนู');
+    }
+  },
+
+  applyTemplateToMember: async (pkgId, memberId, weekStartDate, category) => {
+    try {
+      set({ isLoading: true });
+      
+      // 1. Fetch templates for this category
+      const { data: templates, error: fetchErr } = await supabase
+        .from('menu_cycle_templates')
+        .select('*')
+        .eq('category', category)
+        .order('week_number')
+        .order('day_of_week')
+        .order('meal_slot');
+
+      if (fetchErr) throw fetchErr;
+      if (!templates || templates.length === 0) {
+        throw new Error(`ไม่พบข้อมูลเมนูในระบบ Template หมวด ${category}`);
+      }
+
+      // 2. Determine which week (1-4) we are in based on the date
+      // We can use a simple logic: (isoWeek % 4) or similar
+      const startDate = dayjs(weekStartDate);
+      let weekNum = (startDate.isoWeek() % 4);
+      if (weekNum === 0) weekNum = 4;
+
+      const weekTemplates = templates.filter(t => t.week_number === weekNum);
+      const allMenus = useMenuStore.getState().menus;
+      const newSchedules = [...get().memberSchedules];
+
+      // 3. Map templates to schedule slots
+      weekTemplates.forEach(t => {
+        const targetDate = startDate.add(t.day_of_week - 1, 'day').format('YYYY-MM-DD');
+        const menu = allMenus.find(m => m.name === t.menu_name);
+        
+        if (menu) {
+          // Check if slot already exists for this member/date/meal
+          const mealKey = `meal_${t.meal_slot}`;
+          const existingIdx = newSchedules.findIndex(s => 
+            s.delivery_date === targetDate && 
+            s.meal_type === mealKey && 
+            s.package_id === pkgId
+          );
+
+          const slotData = {
+            id: existingIdx !== -1 ? newSchedules[existingIdx].id : `temp_${Math.random()}`,
+            package_id: pkgId,
+            member_id: memberId,
+            delivery_date: targetDate,
+            meal_type: mealKey as any,
+            menu_item_id: menu.id,
+            quantity: 1,
+            box_size: 'regular',
+            delivery_time: '', // To be filled from member profile if needed
+            kitchen_status: 'pending',
+            notes: '',
+            is_extra_order: false,
+            meal_order_type: 'subscription',
+            menu_items: menu
+          };
+
+          if (existingIdx !== -1) newSchedules[existingIdx] = slotData as any;
+          else newSchedules.push(slotData as any);
+        }
+      });
+
+      set({ memberSchedules: newSchedules, hasUnsavedChanges: true, isLoading: false });
+      toast.success(`ปรับปรุงเมนูจาก Template ${category} เรียบร้อย (กดบันทึกเพื่อยืนยัน)`);
+    } catch (error: any) {
+      set({ isLoading: false });
+      toast.error(error.message || 'เกิดข้อผิดพลาดในการลงเมนู');
+    }
   }
 }));

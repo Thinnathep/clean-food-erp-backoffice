@@ -110,12 +110,19 @@ export const PromotionManagement: React.FC = () => {
     selectedPromoId: '',
     healthGoal: 'ไม่ระบุ',
     allergyNotes: '',
-    memberType: 'pinto', // pinto or retail
+    memberType: 'pinto', // pinto, retail, or promo
     deliveryDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
     googleMapsUrl: '',
-    distanceKm: 0,
+    distanceKm: '' as string | number,
     locationType: 'inside', // inside or outside
-    deliveryFee: 0
+    deliveryFee: '' as string | number
+  });
+
+  const [logisticsConfig, setLogisticsConfig] = useState({
+    BASE_FARE: 25,
+    BASE_INCLUDED_DISTANCE: 3,
+    FEE_PER_KM_NORMAL: 4,
+    PROMO_FREE_DIST: 7.1
   });
 
   const DAYS = [
@@ -139,7 +146,48 @@ export const PromotionManagement: React.FC = () => {
 
   useEffect(() => {
     fetchPromotions();
+    fetchLogisticsConfig();
   }, []);
+
+  const fetchLogisticsConfig = async () => {
+    try {
+      const { data } = await supabase.from('erp_settings').select('value').eq('key', 'logistics_config').single();
+      if (data) {
+        const val = data.value;
+        setLogisticsConfig({
+          BASE_FARE: Number(val.base_fare),
+          BASE_INCLUDED_DISTANCE: Number(val.base_included_distance),
+          FEE_PER_KM_NORMAL: Number(val.fee_per_km_normal),
+          PROMO_FREE_DIST: 7.1
+        });
+      }
+    } catch (err) { console.error('Error fetching logistics config:', err); }
+  };
+
+  // Auto-calculate delivery fee for all types
+  useEffect(() => {
+    const dist = Number(customerInfo.distanceKm || 0);
+    const promo = promotions.find(p => p.id === customerInfo.selectedPromoId);
+    
+    // Determine rounds: Members/Promo use package days, Retail uses 1 round
+    let rounds = 1;
+    if (customerInfo.memberType === 'pinto' || customerInfo.memberType === 'promo') {
+      rounds = promo ? promo.days_count : 14;
+    }
+    
+    if (dist <= logisticsConfig.PROMO_FREE_DIST) {
+      setCustomerInfo(prev => ({ ...prev, deliveryFee: 0 }));
+    } else {
+      const excessDist = dist - logisticsConfig.PROMO_FREE_DIST;
+      // Normal logic applied to the excess distance
+      let feePerRound = logisticsConfig.BASE_FARE;
+      if (excessDist > logisticsConfig.BASE_INCLUDED_DISTANCE) {
+        const ex = excessDist - logisticsConfig.BASE_INCLUDED_DISTANCE;
+        feePerRound += ex * logisticsConfig.FEE_PER_KM_NORMAL;
+      }
+      setCustomerInfo(prev => ({ ...prev, deliveryFee: Math.ceil(feePerRound * rounds) }));
+    }
+  }, [customerInfo.distanceKm, customerInfo.memberType, customerInfo.selectedPromoId, logisticsConfig, promotions]);
 
   const handleSaveCustomer = async () => {
     if (!customerInfo.name || !customerInfo.phone) {
@@ -199,13 +247,13 @@ export const PromotionManagement: React.FC = () => {
             meals_remaining: promo.meals_count,
             days_total: promo.days_count,
             days_remaining: promo.days_count,
-            price_paid: promo.price + Number(customerInfo.deliveryFee),
+            price_paid: promo.price + Number(customerInfo.deliveryFee || 0),
             promotion_id: promo.id,
             start_date: customerInfo.startDate,
             delivery_slot: customerInfo.deliverySlot,
             status: 'active',
             phone: customerInfo.phone,
-            internal_notes: `วันส่ง: ${customerInfo.deliveryDays.join(', ')} | ระยะทาง: ${customerInfo.distanceKm} กม. | พื้นที่: ${customerInfo.locationType === 'inside' ? 'ในเมือง' : 'นอกเมือง'} | Maps: ${customerInfo.googleMapsUrl}`
+            internal_notes: `วันส่ง: ${customerInfo.deliveryDays.join(', ')} | ระยะทาง: ${customerInfo.distanceKm || 0} กม. | พื้นที่: ${customerInfo.locationType === 'inside' ? 'ในเมือง' : 'นอกเมือง'} | Maps: ${customerInfo.googleMapsUrl}`
           });
           if (pkgError) throw pkgError;
         }
@@ -221,7 +269,7 @@ export const PromotionManagement: React.FC = () => {
         healthGoal: 'ไม่ระบุ', allergyNotes: '',
         memberType: 'pinto',
         deliveryDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
-        googleMapsUrl: '', distanceKm: 0, locationType: 'inside', deliveryFee: 0
+        googleMapsUrl: '', distanceKm: '', locationType: 'inside', deliveryFee: ''
       });
     } catch (err: any) {
       toast.error('ล้มเหลว: ' + err.message);
@@ -232,7 +280,7 @@ export const PromotionManagement: React.FC = () => {
 
   const generateOrderSummary = () => {
     const promo = promotions.find(p => p.id === customerInfo.selectedPromoId);
-    const totalPrice = (promo?.price || 0) + Number(customerInfo.deliveryFee);
+    const totalPrice = (promo?.price || 0) + Number(customerInfo.deliveryFee || 0);
     const startDateFormatted = dayjs(customerInfo.startDate).locale('th').format('ddddที่ D MMM');
     
     return `รับออเดอร์โปรโมชั่น ${promo?.name || 'ผูกปิ่นโต'} รวมยอดทั้งหมด: ${totalPrice.toLocaleString()} บาท 
@@ -453,16 +501,25 @@ ${customerInfo.googleMapsUrl ? `📍 พิกัด: ${customerInfo.googleMapsU
                                 <button 
                                   onClick={() => setCustomerInfo({...customerInfo, memberType: 'pinto'})}
                                   className={cn(
-                                    "flex-1 py-2 text-xs font-bold rounded-lg transition-all",
+                                    "flex-1 py-2 text-[10px] font-bold rounded-lg transition-all",
                                     customerInfo.memberType === 'pinto' ? "bg-white shadow-sm text-indigo-600" : "text-slate-500"
                                   )}
                                 >
                                   สมาชิกปิ่นโต
                                 </button>
                                 <button 
+                                  onClick={() => setCustomerInfo({...customerInfo, memberType: 'promo'})}
+                                  className={cn(
+                                    "flex-1 py-2 text-[10px] font-bold rounded-lg transition-all",
+                                    customerInfo.memberType === 'promo' ? "bg-white shadow-sm text-blue-600" : "text-slate-500"
+                                  )}
+                                >
+                                  สมาชิกโปรฯ
+                                </button>
+                                <button 
                                   onClick={() => setCustomerInfo({...customerInfo, memberType: 'retail'})}
                                   className={cn(
-                                    "flex-1 py-2 text-xs font-bold rounded-lg transition-all",
+                                    "flex-1 py-2 text-[10px] font-bold rounded-lg transition-all",
                                     customerInfo.memberType === 'retail' ? "bg-white shadow-sm text-emerald-600" : "text-slate-500"
                                   )}
                                 >
@@ -494,7 +551,7 @@ ${customerInfo.googleMapsUrl ? `📍 พิกัด: ${customerInfo.googleMapsU
                                    type="number" 
                                    placeholder="5.5"
                                    value={customerInfo.distanceKm}
-                                   onChange={(e) => setCustomerInfo({...customerInfo, distanceKm: Number(e.target.value)})}
+                                   onChange={(e) => setCustomerInfo({...customerInfo, distanceKm: e.target.value})}
                                    className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all font-bold"
                                 />
                              </div>
@@ -522,7 +579,7 @@ ${customerInfo.googleMapsUrl ? `📍 พิกัด: ${customerInfo.googleMapsU
                              type="number" 
                              placeholder="เช่น 150"
                              value={customerInfo.deliveryFee}
-                             onChange={(e) => setCustomerInfo({...customerInfo, deliveryFee: Number(e.target.value)})}
+                             onChange={(e) => setCustomerInfo({...customerInfo, deliveryFee: e.target.value})}
                              className="w-full px-5 py-3.5 bg-indigo-50 border border-indigo-200 rounded-2xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-black text-lg text-indigo-700"
                           />
                        </div>
@@ -668,13 +725,13 @@ ${customerInfo.googleMapsUrl ? `📍 พิกัด: ${customerInfo.googleMapsU
                              <div>
                                 <p className="text-[10px] font-bold text-emerald-600 uppercase">ยอดโอนสุทธิ</p>
                                 <p className="text-2xl font-black text-emerald-700">
-                                   ฿{((promotions.find(p => p.id === customerInfo.selectedPromoId)?.price || 0) + Number(customerInfo.deliveryFee)).toLocaleString()}
+                                   ฿{((promotions.find(p => p.id === customerInfo.selectedPromoId)?.price || 0) + Number(customerInfo.deliveryFee || 0)).toLocaleString()}
                                 </p>
                              </div>
                              <div className="text-right">
                                 <p className="text-[10px] font-bold text-slate-400 uppercase">รวมค่าส่งแล้ว</p>
                                 <p className="text-xs font-bold text-slate-600">
-                                   +{Number(customerInfo.deliveryFee).toLocaleString()} บาท
+                                   +{Number(customerInfo.deliveryFee || 0).toLocaleString()} บาท
                                 </p>
                              </div>
                           </div>

@@ -4,6 +4,7 @@ import { CalendarDays, UtensilsCrossed, LayoutGrid, Settings } from 'lucide-reac
 const NAV = [
   { to: '/', icon: <UtensilsCrossed size={18} />, label: 'วันนี้' },
   { to: '/planner', icon: <CalendarDays size={18} />, label: 'วางแผน' },
+  { to: '/templates', icon: <LayoutGrid size={18} />, label: 'แม่แบบ' },
   { to: '/menus', icon: <LayoutGrid size={18} />, label: 'เมนูทั้งหมด' },
   { to: '/setup', icon: <Settings size={18} />, label: 'ตั้งค่า' },
 ]

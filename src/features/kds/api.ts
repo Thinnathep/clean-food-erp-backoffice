@@ -593,3 +593,16 @@ export const closeKitchenSession = async (payload: {
 
   if (error) throw error;
 };
+
+// ── Master Cycle Templates ──
+
+export async function fetchMenuCycleTemplates() {
+  const { data, error } = await supabase
+    .from('menu_cycle_templates')
+    .select('*')
+    .order('week_number')
+    .order('day_of_week')
+    .order('meal_slot');
+  if (error) throw error;
+  return data;
+}

@@ -11,7 +11,8 @@ import {
   ArrowRight,
   Sparkles,
   ClipboardList,
-  Package
+  Package,
+  FileText
 } from 'lucide-react';
 import dayjs from 'dayjs';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -21,6 +22,7 @@ import { useAuthStore } from '../../../store/authStore';
 import { getWeekDays } from '../../../lib/dateUtils';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import Swal from 'sweetalert2';
 
 import { 
   DndContext, 
@@ -128,7 +130,7 @@ const AddMealButton: React.FC<{ date: string; onAdd: (date: string) => void }> =
 };
 
 const DroppableSlot: React.FC<DroppableSlotProps> = ({ 
-  date, meal, compact, onSlotClick, onRemove, onApplyAll, onNoteChange, slot, isActive, isAdmin 
+  date, meal, compact, onSlotClick, onRemove, onApplyAll, onNoteChange, slot, isAdmin 
 }) => {
   const { isOver, setNodeRef } = useDroppable({
     id: `slot-${date}-${meal}`,
@@ -137,37 +139,26 @@ const DroppableSlot: React.FC<DroppableSlotProps> = ({
 
   const menu = slot?.menu_items;
 
+  const [isExpanded, setIsExpanded] = useState(false);
+
   if (compact) {
     return (
       <div 
         ref={setNodeRef}
         onClick={() => onSlotClick(date, meal)}
         className={cn(
-          "group relative h-8 rounded-lg border transition-all flex items-center px-2 overflow-hidden cursor-pointer",
-          isOver && "ring-2 ring-emerald-500 border-emerald-500 bg-emerald-50 shadow-lg z-10",
+          "relative p-1.5 rounded-lg border text-[10px] transition-all truncate",
           slot 
-            ? "bg-emerald-50 border-emerald-100" 
-            : isActive 
-              ? "bg-slate-50 border-dashed border-slate-200 hover:border-emerald-400 hover:bg-emerald-50" 
-              : "bg-slate-50/50 border-dashed border-slate-100"
+            ? "bg-emerald-50 border-emerald-200 text-emerald-800 font-medium shadow-sm" 
+            : "bg-slate-50/50 border-dashed border-slate-200 text-slate-300"
         )}
       >
         {slot ? (
-          <div className="flex items-center gap-1.5 w-full">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
-            <span className="text-[9px] font-medium text-emerald-800 truncate">{menu?.name}</span>
-            {isAdmin && (
-              <button 
-                onClick={(e) => onRemove(e, date, meal)}
-                className="absolute -right-1 -top-1 w-5 h-5 bg-white shadow-md border border-slate-100 rounded-full flex items-center justify-center text-red-500 hover:bg-red-50 transition-all z-10"
-              >
-                <X size={10} />
-              </button>
-            )}
+          <div className="flex items-center gap-1">
+            <span className="opacity-50 text-[8px] font-bold">M{meal.split('_')[1]}</span>
+            <span className="truncate">{menu?.name}</span>
           </div>
-        ) : (
-          (isActive || isOver) && <div className="w-full text-center text-[8px] text-slate-300">วาง</div>
-        )}
+        ) : "ว่าง"}
       </div>
     );
   }
@@ -175,96 +166,103 @@ const DroppableSlot: React.FC<DroppableSlotProps> = ({
   return (
     <div 
       ref={setNodeRef}
-      onClick={() => onSlotClick(date, meal)}
       className={cn(
-        "group relative flex flex-col p-3 rounded-2xl border transition-all min-h-[110px]",
+        "group relative flex flex-col rounded-xl border transition-all duration-200",
         isOver && "ring-2 ring-emerald-500 border-emerald-500 bg-emerald-50 shadow-xl z-10 scale-[1.02]",
         slot 
-          ? "bg-white border-emerald-100 shadow-sm ring-1 ring-emerald-500/5" 
-          : isActive 
-            ? "bg-slate-50/50 border-dashed border-slate-200 hover:border-emerald-400 hover:bg-emerald-50 hover:shadow-inner cursor-pointer" 
-            : "bg-slate-50/30 border-dashed border-slate-200 opacity-60"
+          ? "bg-white border-slate-200 shadow-sm hover:border-emerald-300 hover:shadow-md" 
+          : "bg-slate-50/30 border-dashed border-slate-200 opacity-60 min-h-[60px] flex items-center justify-center hover:bg-white hover:opacity-100"
       )}
     >
-      <div className="flex justify-between items-center mb-2">
-        <div className="flex flex-col">
-          <span className="text-[13px] font-medium text-slate-700">
-            มื้อที่ {meal === 'meal_1' ? '1' : '2'}
-            <span className="text-[10px] text-slate-400 ml-1.5">(M{meal === 'meal_1' ? '1' : '2'})</span>
-          </span>
+      {/* Main Content Area */}
+      <div 
+        onClick={() => slot ? setIsExpanded(!isExpanded) : onSlotClick(date, meal)}
+        className={cn(
+          "flex flex-col gap-2 p-3.5 cursor-pointer transition-colors",
+          slot && isExpanded && "bg-slate-50/50 border-b border-slate-100"
+        )}
+      >
+        <div className="flex items-center justify-between">
+          <div className={cn(
+            "px-2 py-0.5 rounded-md text-[10px] font-black shadow-sm",
+            slot ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-400"
+          )}>
+            M{meal.split('_')[1]}
+          </div>
+          {slot && menu && (
+            <span className="text-[9px] font-bold px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded-md uppercase tracking-tighter truncate max-w-[60px]">
+              {menu.category}
+            </span>
+          )}
         </div>
+        
+        <div className="min-w-0">
+          {slot && menu ? (
+            <div className="flex flex-col">
+              <p className="text-[13px] font-bold text-slate-800 leading-[1.3] mb-1">
+                {menu.name}
+              </p>
+              <p className="text-[10px] text-slate-400 font-medium truncate italic">{menu.protein}</p>
+            </div>
+          ) : (
+            <p className="text-[10px] text-slate-400 font-medium italic text-center">คลิกเพื่อวางแผน</p>
+          )}
+        </div>
+
         {slot && isAdmin && (
           <button 
             onClick={(e) => onRemove(e, date, meal)}
-            className="w-7 h-7 rounded-xl bg-red-50 text-red-500 flex items-center justify-center transition-all shadow-sm border border-red-100"
+            className="w-6 h-6 rounded-lg bg-red-50 text-red-500 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all hover:bg-red-500 hover:text-white"
           >
-            <X size={14} />
+            <X size={12} />
           </button>
         )}
       </div>
-      
-      {slot && menu ? (
-        <div className="flex-1 flex flex-col">
-          <div className="flex gap-3 items-start">
-            <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 border border-slate-100 shadow-sm bg-slate-50 flex items-center justify-center">
-              {menu.image_url ? (
-                <img src={menu.image_url} alt="" className="w-full h-full object-cover" />
-              ) : (
-                <Sparkles size={16} className="text-slate-200" />
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-800 leading-tight line-clamp-2">{menu.name}</p>
-              <div className="flex items-center gap-2 mt-1">
-                 <span className="text-[9px] px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded-md">{menu.category}</span>
-              </div>
-            </div>
-          </div>
 
-          <div className="mt-3 relative">
-            <textarea
-              placeholder="บันทึกการผลิต..."
-              value={slot.prep_notes || ''}
-              onClick={(e) => e.stopPropagation()}
-              onChange={(e) => onNoteChange(date, meal, e.target.value)}
-              className="w-full p-2 bg-slate-50 border border-slate-100 rounded-xl text-[10px] text-slate-600 focus:outline-none focus:ring-1 focus:ring-emerald-500/20 resize-none h-12 transition-all hover:bg-white"
-            />
-          </div>
+      {/* Expanded Details */}
+      <AnimatePresence>
+        {slot && isExpanded && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden bg-white"
+          >
+            <div className="p-4 space-y-4 border-t border-slate-100 bg-slate-50/50">
+               <div className="flex flex-col gap-3">
+                  {/* Notes Area */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                       <FileText size={12} className="text-emerald-500" />
+                       บันทึกการผลิต
+                    </div>
+                    <textarea
+                      placeholder="เช่น ระบุจำนวนเป็นพิเศษ..."
+                      value={slot.prep_notes || ''}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => onNoteChange(date, meal, e.target.value)}
+                      className="w-full p-3 bg-white border border-slate-200 rounded-xl text-[12px] text-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500/30 resize-none h-20 transition-all shadow-sm"
+                    />
+                  </div>
 
-          {isAdmin && (
-            <motion.button
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              onClick={(e) => {
-                e.stopPropagation();
-                onApplyAll(date, meal, menu.id);
-              }}
-              className="mt-3 w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-[10px] font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all active:scale-95"
-            >
-              <Wand2 size={13} />
-              ลงเมนูให้ทุกคน
-            </motion.button>
-          )}
-        </div>
-      ) : (
-        <div className="flex-1 flex flex-col items-center justify-center text-center gap-2">
-          {isActive || isOver ? (
-             <>
-               <div className={cn(
-                 "w-10 h-10 rounded-full flex items-center justify-center transition-colors",
-                 isOver ? "bg-emerald-500 text-white shadow-lg" : "bg-slate-50 text-slate-300"
-               )}>
-                  <Sparkles size={18} />
+                  {/* Actions */}
+                  {isAdmin && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onApplyAll(date, meal, menu?.id || '');
+                      }}
+                      className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-[11px] font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all active:scale-95"
+                    >
+                      <Wand2 size={14} />
+                      ลงเมนูให้ทุกคน
+                    </button>
+                  )}
                </div>
-               <span className={cn("text-xs font-medium", isOver ? "text-emerald-700" : "text-slate-400")}>
-                 {isOver ? "ปล่อยเพื่อวาง" : "ว่าง - คลิกเพื่อลงเมนู"}
-               </span>
-             </>
-          ) : (
-            <span className="text-[10px] text-slate-200">ยังไม่ระบุ</span>
-          )}
-        </div>
-      )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
@@ -278,6 +276,7 @@ export const ProductionRoadmap: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeMenu, setActiveMenu] = useState<any>(null);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+  const [selectedTemplateCategory, setSelectedTemplateCategory] = useState('normal');
   const [pendingAddMealDate, setPendingAddMealDate] = useState<string | null>(null);
   
   const globalPlanSlots = usePlannerStore(state => state.globalPlanSlots);
@@ -289,6 +288,8 @@ export const ProductionRoadmap: React.FC = () => {
   const removeGlobalSlot = usePlannerStore(state => state.removeGlobalSlot);
   const updateGlobalSlotNote = usePlannerStore(state => state.updateGlobalSlotNote);
   const applyDailyMenuToAll = usePlannerStore(state => state.applyDailyMenuToAll);
+  const applyCycleTemplate = usePlannerStore(state => state.applyCycleTemplate);
+  const isSaving = usePlannerStore(state => state.isSaving);
   
   const [isPrepModalOpen, setIsPrepModalOpen] = useState(false);
   const [prepSummary, setPrepSummary] = useState<any[]>([]);
@@ -343,6 +344,39 @@ export const ProductionRoadmap: React.FC = () => {
       console.error(error);
     } finally {
       setIsLoadingPrep(false);
+    }
+  };
+
+  const handleApplyMonthlyTemplate = async () => {
+    const start = currentDate.startOf('month').format('YYYY-MM-DD');
+    const end = currentDate.endOf('month').format('YYYY-MM-DD');
+    
+    const catName = selectedTemplateCategory === 'normal' ? 'เมนูปกติ' : 
+                   selectedTemplateCategory === 'non_spicy' ? 'ไม่เผ็ด' :
+                   selectedTemplateCategory === 'no_rice' ? 'ไม่เอาข้าว' :
+                   selectedTemplateCategory === 'protein_plus' ? 'เน้นโปรตีน' : 'เมนูอื่นๆ';
+
+    const result = await Swal.fire({
+      title: `ยืนยันลงเมนูอัตโนมัติ (${catName})?`,
+      text: `ระบบจะลงเมนูตามรอบ 4 สัปดาห์ (หมวด: ${catName}) สำหรับเดือน ${currentDate.format('MMMM YYYY')} (ข้อมูลเดิมจะถูกเขียนทับ)`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#4f46e5',
+      cancelButtonColor: '#94a3b8',
+      confirmButtonText: 'ตกลง, ลงเมนูเลย',
+      cancelButtonText: 'ยกเลิก',
+      reverseButtons: true
+    });
+
+    if (result.isConfirmed) {
+      await applyCycleTemplate(start, end, selectedTemplateCategory);
+      Swal.fire({
+        icon: 'success',
+        title: 'ลงเมนูเรียบร้อย',
+        text: `ระบบได้ลงเมนูหมวด ${catName} เรียบร้อยแล้ว`,
+        timer: 2000,
+        showConfirmButton: false
+      });
     }
   };
 
@@ -523,6 +557,30 @@ export const ProductionRoadmap: React.FC = () => {
               สรุปเตรียมของ
             </button>
 
+            <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200">
+              <select 
+                value={selectedTemplateCategory}
+                onChange={(e) => setSelectedTemplateCategory(e.target.value)}
+                className="bg-transparent text-[11px] font-bold px-3 py-1 outline-none border-none text-slate-600 appearance-none cursor-pointer"
+              >
+                <option value="normal">เมนูปกติ</option>
+                <option value="non_spicy">ไม่เผ็ด</option>
+                <option value="no_rice">ไม่เอาข้าว</option>
+                <option value="protein_plus">เน้นโปรตีน</option>
+              </select>
+              <button 
+                onClick={handleApplyMonthlyTemplate}
+                disabled={isSaving}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-sm",
+                  "bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
+                )}
+              >
+                <Wand2 size={16} />
+                {isSaving ? "กำลังลงเมนู..." : "ลงเมนูรอบ 4 สัปดาห์"}
+              </button>
+            </div>
+
             <button 
               onClick={() => setIsLibraryOpen(!isLibraryOpen)}
               className={cn(
@@ -688,10 +746,16 @@ export const ProductionRoadmap: React.FC = () => {
                             )}
                          </div>
 
-                         <div className="space-y-1.5">
-                            {renderSlot(day.date, 'meal_1', true)}
-                            {renderSlot(day.date, 'meal_2', true)}
-                         </div>
+                          <div className="space-y-1.5 max-h-[120px] overflow-y-auto custom-scrollbar-thin">
+                             {globalPlanSlots
+                               .filter(s => s.delivery_date === day.date)
+                               .sort((a, b) => {
+                                 const numA = parseInt(a.meal_type.split('_')[1]);
+                                 const numB = parseInt(b.meal_type.split('_')[1]);
+                                 return numA - numB;
+                               })
+                               .map(slot => renderSlot(day.date, slot.meal_type, true))}
+                          </div>
                        </div>
                      ))}
                    </div>

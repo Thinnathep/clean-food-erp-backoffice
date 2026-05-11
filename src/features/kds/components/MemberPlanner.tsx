@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   ChevronLeft, ChevronRight, MessageSquare, Plus, User, X, Clock, Save, 
-  UtensilsCrossed, Copy, Clipboard as ClipboardIcon, Search, FileText, Trash2, MapPin, Pin
+  UtensilsCrossed, Copy, Clipboard as ClipboardIcon, Search, FileText, Trash2, MapPin, Pin, Wand2
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import dayjs from 'dayjs';
@@ -98,6 +98,36 @@ export const MemberPlanner: React.FC = () => {
   const handlePrevWeek = () => setCurrentWeekStart(dayjs(currentWeekStart).subtract(1, 'week').toDate());
   const handleNextWeek = () => setCurrentWeekStart(dayjs(currentWeekStart).add(1, 'week').toDate());
 
+  const handleApplyTemplateToMember = async (category: string) => {
+    if (!category || !selectedPackageId) return;
+    
+    const catName = category === 'normal' ? 'เมนูปกติ' : 
+                   category === 'non_spicy' ? 'ไม่เผ็ด' :
+                   category === 'no_rice' ? 'ไม่เอาข้าว' :
+                   category === 'protein_plus' ? 'เน้นโปรตีน' : 'เมนูอื่นๆ';
+
+    const result = await Swal.fire({
+      title: `ยืนยันลงเมนูจากแม่แบบ (${catName})?`,
+      text: `ระบบจะลงเมนูตามแม่แบบหมวด ${catName} ในช่วงสัปดาห์นี้ให้ลูกค้า (ข้อมูลเดิมในสัปดาห์นี้จะถูกเขียนทับ)`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#4f46e5',
+      cancelButtonColor: '#94a3b8',
+      confirmButtonText: 'ตกลง, ลงเมนูเลย',
+      cancelButtonText: 'ยกเลิก',
+      reverseButtons: true
+    });
+
+    if (result.isConfirmed) {
+      const pkg = activePackages.find(p => p.id === selectedPackageId);
+      if (pkg) {
+        const startStr = dayjs(currentWeekStart).format('YYYY-MM-DD');
+        const { applyTemplateToMember } = usePlannerStore.getState();
+        await applyTemplateToMember(pkg.id, pkg.member_id, startStr, category);
+      }
+    }
+  };
+
 
 
   const filteredPackages = useMemo(() => {
@@ -130,49 +160,50 @@ export const MemberPlanner: React.FC = () => {
       created_at: m.created_at || new Date().toISOString()
     }));
 
-    // 4. Combine and filter
-    return [...activePackages, ...virtualRetailPackages]
-      .filter(pkg => {
+    // 4. Pre-calculate metrics and filter
+    const allPkgs = [...activePackages, ...virtualRetailPackages];
+    
+    return allPkgs
+      .map(pkg => {
         const member = Array.isArray(pkg.members) ? pkg.members[0] : pkg.members;
+        if (member?.is_banned) return null;
+
         const name = member?.full_name || '';
-        const matchesSearch = name.toLowerCase().includes(sidebarSearchQuery.toLowerCase());
+        const phone = member?.phone || '';
+        const query = sidebarSearchQuery.toLowerCase();
+        const matchesSearch = name.toLowerCase().includes(query) || phone.includes(query);
         
-        if (member?.is_banned) return false;
+        if (!matchesSearch) return null;
         
-        if (sidebarFilterType === 'member') return matchesSearch && member?.member_type !== 'retail';
-        if (sidebarFilterType === 'retail') return matchesSearch && member?.member_type === 'retail';
-        return matchesSearch;
+        const isRetail = member?.member_type === 'retail' || pkg.id.toString().startsWith('retail_');
+        if (sidebarFilterType === 'member' && isRetail) return null;
+        if (sidebarFilterType === 'retail' && !isRetail) return null;
+
+        // Calculate metrics using package state (much faster)
+        const remaining = pkg.meals_remaining ?? 0;
+        const isActive = pkg.status === 'active' || remaining > 0;
+        
+        return {
+          pkg,
+          isActive,
+          name,
+          createdAt: pkg.created_at ? dayjs(pkg.created_at).valueOf() : 0
+        };
       })
+      .filter((item): item is NonNullable<typeof item> => item !== null)
       .sort((a, b) => {
-        const aSchedules = schedulesByPkg[a.id] || [];
-        const bSchedules = schedulesByPkg[b.id] || [];
-        
-        const aPlanned = aSchedules.filter(s => !s.is_extra_order).reduce((sum, s) => sum + (s.quantity || 1), 0);
-        const bPlanned = bSchedules.filter(s => !s.is_extra_order).reduce((sum, s) => sum + (s.quantity || 1), 0);
-        
-        const aRem = (a.meals_total || 0) - aPlanned;
-        const bRem = (b.meals_total || 0) - bPlanned;
-        
-        const today = dayjs().startOf('day');
-        const aHasUpcoming = aSchedules.some(s => !dayjs(s.delivery_date).isBefore(today));
-        const bHasUpcoming = bSchedules.some(s => !dayjs(s.delivery_date).isBefore(today));
-        
-        const aIsActive = aRem > 0 || aHasUpcoming;
-        const bIsActive = bRem > 0 || bHasUpcoming;
-        
-        if (aIsActive && !bIsActive) return -1;
-        if (!aIsActive && bIsActive) return 1;
+        // Active members always come first
+        if (a.isActive && !b.isActive) return -1;
+        if (!a.isActive && b.isActive) return 1;
 
         if (sidebarSortBy === 'name') {
-          const nameA = (Array.isArray(a.members) ? a.members[0]?.full_name : a.members?.full_name) || '';
-          const nameB = (Array.isArray(b.members) ? b.members[0]?.full_name : b.members?.full_name) || '';
-          return nameA.localeCompare(nameB, 'th');
+          return a.name.localeCompare(b.name, 'th');
         } else {
-          const dateA = a.created_at ? dayjs(a.created_at).valueOf() : 0;
-          const dateB = b.created_at ? dayjs(b.created_at).valueOf() : 0;
-          return dateB - dateA;
+          // Newest packages first
+          return b.createdAt - a.createdAt;
         }
-      });
+      })
+      .map(item => item.pkg);
   }, [activePackages, sidebarSearchQuery, sidebarSortBy, sidebarFilterType, members, memberSchedules]);
 
 
@@ -187,25 +218,34 @@ export const MemberPlanner: React.FC = () => {
   }, [currentWeekStart, selectedPackageId, loadMemberPlanner]);
 
   useEffect(() => {
+    let isMounted = true;
     const fetchLastDates = async () => {
       if (activePackages.length === 0) return;
-      const { data } = await supabase
-        .from('erp_member_meal_schedules')
-        .select('package_id, delivery_date')
-        .in('package_id', activePackages.map(p => p.id));
-        
-      if (data) {
-         const map: Record<string, string> = {};
-         data.forEach(s => {
-           if (!map[s.package_id] || dayjs(s.delivery_date).isAfter(dayjs(map[s.package_id]))) {
-             map[s.package_id] = s.delivery_date;
-           }
-         });
-         setLastOrderDates(map);
+      
+      try {
+        const { data, error } = await supabase
+          .from('erp_member_meal_schedules')
+          .select('package_id, delivery_date')
+          .in('package_id', activePackages.map(p => p.id));
+          
+        if (error) throw error;
+        if (data && isMounted) {
+           const map: Record<string, string> = {};
+           data.forEach(s => {
+             if (!map[s.package_id] || dayjs(s.delivery_date).isAfter(dayjs(map[s.package_id]))) {
+               map[s.package_id] = s.delivery_date;
+             }
+           });
+           setLastOrderDates(map);
+        }
+      } catch (err) {
+        console.error('Error fetching last order dates:', err);
       }
     };
+
     fetchLastDates();
-  }, [activePackages]);
+    return () => { isMounted = false; };
+  }, [activePackages.length]); // Only refetch when the number of packages changes
 
   // Auto-deselect if member gets banned
   useEffect(() => {
@@ -813,6 +853,24 @@ export const MemberPlanner: React.FC = () => {
                   >
                     วันนี้
                   </button>
+
+                  <div className="flex bg-slate-100/50 p-1 rounded-xl border border-slate-200 shadow-inner group">
+                    <div className="flex items-center gap-2 px-3 py-1.5 text-slate-400 group-hover:text-indigo-500 transition-colors">
+                      <Wand2 size={14} />
+                      <span className="text-[10px] font-bold uppercase tracking-widest hidden xl:inline">Templates</span>
+                    </div>
+                    <select 
+                      className="bg-transparent text-[11px] font-bold px-3 py-1 outline-none border-none text-slate-600 appearance-none cursor-pointer"
+                      value=""
+                      onChange={(e) => handleApplyTemplateToMember(e.target.value)}
+                    >
+                      <option value="">เลือกดึงเมนูอัตโนมัติ...</option>
+                      <option value="normal">ชุดเมนูปกติ</option>
+                      <option value="non_spicy">ชุดไม่เผ็ด</option>
+                      <option value="no_rice">ชุดไม่เอาข้าว</option>
+                      <option value="protein_plus">ชุดเน้นโปรตีน</option>
+                    </select>
+                  </div>
                   <div className="flex flex-1 md:w-auto items-center justify-between bg-white border border-slate-200 rounded-xl p-1 shadow-sm shrink-0">
                     <button onClick={handlePrevWeek} className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-all"><ChevronLeft size={16} /></button>
                     <span className="px-3 text-[10px] font-normal uppercase tracking-widest text-emerald-600 truncate">

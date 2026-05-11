@@ -10,12 +10,16 @@ interface Props {
   transactions: FundTransaction[];
   buckets: RevenueBucket[];
   isDarkMode: boolean;
+  selectedMonth: string;
 }
 
-export const FinanceCharts: React.FC<Props> = ({ transactions, buckets, isDarkMode }) => {
-  // 1. Prepare Daily Trend Data (Last 30 days)
-  const last30Days = Array.from({ length: 30 }).map((_, i) => {
-    const date = dayjs().subtract(29 - i, 'day').format('YYYY-MM-DD');
+export const FinanceCharts: React.FC<Props> = ({ transactions, buckets, isDarkMode, selectedMonth }) => {
+  // 1. Prepare Daily Trend Data for the selected month
+  const startOfMonth = dayjs(selectedMonth).startOf('month');
+  const daysInMonth = startOfMonth.daysInMonth();
+  
+  const dailyData = Array.from({ length: daysInMonth }).map((_, i) => {
+    const date = startOfMonth.add(i, 'day').format('YYYY-MM-DD');
     const income = buckets
       .filter(b => dayjs(b.created_at).format('YYYY-MM-DD') === date)
       .reduce((sum, b) => sum + b.gross_amount, 0);
@@ -24,7 +28,8 @@ export const FinanceCharts: React.FC<Props> = ({ transactions, buckets, isDarkMo
       .reduce((sum, t) => sum + t.amount, 0);
     
     return {
-      date: dayjs(date).format('DD MMM'),
+      date: dayjs(date).format('DD'),
+      fullDate: dayjs(date).format('DD MMM'),
       income,
       expense
     };
@@ -60,11 +65,11 @@ export const FinanceCharts: React.FC<Props> = ({ transactions, buckets, isDarkMo
         isDarkMode ? 'bg-slate-800/40 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'
       }`}>
         <h3 className={`text-sm font-bold mb-6 ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
-          📈 แนวโน้มกระแสเงินสด (30 วันล่าสุด)
+          📈 แนวโน้มกระแสเงินสด ({dayjs(selectedMonth).format('MMMM YYYY')})
         </h3>
         <div className="h-[280px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={last30Days}>
+            <AreaChart data={dailyData}>
               <defs>
                 <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>

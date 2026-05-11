@@ -141,8 +141,21 @@ export const RevenueRecorder: React.FC<Props> = ({ configs, onSaved, isDarkMode 
         { pool_type: 'OPS', amount: opsAmt },
         { pool_type: 'PROFIT', amount: profitAmt },
       ];
+      const deliv = Number(deliveryFee);
+      if (deliv > 0) {
+        splits.push({ pool_type: 'DELIVERY', amount: deliv });
+      }
       const { error: txErr } = await supabase.from('erp_fund_transactions').insert(
-        splits.map(s => ({ pool_type: s.pool_type, direction: 'IN', amount: s.amount, category: 'Auto Split', description: `จาก: ${description || sourceType}`, source_type: 'SPLIT', source_id: bucket.id }))
+        splits.map(s => ({ 
+          pool_type: s.pool_type, 
+          direction: 'IN', 
+          amount: s.amount, 
+          category: 'Auto Split', 
+          description: `จาก: ${description || sourceType}`, 
+          source_type: 'SPLIT', 
+          source_id: bucket.id,
+          created_at: bucket.created_at // Use the same date as the bucket
+        }))
       );
       if (txErr) throw txErr;
 

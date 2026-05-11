@@ -182,8 +182,12 @@ export const DAY_LABELS = ['จันทร์','อังคาร','พุธ'
 export const MEAL_TYPE_LABELS: Record<MealType, string> = {
   meal_1: 'มื้อที่ 1',
   meal_2: 'มื้อที่ 2',
+  meal_3: 'มื้อที่ 3',
+  meal_4: 'มื้อที่ 4',
+  meal_5: 'มื้อที่ 5',
+  meal_6: 'มื้อที่ 6',
 };
-export const MEAL_TYPES: MealType[] = ['meal_1', 'meal_2'];
+export const MEAL_TYPES: MealType[] = ['meal_1', 'meal_2', 'meal_3', 'meal_4', 'meal_5', 'meal_6'];
 
 export const CATEGORY_COLORS: Record<string, string> = {
   'main':       '#4ade80',

@@ -15,9 +15,10 @@ import { FinanceSettings } from './FinanceSettings.tsx';
 import { PromotionBuilder } from './PromotionBuilder.tsx';
 import dayjs from 'dayjs';
 import { toast } from 'sonner';
-import {
-  Wallet, PiggyBank, Receipt, History, Calculator, Rocket,
-  TrendingUp, TrendingDown, RefreshCw, Sun, Moon, Package, AlertTriangle, Download, Users, Settings
+import Swal from 'sweetalert2';
+import { 
+  TrendingUp, TrendingDown, RefreshCw, Sun, Moon, Package, AlertTriangle, Download, Users, Settings,
+  ChevronLeft, ChevronRight, Calculator, PiggyBank, Wallet, Receipt, History, Rocket, CheckCircle2
 } from 'lucide-react';
 
 type TabKey = 'overview' | 'income' | 'expense' | 'history' | 'simulator' | 'promotions' | 'customers' | 'settings';
@@ -103,6 +104,54 @@ export const FinanceDashboard: React.FC = () => {
     { key: 'settings', label: 'ตั้งค่า', icon: <Settings size={18} /> },
   ];
 
+  const handleSyncBalances = async () => {
+    const result = await Swal.fire({
+      title: 'Sync ยอดเงินกองทุน?',
+      text: 'ระบบจะคำนวณยอดเงินใหม่ทั้งหมดจากประวัติการทำรายการ เพื่อให้ยอดคงเหลือตรงกับความเป็นจริง',
+      icon: 'info',
+      showCancelButton: true,
+      confirmButtonText: 'เริ่ม Sync ข้อมูล',
+      cancelButtonText: 'ยกเลิก',
+      background: isDarkMode ? '#1e293b' : '#fff',
+      color: isDarkMode ? '#fff' : '#1e293b'
+    });
+
+    if (!result.isConfirmed) return;
+
+    const toastId = toast.loading('กำลังคำนวณยอดเงินใหม่...');
+    try {
+      const { data: txs } = await supabase.from('erp_fund_transactions').select('pool_type, direction, amount');
+      if (!txs) throw new Error('No transactions found');
+
+      const poolStats: Record<string, { in: number; out: number }> = {
+        MATERIAL: { in: 0, out: 0 },
+        LABOR: { in: 0, out: 0 },
+        OPS: { in: 0, out: 0 },
+        PROFIT: { in: 0, out: 0 },
+        DELIVERY: { in: 0, out: 0 }
+      };
+
+      txs.forEach(t => {
+        if (t.direction === 'IN') poolStats[t.pool_type].in += t.amount;
+        else poolStats[t.pool_type].out += t.amount;
+      });
+
+      for (const pt in poolStats) {
+        const stats = poolStats[pt];
+        await supabase.from('erp_fund_pools').update({
+          current_balance: stats.in - stats.out,
+          total_in: stats.in,
+          total_out: stats.out
+        }).eq('pool_type', pt);
+      }
+
+      toast.success('Sync ยอดเงินสำเร็จ!', { id: toastId });
+      fetchAll();
+    } catch (err: any) {
+      toast.error('เกิดข้อผิดพลาด: ' + err.message, { id: toastId });
+    }
+  };
+
   const exportCSV = () => {
     const headers = ['วันที่', 'ประเภท', 'รายการ', 'รับ (Gross)', 'ส่ง', 'สุทธิ', 'Material', 'Labor', 'Ops', 'Profit', 'Note'];
     const rows = monthBuckets.map(b => [
@@ -162,16 +211,33 @@ export const FinanceDashboard: React.FC = () => {
             >
               {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
             </button>
-            <input
-              type="month"
-              value={selectedMonth}
-              onChange={e => setSelectedMonth(e.target.value)}
-              className={`border text-sm px-3 py-2 rounded-xl outline-none transition-all ${
-                isDarkMode 
-                  ? 'bg-slate-800/60 border-slate-700 text-slate-300 focus:border-emerald-500' 
-                  : 'bg-white border-slate-200 text-slate-600 focus:border-emerald-500 shadow-sm'
-              }`}
-            />
+            <div className={`flex items-center rounded-xl border overflow-hidden ${
+              isDarkMode ? 'border-slate-700 bg-slate-800/60' : 'border-slate-200 bg-white shadow-sm'
+            }`}>
+              <button
+                onClick={() => setSelectedMonth(m => dayjs(m).subtract(1, 'month').format('YYYY-MM'))}
+                className={`p-2.5 transition-colors ${isDarkMode ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-50 text-slate-500'}`}
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <input
+                type="month"
+                value={selectedMonth}
+                onChange={e => setSelectedMonth(e.target.value)}
+                className={`text-sm px-2 py-2 outline-none transition-all text-center border-x ${
+                  isDarkMode 
+                    ? 'bg-transparent border-slate-700 text-slate-300 focus:text-emerald-500' 
+                    : 'bg-transparent border-slate-200 text-slate-600 focus:text-emerald-500'
+                }`}
+                style={{ minWidth: '130px' }}
+              />
+              <button
+                onClick={() => setSelectedMonth(m => dayjs(m).add(1, 'month').format('YYYY-MM'))}
+                className={`p-2.5 transition-colors ${isDarkMode ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-50 text-slate-500'}`}
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
             <button
               onClick={exportCSV}
               className={`p-2.5 border rounded-xl transition-all ${
@@ -182,6 +248,18 @@ export const FinanceDashboard: React.FC = () => {
               title="Export CSV"
             >
               <Download size={18} />
+            </button>
+            <button
+              onClick={handleSyncBalances}
+              className={`flex items-center gap-2 px-3 py-2.5 border rounded-xl transition-all ${
+                isDarkMode
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
+                  : 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100 shadow-sm'
+              }`}
+              title="คำนวณยอดเงินใหม่จากประวัติทั้งหมด"
+            >
+              <RefreshCw size={18} />
+              <span className="hidden lg:inline text-xs font-bold">Sync ยอดเงิน</span>
             </button>
             <button
               onClick={fetchAll}
@@ -276,7 +354,7 @@ export const FinanceDashboard: React.FC = () => {
 
                 {/* Charts Section */}
                 <div className="mt-10">
-                   <FinanceCharts transactions={transactions} buckets={buckets} isDarkMode={isDarkMode} />
+                   <FinanceCharts transactions={transactions} buckets={buckets} isDarkMode={isDarkMode} selectedMonth={selectedMonth} />
                 </div>
 
                 {/* Split Bar */}
@@ -325,9 +403,45 @@ export const FinanceDashboard: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Total Cash Reconcile Summary */}
+                <div className={`p-6 rounded-3xl border mb-6 transition-all shadow-xl shadow-emerald-500/5 ${
+                  isDarkMode ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-emerald-50 border-emerald-100'
+                }`}>
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-14 h-14 rounded-2xl bg-emerald-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
+                        <Wallet size={32} />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600 mb-1">ยอดเงินสดรวมในระบบ (System Cash)</p>
+                        <h2 className={`text-4xl font-black ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                          ฿{pools.reduce((s, p) => s + (p.current_balance || 0), 0).toLocaleString()}
+                        </h2>
+                      </div>
+                    </div>
+                    <div className={`p-4 rounded-2xl border flex items-center gap-4 ${
+                      isDarkMode ? 'bg-slate-900/60 border-slate-700' : 'bg-white border-slate-200'
+                    }`}>
+                      <div className="text-right">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">เทียบกับเงินจริงในธนาคาร</p>
+                        <div className="flex items-center gap-2 justify-end">
+                           <CheckCircle2 size={14} className="text-emerald-500" />
+                           <span className="text-xs font-bold text-slate-400">อัปเดตจากยอดกองทุนรายย่อย</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Fund Pool Cards */}
                 <div className="mt-6">
-                  <FundPoolCards pools={visiblePools} isCEO={isCEO} transactions={monthTx} isDarkMode={isDarkMode} />
+                  <FundPoolCards 
+                    pools={visiblePools} 
+                    isCEO={isCEO} 
+                    transactions={monthTx} 
+                    isDarkMode={isDarkMode} 
+                    onRefresh={fetchAll}
+                  />
                 </div>
 
                 {/* Recent Revenue Buckets */}
@@ -390,9 +504,11 @@ export const FinanceDashboard: React.FC = () => {
             {activeTab === 'history' && (
               <TransactionHistory
                 transactions={transactions}
+                buckets={buckets}
                 isCEO={isCEO}
                 selectedMonth={selectedMonth}
                 isDarkMode={isDarkMode}
+                onRefresh={fetchAll}
               />
             )}
 

@@ -378,6 +378,22 @@ CREATE TABLE public.erp_revenue_buckets (
   CONSTRAINT erp_revenue_buckets_split_config_id_fkey FOREIGN KEY (split_config_id) REFERENCES public.erp_split_configs(id),
   CONSTRAINT erp_revenue_buckets_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.erp_staff(id)
 );
+CREATE TABLE public.erp_settings (
+  key text NOT NULL,
+  value jsonb NOT NULL,
+  description text,
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT erp_settings_pkey PRIMARY KEY (key)
+);
+CREATE TABLE public.erp_shipping_discounts (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  min_order numeric NOT NULL,
+  discount_amount numeric NOT NULL,
+  label text,
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT erp_shipping_discounts_pkey PRIMARY KEY (id)
+);
 CREATE TABLE public.erp_split_configs (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   config_name text NOT NULL,
@@ -543,6 +559,17 @@ CREATE TABLE public.members (
   ban_reason text,
   banned_at timestamp with time zone,
   CONSTRAINT members_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.menu_cycle_templates (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  week_number integer NOT NULL,
+  day_of_week integer NOT NULL,
+  meal_slot integer NOT NULL,
+  category text,
+  protein text,
+  menu_name text NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT menu_cycle_templates_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.menu_items (
   id uuid NOT NULL DEFAULT gen_random_uuid(),

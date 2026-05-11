@@ -5,11 +5,15 @@ import type { PoolType, FundPool, ExpenseCategory } from '../types';
 import { fetchInventoryItems, recordStockIn } from '../../inventory/api';
 import type { InventoryItem } from '../../../types';
 import { toast } from 'sonner';
+import dayjs from 'dayjs';
+import Swal from 'sweetalert2';
 import { 
   TrendingDown, X, 
-  AlertCircle, Calculator, Box, PlusCircle, Calendar, Store, Loader2, History as HistoryIcon
+  Calculator, Box, 
+  Calendar, PlusCircle, 
+  AlertCircle, History as HistoryIcon,
+  Loader2, RefreshCw, Store
 } from 'lucide-react';
-import dayjs from 'dayjs';
 
 interface Props {
   onSaved: () => void;
@@ -37,6 +41,16 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
   const [selectedInventoryItemId, setSelectedInventoryItemId] = useState('');
   const [stockInQty, setStockInQty] = useState('');
 
+  // Reconcile State
+  const [poolActuals, setPoolActuals] = useState<Record<string, string>>({
+    MATERIAL: '',
+    LABOR: '',
+    OPS: '',
+    PROFIT: '',
+    DELIVERY: ''
+  });
+  const [showReconcile, setShowReconcile] = useState(false);
+
   useEffect(() => {
     fetchMeta();
     fetchInventory();
@@ -59,68 +73,179 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
   };
 
   const activePoolData = pools.find(p => p.pool_type === selectedPool);
-  const filteredCats = categories.filter(c => c.pool_type === selectedPool);
+  const filteredCats = categories.filter(c => c.pool_type === selectedPool || !selectedPool);
+  const totalCash = pools.reduce((sum, p) => sum + (p.current_balance || 0), 0);
+
+  const handleCategoryChange = (catName: string) => {
+    setSelectedCat(catName);
+    const cat = categories.find(c => c.name === catName);
+    if (cat && cat.pool_type) {
+      setSelectedPool(cat.pool_type as PoolType);
+    }
+  };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedPool || !amount) return toast.error('กรุณากรอกข้อมูลให้ครบถ้วน');
     
+    // Check if we have an expense OR adjustments
+    const hasExpense = selectedPool && amount && Number(amount) > 0;
+    const hasAdjustments = Object.values(poolActuals).some(v => v !== '');
+    
+    if (!hasExpense && !hasAdjustments) {
+      return toast.error('กรุณากรอกจำนวนเงินรายจ่าย หรือยอดเงินสดจริงเพื่อปรับยอด');
+    }
+    
+    // ── Calculate Adjustments ──
+    const adjustments: { pool: PoolType; diff: number; label: string }[] = [];
+    Object.entries(poolActuals).forEach(([pt, actual]) => {
+      if (!actual) return;
+      const pool = pools.find(p => p.pool_type === pt);
+      const diff = Number(actual) - (pool?.current_balance || 0);
+      if (diff !== 0) {
+        adjustments.push({ pool: pt as PoolType, diff, label: POOL_CONFIG[pt as PoolType].label.split('/')[0] });
+      }
+    });
+
+    // ── Show Summary Modal ──
+    const summaryHtml = `
+      <div class="text-left space-y-4">
+        ${hasExpense ? `
+        <div class="p-3 rounded-xl bg-red-500/10 border border-red-500/20 mb-4">
+          <p class="text-[10px] font-black text-red-500 uppercase mb-1">รายการรายจ่าย</p>
+          <div class="flex justify-between items-center">
+            <span class="text-sm font-bold text-slate-400">${selectedCat}</span>
+            <span class="text-lg font-black text-red-500">฿${Number(amount).toLocaleString()}</span>
+          </div>
+          <p class="text-[10px] text-slate-500 mt-1">${description || 'บันทึกรายจ่ายทั่วไป'}</p>
+        </div>
+        ` : ''}
+
+        ${adjustments.length > 0 ? `
+          <div class="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
+            <p class="text-[10px] font-black text-blue-500 uppercase mb-2">รายการปรับยอดกองทุน (Reconcile)</p>
+            <div class="space-y-2">
+              ${adjustments.map(adj => `
+                <div class="flex justify-between items-center text-xs">
+                  <span class="font-bold text-slate-400">${adj.label}</span>
+                  <span class="font-black ${adj.diff > 0 ? 'text-blue-500' : 'text-amber-500'}">
+                    ${adj.diff > 0 ? '+' : ''}฿${adj.diff.toLocaleString()}
+                  </span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        <div class="pt-2 flex justify-between items-center border-t border-slate-700/10">
+          <span class="text-xs font-bold text-slate-500 uppercase">เงินสดรวมหลังบันทึก</span>
+          <span class="text-xl font-black ${isDarkMode ? 'text-white' : 'text-slate-900'}">
+            ฿${(totalCash - Number(amount) + adjustments.reduce((s, a) => s + a.diff, 0)).toLocaleString()}
+          </span>
+        </div>
+      </div>
+    `;
+
+    const confirm = await Swal.fire({
+      title: 'ยืนยันการบันทึก?',
+      html: summaryHtml,
+      icon: 'info',
+      showCancelButton: true,
+      confirmButtonText: 'ยืนยันและบันทึก',
+      cancelButtonText: 'แก้ไขข้อมูล',
+      background: isDarkMode ? '#1e293b' : '#fff',
+      color: isDarkMode ? '#f1f5f9' : '#1e293b',
+      customClass: {
+        confirmButton: 'bg-emerald-500 hover:bg-emerald-600',
+        cancelButton: 'bg-slate-600 hover:bg-slate-700'
+      }
+    });
+
+    if (!confirm.isConfirmed) return;
+
     setIsSubmitting(true);
     try {
-      const amt = Number(amount);
-      
-      // 1. Record Transaction
-      const { data: tx, error: txErr } = await supabase.from('erp_fund_transactions').insert({
-        pool_type: selectedPool,
-        direction: 'OUT',
-        amount: amt,
-        category: selectedCat,
-        description: `${description}${vendor ? ` (จ่ายให้: ${vendor})` : ''}${notes ? ` [หมายเหตุ: ${notes}]` : ''}`,
-        source_type: 'EXPENSE',
-        receipt_url: receiptUrl,
-        created_at: date ? dayjs(date).toISOString() : undefined
-      }).select().single();
+      if (hasExpense) {
+        const amt = Number(amount);
+        
+        // 1. Record Main Expense
+        const { data: tx, error: txErr } = await supabase.from('erp_fund_transactions').insert({
+          pool_type: selectedPool,
+          direction: 'OUT',
+          amount: amt,
+          category: selectedCat,
+          description: `${description}${vendor ? ` (จ่ายให้: ${vendor})` : ''}${notes ? ` [หมายเหตุ: ${notes}]` : ''}`,
+          source_type: 'EXPENSE',
+          receipt_url: receiptUrl,
+          created_at: date ? dayjs(date).toISOString() : undefined
+        }).select().single();
 
-      if (txErr) throw txErr;
+        if (txErr) throw txErr;
 
-      // 2. Update Fund Balance (Direct update fallback)
-      const { data: pool } = await supabase.from('erp_fund_pools').select('current_balance, total_out').eq('pool_type', selectedPool).single();
-      if (pool) {
-        await supabase.from('erp_fund_pools').update({ 
-          current_balance: (pool.current_balance || 0) - amt,
-          total_out: (pool.total_out || 0) + amt
-        }).eq('pool_type', selectedPool);
-      }
-
-      // 3. Inventory Stock In (Optional)
-      if (isStockIn && selectedInventoryItemId && stockInQty) {
-        const invItem = inventoryItems.find(i => i.id === selectedInventoryItemId);
-        if (invItem) {
-          const qty = Number(stockInQty);
-          const unitCost = amt / qty;
-          await recordStockIn({
-            inventory_item_id: selectedInventoryItemId,
-            qty,
-            unit_cost: unitCost,
-            received_at: new Date().toISOString(),
-            receipt_no: description || 'EXP-' + tx.id.slice(0, 8)
-          }, invItem);
-          toast.success('รับสินค้าเข้าสต็อกเรียบร้อย');
+        // 2. Update Expense Pool Balance
+        const targetPool = pools.find(p => p.pool_type === selectedPool);
+        if (targetPool) {
+          await supabase.from('erp_fund_pools').update({ 
+            current_balance: (targetPool.current_balance || 0) - amt,
+            total_out: (targetPool.total_out || 0) + amt
+          }).eq('id', targetPool.id);
+        }
+        // 3. Inventory Stock In (Optional)
+        if (isStockIn && selectedInventoryItemId && stockInQty) {
+          const invItem = inventoryItems.find(i => i.id === selectedInventoryItemId);
+          if (invItem) {
+            const qty = Number(stockInQty);
+            const unitCost = amt / qty;
+            await recordStockIn({
+              inventory_item_id: selectedInventoryItemId,
+              qty,
+              unit_cost: unitCost,
+              received_at: new Date().toISOString(),
+              receipt_no: description || 'EXP-' + tx.id.slice(0, 8)
+            }, invItem);
+            toast.success('รับสินค้าเข้าสต็อกเรียบร้อย');
+          }
         }
       }
 
-      // Add to session tracking
-      setSessionEntries(prev => [{
-        id: Date.now(),
-        vendorName: vendor,
-        amount: amt,
-        date: date,
-        cat: selectedCat
-      }, ...prev].slice(0, 5));
+      // 4. Record & Update Adjustments
+      for (const adj of adjustments) {
+        // Log Adjustment Transaction
+        await supabase.from('erp_fund_transactions').insert({
+          pool_type: adj.pool,
+          direction: adj.diff > 0 ? 'IN' : 'OUT',
+          amount: Math.abs(adj.diff),
+          category: 'Adjustment',
+          description: `ปรับยอดให้ตรงธนาคาร (ขณะบันทึกรายจ่าย)`,
+          source_type: 'MANUAL',
+          created_at: date ? dayjs(date).toISOString() : undefined
+        });
+
+        // Update Pool Balance
+        const pObj = pools.find(p => p.pool_type === adj.pool);
+        if (pObj) {
+           await supabase.from('erp_fund_pools').update({
+             current_balance: pObj.current_balance + adj.diff,
+             [adj.diff > 0 ? 'total_in' : 'total_out']: adj.diff > 0 ? (pObj.total_in || 0) + adj.diff : (pObj.total_out || 0) + Math.abs(adj.diff)
+           }).eq('id', pObj.id);
+        }
+      }
+
+      if (hasExpense) {
+        setSessionEntries(prev => [{
+          id: Date.now(),
+          vendorName: vendor,
+          amount: Number(amount),
+          date: date,
+          cat: selectedCat
+        }, ...prev].slice(0, 5));
+      }
 
       toast.success('บันทึกรายจ่ายเรียบร้อย');
       setAmount(''); 
       setDescription('');
+      setPoolActuals({ MATERIAL: '', LABOR: '', OPS: '', PROFIT: '', DELIVERY: '' });
+      setShowReconcile(false);
       if (!continuousEntry) {
         setNotes('');
         setVendor('');
@@ -150,34 +275,119 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Main Form */}
       <div className={`lg:col-span-2 rounded-2xl border p-6 transition-all ${card}`}>
-        <h3 className={`text-lg font-bold mb-6 flex items-center gap-2 ${heading}`}>
-          <TrendingDown size={20} className="text-red-500" /> บันทึกรายจ่าย
-        </h3>
+        <div className="flex items-center justify-between mb-6">
+          <h3 className={`text-lg font-bold flex items-center gap-2 ${heading}`}>
+            <TrendingDown size={20} className="text-red-500" /> บันทึกรายจ่าย
+          </h3>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Pool Selection */}
+          {/* Cash Status Card with Reconcile */}
+          <div className={`p-4 rounded-2xl border transition-all ${
+            isDarkMode ? 'bg-slate-900/60 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'
+          }`}>
+             <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                   <div className="w-10 h-10 rounded-xl bg-emerald-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
+                      <Calculator size={20} />
+                   </div>
+                   <div>
+                      <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-0.5">ยอดเงินสดรวมในระบบ (Cash)</p>
+                      <p className={`text-xl font-black ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                         ฿{totalCash.toLocaleString()}
+                      </p>
+                   </div>
+                </div>
+                
+             </div>
+          </div>
+
+          {/* Pool Selection & Multi-Pool Reconcile */}
           <div>
-            <label className={`block text-xs font-bold mb-2 uppercase tracking-wider ${subtext}`}>หักเงินจากกองทุน</label>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              {(['MATERIAL', 'LABOR', 'OPS', 'PROFIT'] as PoolType[]).map(pt => {
+            <div className="flex items-center justify-between mb-3">
+               <label className={`block text-xs font-bold uppercase tracking-wider ${subtext}`}>หักเงินจากกองทุน</label>
+               {!showReconcile && (
+                 <button 
+                   type="button"
+                   onClick={() => setShowReconcile(true)}
+                   className={`text-[10px] font-bold flex items-center gap-1.5 px-3 py-1 rounded-full border transition-all ${
+                     isDarkMode ? 'border-slate-700 text-slate-500 hover:text-white' : 'border-slate-200 text-slate-400 hover:text-slate-600'
+                   }`}
+                 >
+                   <RefreshCw size={10} />
+                   🔍 เช็คยอดธนาคาร
+                 </button>
+               )}
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              {(['MATERIAL', 'LABOR', 'OPS', 'PROFIT', 'DELIVERY'] as PoolType[]).map(pt => {
                 const cfg = POOL_CONFIG[pt];
                 const pool = pools.find(p => p.pool_type === pt);
+                const actual = poolActuals[pt];
+                const diff = actual ? Number(actual) - (pool?.current_balance || 0) : 0;
+
                 return (
-                  <button key={pt} type="button" onClick={() => setSelectedPool(pt)}
-                    className={`flex flex-col items-center justify-center p-3 rounded-2xl border transition-all ${
-                      selectedPool === pt 
-                        ? 'border-emerald-500 bg-emerald-500/10 shadow-lg shadow-emerald-500/10' 
-                        : isDarkMode ? 'border-slate-700 bg-slate-900/40 opacity-60' : 'border-slate-100 bg-slate-50 opacity-60'
-                    }`}>
-                    <span className="text-lg mb-1">{cfg.icon}</span>
-                    <span className={`text-[10px] font-bold ${selectedPool === pt ? 'text-emerald-600' : 'text-slate-500'}`}>
-                      {cfg.label.split('/')[0]}
-                    </span>
-                    <span className="text-[9px] opacity-50 mt-0.5">฿{(pool?.current_balance || 0).toLocaleString()}</span>
-                  </button>
+                  <div key={pt} className="space-y-2">
+                    <button type="button" onClick={() => setSelectedPool(pt)}
+                      className={`w-full flex flex-col items-center justify-center p-3 rounded-2xl border transition-all ${
+                        selectedPool === pt 
+                          ? 'border-emerald-500 bg-emerald-500/10 shadow-lg shadow-emerald-500/10' 
+                          : isDarkMode ? 'border-slate-700 bg-slate-900/40 opacity-40 hover:opacity-100' : 'border-slate-100 bg-slate-50 opacity-40 hover:opacity-100'
+                      }`}>
+                      <span className="text-xl mb-1">{cfg.icon}</span>
+                      <span className={`text-[10px] font-black ${selectedPool === pt ? 'text-emerald-600' : 'text-slate-500'}`}>
+                        {cfg.label.split('/')[0]}
+                      </span>
+                      <span className="text-[9px] font-bold opacity-50 mt-0.5">฿{(pool?.current_balance || 0).toLocaleString()}</span>
+                    </button>
+
+                    {showReconcile && (
+                      <div className="space-y-1">
+                        <div className="relative">
+                           <input 
+                             type="number"
+                             value={actual}
+                             onChange={e => setPoolActuals(prev => ({ ...prev, [pt]: e.target.value }))}
+                             placeholder="ยอดจริง..."
+                             className={`w-full p-2 rounded-xl text-[10px] font-black text-center border outline-none transition-all ${
+                               isDarkMode ? 'bg-slate-800 border-slate-700 text-white focus:border-emerald-500' : 'bg-white border-slate-200 focus:border-emerald-500 shadow-sm'
+                             }`}
+                           />
+                        </div>
+                        {actual && (
+                          <div className={`text-[9px] font-black text-center ${diff === 0 ? 'text-emerald-500' : diff > 0 ? 'text-blue-500' : 'text-red-500'}`}>
+                            {diff === 0 ? '✓ ตรงเป๊ะ' : `${diff > 0 ? '+' : ''}${diff.toLocaleString()}`}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>
+
+            {showReconcile && (
+              <div className="mt-4 flex justify-center gap-3">
+                 <button 
+                   type="button"
+                   onClick={() => setShowReconcile(false)}
+                   className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
+                     isDarkMode ? 'border-slate-700 text-slate-500 hover:text-white' : 'border-slate-200 text-slate-400 hover:text-slate-600'
+                   }`}
+                 >
+                    ยกเลิก
+                 </button>
+                 <button 
+                   type="button"
+                   onClick={() => (document.getElementById('submit-expense-btn') as HTMLButtonElement)?.click()}
+                   className="flex items-center gap-2 px-8 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl text-xs font-black shadow-lg shadow-amber-500/20 transition-all transform active:scale-95"
+                 >
+                    <Calculator size={16} />
+                    🔍 สรุปและปรับยอด
+                 </button>
+              </div>
+            )}
           </div>
 
           {/* Category & Amount */}
@@ -192,7 +402,7 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
             </div>
             <div>
               <label className={`block text-xs font-bold mb-1 ${subtext}`}>หมวดหมู่</label>
-              <select value={selectedCat} onChange={e => setSelectedCat(e.target.value)}
+              <select value={selectedCat} onChange={e => handleCategoryChange(e.target.value)}
                 className={`w-full p-2.5 border rounded-xl text-sm outline-none transition-all ${inputBase}`}>
                 <option value="">เลือกหมวดหมู่...</option>
                 {filteredCats.map(c => <option key={c.id} value={c.name}>{c.icon} {c.name}</option>)}
@@ -203,7 +413,7 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
               <input type="number" value={amount} onChange={e => setAmount(e.target.value)}
                 placeholder="0.00"
                 className={`w-full p-2.5 border rounded-xl text-lg font-bold text-red-500 outline-none transition-all ${inputBase}`}
-                required />
+              />
             </div>
           </div>
 
@@ -340,7 +550,8 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
               </div>
               บันทึกต่อเนื่อง
             </button>
-            <button type="submit" disabled={isSubmitting || !selectedPool || !amount}
+            <button type="submit" id="submit-expense-btn" 
+              disabled={isSubmitting || (!amount && !showReconcile) || (!selectedPool && !showReconcile)}
               className="flex-[2] py-3.5 bg-gradient-to-r from-red-500 to-rose-600 text-white font-bold rounded-xl shadow-lg shadow-red-500/20 hover:shadow-red-500/40 transition-all disabled:opacity-40 flex items-center justify-center gap-2">
               {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : '💸 ยืนยันบันทึก'}
             </button>

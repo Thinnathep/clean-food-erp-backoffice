@@ -278,7 +278,8 @@ export const FinanceSettings: React.FC<Props> = ({ configs, onRefresh, isDarkMod
         MATERIAL: { in: 0, out: 0 },
         LABOR: { in: 0, out: 0 },
         OPS: { in: 0, out: 0 },
-        PROFIT: { in: 0, out: 0 }
+        PROFIT: { in: 0, out: 0 },
+        DELIVERY: { in: 0, out: 0 }
       };
 
       txs.forEach(t => {

@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline, useMapEvents, useMap 
 // @ts-ignore
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Truck, Info, Copy, Calculator, ShoppingBag, Loader2, Settings as SettingsIcon, X, Search, Map as MapIcon, Plus, AlertCircle, TrendingDown, TrendingUp, Gauge, Lightbulb } from 'lucide-react';
+import { Truck, Info, Copy, Calculator, ShoppingBag, Loader2, Settings as SettingsIcon, X, Search, Map as MapIcon, Plus, AlertCircle, TrendingDown, TrendingUp, Gauge, Lightbulb, Package } from 'lucide-react';
 import { supabase } from '../../../config/supabase';
 import { toast } from 'sonner';
 
@@ -76,7 +76,8 @@ export const ShippingCalculator: React.FC = () => {
 
   const [customerCoords, setCustomerCoords] = useState<[number, number] | null>(null);
   const [distance, setDistance] = useState<number | null>(null);
-  const [deliveryType, setDeliveryType] = useState<'normal' | 'hospital'>('normal');
+  const [deliveryType, setDeliveryType] = useState<'normal' | 'hospital' | 'promo'>('normal');
+  const [deliveryRounds, setDeliveryRounds] = useState<string>('14');
   
   const [orderAmountInput, setOrderAmountInput] = useState<string>('59');
   
@@ -207,26 +208,58 @@ export const ShippingCalculator: React.FC = () => {
   // --- Price Recalculation ---
   useEffect(() => {
     if (distance === null) return;
-    let base = deliveryConfig.BASE_FARE;
-    let extra = 0;
-    if (distance > deliveryConfig.BASE_INCLUDED_DISTANCE) {
-      const ex = distance - deliveryConfig.BASE_INCLUDED_DISTANCE;
-      if (distance <= 8) extra = ex * deliveryConfig.FEE_PER_KM_NORMAL;
-      else extra = (8 - deliveryConfig.BASE_INCLUDED_DISTANCE) * deliveryConfig.FEE_PER_KM_NORMAL + (distance - 8) * deliveryConfig.FEE_PER_KM_FAR;
-    }
-    let shipping = base + extra;
+    
+    const base = deliveryConfig.BASE_FARE;
+    let shipping = 0;
     let discount = 0;
     let label = '';
-    if (deliveryType === 'hospital') { discount = shipping; label = 'ส่งฟรี (โรงพยาบาล)'; }
-    else {
-      if (orderAmount >= deliveryConfig.FREE_DELIVERY_MIN_ORDER && distance <= deliveryConfig.FREE_DELIVERY_MAX_DISTANCE) { discount = shipping; label = 'ส่งฟรี (ตามยอดสั่งซื้อ)'; }
-      else {
-        const promo = [...deliveryDiscounts].sort((a, b) => b.minOrder - a.minOrder).find(p => orderAmount >= p.minOrder);
-        if (promo) { discount = Math.min(promo.discount, shipping); label = promo.label; }
+    
+    if (deliveryType === 'promo') {
+      const rounds = parseInt(deliveryRounds) || 1;
+      const PROMO_FREE_DIST = 7.1;
+      
+      if (distance <= PROMO_FREE_DIST) {
+        shipping = 0;
+        label = `โปรสมาชิก (ฟรีไม่เกิน ${PROMO_FREE_DIST}กม.)`;
+      } else {
+        const excessDist = distance - PROMO_FREE_DIST;
+        // In promo mode, if excess, we calculate: Base Fare + (Excess - Base Distance) * Fee
+        let promoPerRound = base;
+        if (excessDist > deliveryConfig.BASE_INCLUDED_DISTANCE) {
+          const ex = excessDist - deliveryConfig.BASE_INCLUDED_DISTANCE;
+          promoPerRound += ex * deliveryConfig.FEE_PER_KM_NORMAL;
+        }
+        shipping = promoPerRound * rounds;
+        label = `โปรสมาชิก (คิดส่วนเกิน ${PROMO_FREE_DIST}กม. x ${rounds} รอบ)`;
+      }
+    } else {
+      // Normal or Hospital calculation
+      let extra = 0;
+      if (distance > deliveryConfig.BASE_INCLUDED_DISTANCE) {
+        const ex = distance - deliveryConfig.BASE_INCLUDED_DISTANCE;
+        if (distance <= 8) extra = ex * deliveryConfig.FEE_PER_KM_NORMAL;
+        else extra = (8 - deliveryConfig.BASE_INCLUDED_DISTANCE) * deliveryConfig.FEE_PER_KM_NORMAL + (distance - 8) * deliveryConfig.FEE_PER_KM_FAR;
+      }
+      shipping = base + extra;
+
+      if (deliveryType === 'hospital') {
+        discount = shipping; 
+        label = 'ส่งฟรี (โรงพยาบาล)'; 
+      } else {
+        if (orderAmount >= deliveryConfig.FREE_DELIVERY_MIN_ORDER && distance <= deliveryConfig.FREE_DELIVERY_MAX_DISTANCE) { 
+          discount = shipping; 
+          label = 'ส่งฟรี (ตามยอดสั่งซื้อ)'; 
+        } else {
+          const promo = [...deliveryDiscounts].sort((a, b) => b.minOrder - a.minOrder).find(p => orderAmount >= p.minOrder);
+          if (promo) { discount = Math.min(promo.discount, shipping); label = promo.label; }
+        }
       }
     }
-    const cost = (distance * 2) * deliveryConfig.VEHICLE_COST_PER_KM;
-    const net = shipping - discount - cost;
+
+    const rounds = deliveryType === 'promo' ? (parseInt(deliveryRounds) || 1) : 1;
+    const cost = (distance * 2) * deliveryConfig.VEHICLE_COST_PER_KM * rounds;
+    const net = (shipping - discount) - cost;
+    
     setResults({ 
       distance, 
       shippingFee: Math.ceil(shipping), 
@@ -239,7 +272,7 @@ export const ShippingCalculator: React.FC = () => {
         isWarning: net < 0
       } 
     });
-  }, [distance, orderAmount, deliveryType, deliveryConfig, deliveryDiscounts]);
+  }, [distance, orderAmount, deliveryType, deliveryConfig, deliveryDiscounts, deliveryRounds]);
 
   const handleSaveSettings = async () => {
     setIsSaving(true);
@@ -307,10 +340,29 @@ export const ShippingCalculator: React.FC = () => {
           <section className="space-y-4">
             <h3 className="text-[11px] font-medium text-slate-400 uppercase tracking-[0.1em] flex items-center gap-2"><Truck size={14} /> เลือกเป้าหมายจัดส่ง</h3>
             <div className="flex p-1.5 bg-slate-50 rounded-2xl border border-slate-100">
-              <button onClick={() => setDeliveryType('normal')} className={`flex-1 py-3 rounded-xl text-sm font-medium transition-all ${deliveryType === 'normal' ? 'bg-white text-emerald-600 shadow-sm border border-slate-100' : 'text-slate-400'}`}>บ้านลูกค้า</button>
-              <button onClick={() => setDeliveryType('hospital')} className={`flex-1 py-3 rounded-xl text-sm font-medium transition-all ${deliveryType === 'hospital' ? 'bg-white text-red-500 shadow-sm border border-slate-100' : 'text-slate-400'}`}>โรงพยาบาล</button>
+              <button onClick={() => setDeliveryType('normal')} className={`flex-1 py-3 rounded-xl text-[10px] font-bold transition-all ${deliveryType === 'normal' ? 'bg-white text-emerald-600 shadow-sm border border-slate-100' : 'text-slate-400'}`}>บ้านลูกค้า</button>
+              <button onClick={() => setDeliveryType('promo')} className={`flex-1 py-3 rounded-xl text-[10px] font-bold transition-all ${deliveryType === 'promo' ? 'bg-white text-blue-600 shadow-sm border border-slate-100' : 'text-slate-400'}`}>สมาชิกโปรฯ</button>
+              <button onClick={() => setDeliveryType('hospital')} className={`flex-1 py-3 rounded-xl text-[10px] font-bold transition-all ${deliveryType === 'hospital' ? 'bg-white text-red-500 shadow-sm border border-slate-100' : 'text-slate-400'}`}>โรงพยาบาล</button>
             </div>
           </section>
+
+          {deliveryType === 'promo' && (
+            <section className="space-y-4 animate-in slide-in-from-top-2 duration-300">
+              <h3 className="text-[11px] font-medium text-slate-400 uppercase tracking-[0.1em] flex items-center gap-2"><Package size={14} /> จำนวนรอบที่จัดส่งในแพ็ค</h3>
+              <div className="bg-blue-50 p-6 rounded-3xl border border-blue-100 relative">
+                <div className="flex items-center justify-center gap-4">
+                  <input 
+                    type="number" 
+                    value={deliveryRounds}
+                    onChange={(e) => setDeliveryRounds(e.target.value)}
+                    className="w-32 bg-transparent text-4xl font-semibold text-blue-700 outline-none border-b-2 border-transparent focus:border-blue-500 transition-all tracking-tight text-center"
+                  />
+                  <span className="text-xl font-bold text-blue-300">รอบ</span>
+                </div>
+                <p className="mt-3 text-[10px] text-blue-400 leading-relaxed italic text-center font-normal">คูณค่าส่งส่วนเกิน (ถ้ามี) ตามจำนวนวันส่งจริง</p>
+              </div>
+            </section>
+          )}
 
           <section className="space-y-4">
             <h3 className="text-[11px] font-medium text-slate-400 uppercase tracking-[0.1em] flex items-center gap-2"><ShoppingBag size={14} /> ยอดรวมอาหาร (ประมาณการ)</h3>
