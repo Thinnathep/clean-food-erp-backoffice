@@ -131,14 +131,7 @@ export const MemberPlanner: React.FC = () => {
 
 
   const filteredPackages = useMemo(() => {
-    // 1. Optimized lookup map
-    const schedulesByPkg = memberSchedules.reduce((acc, s) => {
-      if (!acc[s.package_id]) acc[s.package_id] = [];
-      acc[s.package_id].push(s);
-      return acc;
-    }, {} as Record<string, MemberMealSchedule[]>);
-
-    // 2. Identify retail members
+    // 1. Identify retail members
     const packageMembersIds = new Set(activePackages.map(p => p.member_id));
     const retailMembersWithoutPackages = members.filter(m => 
       m.member_type === 'retail' && !packageMembersIds.has(m.id)
