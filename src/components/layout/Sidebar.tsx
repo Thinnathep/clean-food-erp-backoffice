@@ -33,7 +33,21 @@ const PackageIcon = ({ size, className }: { size: number, className?: string }) 
   </svg>
 );
 
-const navItems = [
+interface SubNavItem {
+  label: string;
+  path: string;
+  icon?: any;
+  end?: boolean;
+}
+
+interface NavItem {
+  label: string;
+  icon: any;
+  path?: string;
+  children?: SubNavItem[];
+}
+
+const navItems: NavItem[] = [
   { label: 'งานห้องครัว (KDS)', icon: ChefHat, path: '/kds' },
   { 
     label: 'สมาชิก & โปรโมชั่น', 
@@ -75,10 +89,10 @@ interface SidebarProps {
   setMobileOpen: (open: boolean) => void;
 }
 
-const isPathActive = (item: any, currentPath: string) => {
+const isPathActive = (item: NavItem, currentPath: string) => {
   if (item.path === currentPath) return true;
   if (item.children) {
-    return item.children.some((child: any) => {
+    return item.children.some((child) => {
       if (child.end) return currentPath === child.path;
       return currentPath.startsWith(child.path);
     });
@@ -119,7 +133,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, setMobileOpen })
         initial={false}
         animate={{ 
           width: effectiveExpanded ? 260 : 72,
-          // Fixed breakpoint: Show sidebar for screens >= 768px (iPad and up)
           x: mobileOpen ? 0 : (window.innerWidth < 1280 ? -260 : 0)
         }}
         onMouseEnter={() => setIsExpanded(true)}
