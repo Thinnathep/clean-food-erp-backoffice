@@ -273,10 +273,14 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
     if (get().isSaving) return; // Prevent double save
     set({ isSaving: true });
     try {
-      // 1. Prepare data for bulk upsert
-      const upsertData = memberSchedules.map(s => {
+      // 1. Prepare data - Separate into updates (have ID) and inserts (temp ID)
+      const toUpdate: any[] = [];
+      const toInsert: any[] = [];
+
+      memberSchedules.forEach(s => {
+        const isTemp = s.id.toString().startsWith('temp_');
         const data: any = {
-          package_id: s.package_id,
+          package_id: s.package_id?.toString().startsWith('retail_') ? null : s.package_id,
           member_id: s.member_id,
           delivery_date: s.delivery_date,
           meal_type: s.meal_type,
@@ -289,19 +293,30 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
           box_size: s.box_size,
           kitchen_status: s.kitchen_status || 'pending'
         };
-        // Only include ID if it's not a temp ID
-        if (!s.id.toString().startsWith('temp_')) {
+
+        if (isTemp) {
+          toInsert.push(data);
+        } else {
           data.id = s.id;
+          toUpdate.push(data);
         }
-        return data;
       });
 
-      // 2. Bulk Upsert
-      const { error: upsertError } = await supabase
-        .from('erp_member_meal_schedules')
-        .upsert(upsertData, { onConflict: 'id' });
+      // 2. Perform DB operations
+      if (toUpdate.length > 0) {
+        const { error: updateError } = await supabase
+          .from('erp_member_meal_schedules')
+          .upsert(toUpdate, { onConflict: 'id' });
+        if (updateError) throw updateError;
+      }
 
-      if (upsertError) throw upsertError;
+      if (toInsert.length > 0) {
+        const { error: insertError } = await supabase
+          .from('erp_member_meal_schedules')
+          .insert(toInsert);
+        if (insertError) throw insertError;
+      }
+
 
       // 3. Recalculate and Update Package Balance
       // We fetch ALL schedules for this package to be 100% accurate
