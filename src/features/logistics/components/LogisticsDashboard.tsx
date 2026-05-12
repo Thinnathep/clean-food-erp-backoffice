@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { 
   Truck, MapPin, Navigation, Clock, CheckCircle2, AlertCircle, 
   Users, DollarSign, Search, Filter, Calendar, ChevronRight,
-  Package, User, Plus, X, RefreshCw
+  Package, User, Plus, X, RefreshCw, Calculator
 } from 'lucide-react';
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
@@ -67,9 +67,9 @@ export const LogisticsDashboard: React.FC = () => {
           <div className="w-px h-6 bg-slate-200 mx-1" />
           <button 
             onClick={() => navigate('/logistics/calculator')}
-            className="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-sm hover:bg-emerald-500 hover:text-white transition-all flex items-center gap-2 border border-emerald-100"
+            className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-sm hover:bg-emerald-700 transition-all shadow-md flex items-center gap-2 border border-emerald-500"
           >
-            <Navigation size={16} />
+            <Calculator size={18} />
             คำนวณค่าส่ง
           </button>
           <div className="w-px h-6 bg-slate-200 mx-1" />

@@ -196,7 +196,7 @@ export const fetchMemberSchedules = async (startDate: string, endDate: string, p
   let query = supabase
     .from('erp_member_meal_schedules')
     .select(`
-      id, package_id, member_id, delivery_date, meal_type, menu_item_id, quantity, box_size, delivery_time, kitchen_status, notes, is_extra_order, meal_order_type,
+      id, package_id, member_id, delivery_date, meal_type, menu_item_id, quantity, box_size, delivery_time, kitchen_status, notes, is_extra_order, meal_order_type, is_compensatory,
       menu_items (id, name, category, protein, calories, carbs, fat, image_url, tags),
       pinto_packages (id, package_name, meals_remaining),
       members!erp_member_meal_schedules_member_id_fkey (id, full_name, phone, delivery_time, member_type, is_banned)

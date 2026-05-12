@@ -51,7 +51,8 @@ interface PlannerState {
     notes: string,
     isExtraOrder?: boolean,
     orderType?: 'subscription' | 'a-la-carte',
-    boxSize?: string
+    boxSize?: string,
+    isCompensatory?: boolean
   ) => Promise<void>;
   
   removeMemberSlot: (scheduleId: string) => Promise<void>;
@@ -127,7 +128,7 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
       const data = await fetchMemberSchedules(start, end, packageId);
       
       const subQty = data
-        .filter(s => !s.is_extra_order)
+        .filter(s => !s.is_extra_order && !s.is_compensatory)
         .reduce((sum, s) => sum + (s.quantity || 1), 0);
 
       set({ 
@@ -163,13 +164,13 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
     }
   },
 
-  assignMemberSlot: async (scheduleId, pkgId, memberId, date, meal, menuId, qty, time, notes, isExtraOrder = false, orderType = 'subscription', boxSize = 'regular') => {
+  assignMemberSlot: async (scheduleId, pkgId, memberId, date, meal, menuId, qty, time, notes, isExtraOrder = false, orderType = 'subscription', boxSize = 'regular', isCompensatory = false) => {
     const pkg = useMemberStore.getState().activePackages.find(p => p.id === pkgId);
-    if (pkg && !isExtraOrder && pkg.meals_remaining < qty) {
+    if (pkg && !isExtraOrder && !isCompensatory && pkg.meals_remaining < qty) {
         const result = await Swal.fire({
             icon: 'warning',
             title: 'เกินโควต้า!',
-            text: 'จำนวนมื้อที่เหลือไม่เพียงพอ ยืนยันที่จะลงมื้ออาหารหรือไม่?',
+            text: 'จำนวนมื้อที่เหลือไม่เพียงพอ (จะติดลบ) ยืนยันที่จะลงมื้ออาหารหรือไม่?',
             showCancelButton: true
         });
         if (!result.isConfirmed) return;
@@ -190,6 +191,7 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
       notes: notes,
       is_extra_order: isExtraOrder,
       meal_order_type: orderType,
+      is_compensatory: isCompensatory,
       menu_items: menu
     };
 
@@ -290,6 +292,7 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
           notes: s.notes,
           is_extra_order: s.is_extra_order,
           meal_order_type: s.meal_order_type,
+          is_compensatory: s.is_compensatory || false,
           box_size: s.box_size,
           kitchen_status: s.kitchen_status || 'pending'
         };
@@ -317,22 +320,23 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
         if (insertError) throw insertError;
       }
 
-
       // 3. Recalculate and Update Package Balance
       // We fetch ALL schedules for this package to be 100% accurate
       const { data: allSchedules, error: countError } = await supabase
         .from('erp_member_meal_schedules')
-        .select('quantity')
-        .eq('package_id', selectedPackageId)
-        .eq('is_extra_order', false);
+        .select('quantity, is_extra_order, is_compensatory')
+        .eq('package_id', selectedPackageId);
 
       if (countError) throw countError;
 
-      const totalUsed = allSchedules.reduce((sum, s) => sum + (s.quantity || 1), 0);
+      const totalUsed = allSchedules
+        .filter(s => !s.is_extra_order && !s.is_compensatory)
+        .reduce((sum, s) => sum + (s.quantity || 1), 0);
       const pkg = useMemberStore.getState().activePackages.find(p => p.id === selectedPackageId);
       
       if (pkg) {
-        const newRemaining = Math.max(0, pkg.meals_total - totalUsed);
+        // ALLOW NEGATIVE: Do not use Math.max(0, ...) so that exceeded meals show correctly.
+        const newRemaining = pkg.meals_total - totalUsed;
         await supabase
           .from('pinto_packages')
           .update({ meals_remaining: newRemaining })

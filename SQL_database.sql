@@ -293,6 +293,7 @@ CREATE TABLE public.erp_member_meal_schedules (
   delivery_time text,
   is_extra_order boolean DEFAULT false,
   meal_order_type text DEFAULT 'subscription'::text,
+  is_compensatory boolean DEFAULT false,
   CONSTRAINT erp_member_meal_schedules_pkey PRIMARY KEY (id),
   CONSTRAINT erp_member_meal_schedules_package_id_fkey FOREIGN KEY (package_id) REFERENCES public.pinto_packages(id),
   CONSTRAINT erp_member_meal_schedules_member_id_fkey FOREIGN KEY (member_id) REFERENCES public.members(id),

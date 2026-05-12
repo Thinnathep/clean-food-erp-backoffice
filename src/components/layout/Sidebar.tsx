@@ -1,121 +1,174 @@
 import React, { useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { ChefHat, Users, Package, Wallet, Truck, Settings, LogOut, ChevronLeft, ChevronRight, X, ChevronDown, BookOpen } from 'lucide-react';
+import { 
+  Users, 
+  BookOpen, 
+  Wallet, 
+  Truck,
+  Settings,
+  LogOut,
+  ChevronDown,
+  ChefHat,
+  UtensilsCrossed,
+  Warehouse,
+  Calculator,
+  LayoutDashboard,
+  Utensils,
+  Store
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../store/authStore';
 
+// Custom icons to avoid missing imports
+const Ticket = ({ size, className }: { size: number, className?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/>
+    <path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/>
+  </svg>
+);
+
+const PackageIcon = ({ size, className }: { size: number, className?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>
+  </svg>
+);
+
 const navItems = [
-  { path: '/kds', icon: ChefHat, label: 'งานห้องครัว (KDS)' },
+  { label: 'งานห้องครัว (KDS)', icon: ChefHat, path: '/kds' },
   { 
     label: 'สมาชิก & โปรโมชั่น', 
     icon: Users, 
-    path: '/members',
     children: [
-      { path: '/members', label: 'ข้อมูลสมาชิก' },
-      { path: '/promotions', label: 'จัดการโปรโมชั่น' },
+      { label: 'จัดการสมาชิก', path: '/members', icon: Users },
+      { label: 'โปรโมชั่น', path: '/promotions', icon: Ticket },
     ]
   },
   { 
     label: 'สต็อกวัตถุดิบ', 
-    icon: Package, 
-    path: '/inventory',
+    icon: Warehouse,
     children: [
-      { path: '/inventory/items', label: 'จัดการวัตถุดิบ' },
-      { path: '/inventory/stock', label: 'เช็คสต็อก' },
+      { label: 'จัดการวัตถุดิบ', path: '/inventory/items', icon: PackageIcon },
+      { label: 'เช็คสต็อก', path: '/inventory/stock', icon: Warehouse },
     ]
   },
-  {
-    label: 'จัดการเมนูอาหาร',
-    icon: BookOpen,
-    path: '/menu',
+  { 
+    label: 'จัดการเมนูอาหาร', 
+    icon: BookOpen, 
     children: [
-      { path: '/menu/member', label: 'เมนูสมาชิก' },
-      { path: '/menu/retail', label: 'เมนูร้าน' },
+      { label: 'เมนูสมาชิก', path: '/menu/member', icon: Utensils },
+      { label: 'เมนูร้าน', path: '/menu/retail', icon: Store },
     ]
   },
-  { path: '/finance', icon: Wallet, label: 'บัญชี' },
+  { label: 'บัญชี', icon: Wallet, path: '/finance' },
   { 
     label: 'ระบบจัดส่ง', 
     icon: Truck, 
-    path: '/logistics',
     children: [
-      { path: '/logistics', label: 'สรุปการจัดส่ง' },
-      { path: '/logistics/calculator', label: 'คำนวณค่าส่ง' },
+      { label: 'แดชบอร์ดจัดส่ง', path: '/logistics', icon: LayoutDashboard, end: true },
+      { label: 'คำนวณค่าจัดส่ง', path: '/logistics/calculator', icon: Calculator },
     ]
   },
 ];
 
-export const Sidebar: React.FC<{ 
-  isMobileOpen: boolean; 
-  setMobileOpen: (open: boolean) => void 
-}> = ({ isMobileOpen, setMobileOpen }) => {
-  const [isExpanded, setIsExpanded] = useState(true);
-  const [openMenus, setOpenMenus] = useState<string[]>(['สต็อกวัตถุดิบ']);
-  const { logout, user } = useAuthStore();
-  const location = useLocation();
+interface SidebarProps {
+  isMobileOpen?: boolean;
+  setMobileOpen: (open: boolean) => void;
+}
 
-  const toggleExpand = () => setIsExpanded(!isExpanded);
-  
+const isPathActive = (item: any, currentPath: string) => {
+  if (item.path === currentPath) return true;
+  if (item.children) {
+    return item.children.some((child: any) => {
+      if (child.end) return currentPath === child.path;
+      return currentPath.startsWith(child.path);
+    });
+  }
+  return false;
+};
+
+export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, setMobileOpen }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [openMenus, setOpenMenus] = useState<string[]>([]);
+  const location = useLocation();
+  const { user, logout } = useAuthStore();
+
   const toggleMenu = (label: string) => {
     setOpenMenus(prev => 
       prev.includes(label) ? prev.filter(l => l !== label) : [...prev, label]
     );
   };
 
+  const mobileOpen = isMobileOpen || false;
+  const effectiveExpanded = isExpanded || mobileOpen;
+
   return (
     <>
-      {/* Mobile Overlay */}
-      {isMobileOpen && (
-        <div 
-          className="fixed inset-0 bg-slate-900/50 z-40 md:hidden" 
-          onClick={() => setMobileOpen(false)}
-        />
-      )}
+      <AnimatePresence>
+        {mobileOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setMobileOpen(false)}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[45] lg:hidden"
+          />
+        )}
+      </AnimatePresence>
 
-      {/* Sidebar Container */}
-      <aside className={`fixed md:relative inset-y-0 left-0 z-50 bg-slate-900 text-white flex flex-col transition-all duration-300 ease-in-out shadow-2xl md:shadow-none
-        ${isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-        ${isExpanded ? 'w-64' : 'w-20'}
-      `}>
-        {/* Header */}
-        <div className={`p-4 md:p-6 flex items-center justify-between border-b border-slate-800 ${!isExpanded && 'md:justify-center'}`}>
-          <div className="flex items-center gap-3 overflow-hidden">
-              <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg shadow-emerald-500/20">
-                  <span className="text-white text-xs">🍃</span>
-              </div>
-              <h1 className={`text-lg font-normal tracking-tight leading-tight whitespace-nowrap transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0 hidden md:block w-0'}`}>
-                CLEAN FOOD<br/><span className="text-emerald-400">ERP SYSTEM</span>
-              </h1>
+      <motion.aside
+        initial={false}
+        animate={{ 
+          width: effectiveExpanded ? 260 : 72,
+          // Fixed breakpoint: Show sidebar for screens >= 768px (iPad and up)
+          x: mobileOpen ? 0 : (window.innerWidth < 1280 ? -260 : 0)
+        }}
+        onMouseEnter={() => setIsExpanded(true)}
+        onMouseLeave={() => setIsExpanded(false)}
+        className="fixed left-0 top-0 h-full bg-[#0F172A] border-r border-slate-800 z-[9999] flex flex-col shadow-2xl overflow-hidden font-prompt"
+      >
+        <div className="h-16 flex items-center px-5 shrink-0 border-b border-slate-800/50">
+          <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-white shadow-lg shadow-emerald-500/20 shrink-0">
+            <UtensilsCrossed size={18} />
           </div>
-          <button className="md:hidden text-slate-400" onClick={() => setMobileOpen(false)}>
-            <X size={24} />
-          </button>
+          <AnimatePresence>
+            {effectiveExpanded && (
+              <motion.div 
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                className="ml-3 whitespace-nowrap"
+              >
+                <h1 className="text-sm font-normal text-white tracking-tight leading-none mb-1 uppercase">Clean Food</h1>
+                <p className="text-[10px] text-emerald-500 font-normal tracking-[0.2em] uppercase opacity-70">ERP System</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
         
-        {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-1.5 scrollbar-hide">
+        <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1 scrollbar-hide">
           {navItems.map((item) => {
-            const hasChildren = item.children && item.children.length > 0;
+            const hasChildren = !!item.children;
             const isOpen = openMenus.includes(item.label);
-            const isChildActive = hasChildren && item.children?.some(child => location.pathname === child.path);
+            const isActive = isPathActive(item, location.pathname);
 
             return (
-              <div key={item.label} className="space-y-1">
+              <div key={item.label} className="relative">
                 {hasChildren ? (
                   <button
                     onClick={() => {
-                      if (!isExpanded) setIsExpanded(true);
+                      if (!effectiveExpanded) setIsExpanded(true);
                       toggleMenu(item.label);
                     }}
-                    className={`w-full flex items-center gap-3 rounded-xl transition-all font-normal text-sm whitespace-nowrap overflow-hidden group
-                      ${isExpanded ? 'px-4 py-3' : 'px-0 py-3 justify-center'}
-                      ${isChildActive ? 'bg-white/5 text-white' : 'text-slate-400 hover:text-white hover:bg-white/5'}
+                    className={`w-full flex items-center rounded-lg transition-all font-normal text-sm whitespace-nowrap group relative h-11
+                      ${effectiveExpanded ? 'px-3 gap-3' : 'justify-center'}
+                      ${isActive ? 'text-white bg-white/10' : 'text-slate-400 hover:text-white hover:bg-white/5'}
                     `}
                   >
-                    <item.icon size={20} className="flex-shrink-0" />
-                    <span className={`flex-1 text-left transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0 hidden md:block w-0'}`}>
-                      {item.label}
-                    </span>
-                    {isExpanded && (
+                    <item.icon size={20} className="shrink-0" />
+                    {effectiveExpanded && (
+                      <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 text-left">{item.label}</motion.span>
+                    )}
+                    {effectiveExpanded && (
                       <ChevronDown size={14} className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
                     )}
                   </button>
@@ -124,89 +177,73 @@ export const Sidebar: React.FC<{
                     to={item.path || ''}
                     onClick={() => setMobileOpen(false)}
                     className={({ isActive }) =>
-                      `flex items-center gap-3 rounded-xl transition-all font-normal text-sm whitespace-nowrap overflow-hidden group
-                      ${isExpanded ? 'px-4 py-3' : 'px-0 py-3 justify-center'}
-                      ${isActive 
-                          ? 'bg-emerald-500/10 text-emerald-400' 
-                          : 'text-slate-400 hover:text-white hover:bg-white/5'
-                      }`
-                    }
-                    title={!isExpanded ? item.label : undefined}
+                      `flex items-center rounded-lg transition-all font-normal text-sm whitespace-nowrap group relative h-11
+                      ${effectiveExpanded ? 'px-3 gap-3' : 'justify-center'}
+                      ${isActive ? 'text-emerald-400 bg-emerald-500/10' : 'text-slate-400 hover:text-white hover:bg-white/5'}
+                    `}
                   >
-                    <item.icon size={20} className={`flex-shrink-0 ${isExpanded ? '' : 'mx-auto'}`} />
-                    <span className={`transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0 hidden md:block w-0'}`}>
-                      {item.label}
-                    </span>
+                    <item.icon size={20} className="relative z-10 shrink-0" />
+                    {effectiveExpanded && (
+                      <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative z-10">{item.label}</motion.span>
+                    )}
                   </NavLink>
                 )}
 
-                {/* Sub-items */}
-                {hasChildren && isExpanded && isOpen && (
-                  <div className="ml-9 space-y-1 mt-1 border-l border-slate-800">
-                    {item.children?.map(child => (
-                      <NavLink
-                        key={child.path}
-                        to={child.path}
-                        end={child.path === '/logistics' || child.path === '/members' || child.path === '/inventory/stock'}
-                        onClick={() => setMobileOpen(false)}
-                        className={({ isActive }) =>
-                          `flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all font-normal text-xs whitespace-nowrap
-                          ${isActive 
-                              ? 'text-emerald-400 font-medium' 
-                              : 'text-slate-500 hover:text-white hover:bg-white/5'
-                          }`
-                        }
-                      >
-                        {child.label}
-                      </NavLink>
-                    ))}
-                  </div>
-                )}
+                <AnimatePresence>
+                  {hasChildren && effectiveExpanded && isOpen && (
+                    <motion.div 
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="ml-8 mt-1 border-l border-slate-800 overflow-hidden"
+                    >
+                      {item.children?.map(child => (
+                        <NavLink
+                          key={child.path}
+                          to={child.path}
+                          end={child.end}
+                          onClick={() => setMobileOpen(false)}
+                          className={({ isActive }) =>
+                            `flex items-center gap-2 px-4 py-2 rounded-lg transition-all font-normal text-[11px] whitespace-nowrap
+                            ${isActive ? 'text-emerald-400 bg-emerald-500/5' : 'text-slate-500 hover:text-white hover:bg-white/5'}`
+                          }
+                        >
+                          {child.icon && <child.icon size={12} className="shrink-0" />}
+                          {child.label}
+                        </NavLink>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             );
           })}
         </nav>
         
-        {/* Footer Area */}
-        <div className="p-3 border-t border-slate-800 space-y-2">
-          <div className={`px-2 py-2 mb-2 bg-slate-800/50 rounded-lg border border-slate-700/50 flex items-center gap-2 overflow-hidden ${!isExpanded && 'hidden md:flex justify-center'}`}>
-             <div className="w-6 h-6 rounded-full bg-blue-500 flex-shrink-0 flex items-center justify-center text-[10px] font-normal">
+        <div className="px-2 py-3 border-t border-slate-800 flex flex-col gap-1">
+          <div className={`w-full flex items-center transition-all duration-300 rounded-lg hover:bg-white/5 cursor-pointer overflow-hidden ${effectiveExpanded ? 'px-3 py-2 gap-3' : 'h-11 justify-center'}`}>
+             <div className="w-8 h-8 rounded-full bg-blue-600 flex-shrink-0 flex items-center justify-center text-xs font-normal shadow-sm border border-white/10">
                {user?.name?.charAt(0) || 'A'}
              </div>
-             <div className={`flex-1 min-w-0 transition-opacity ${isExpanded ? 'opacity-100' : 'opacity-0 w-0 hidden'}`}>
-               <p className="text-[10px] font-normal text-white truncate">{user?.name}</p>
-               <p className="text-[8px] text-slate-400 uppercase tracking-widest">{user?.role}</p>
-             </div>
+             {effectiveExpanded && (
+               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 min-w-0">
+                 <p className="text-xs font-normal text-white truncate leading-none mb-1">{user?.name}</p>
+                 <p className="text-[9px] text-slate-500 uppercase tracking-widest font-normal">{user?.role}</p>
+               </motion.div>
+             )}
           </div>
 
-          <button 
-            title="Settings"
-            className={`flex items-center gap-3 w-full rounded-xl transition-all font-normal text-sm text-slate-400 hover:text-white hover:bg-white/5
-              ${isExpanded ? 'px-4 py-3 text-left' : 'px-0 py-3 justify-center'}`}
-          >
-            <Settings size={20} className="flex-shrink-0" />
-            <span className={`transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0 hidden w-0'}`}>ตั้งค่าระบบ</span>
+          <button className={`flex items-center w-full rounded-lg transition-all font-normal text-sm text-slate-400 hover:text-white hover:bg-white/5 ${effectiveExpanded ? 'px-3 py-2 gap-3' : 'h-11 justify-center'}`}>
+            <Settings size={18} className="shrink-0" />
+            {effectiveExpanded && <span>ตั้งค่าระบบ</span>}
           </button>
 
-          <button 
-            onClick={logout}
-            title="Logout"
-            className={`flex items-center gap-3 w-full rounded-xl transition-all font-normal text-sm text-red-400 hover:text-white hover:bg-red-500/20
-              ${isExpanded ? 'px-4 py-3 text-left' : 'px-0 py-3 justify-center'}`}
-          >
-            <LogOut size={20} className="flex-shrink-0" />
-            <span className={`transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0 hidden w-0'}`}>ออกจากระบบ</span>
+          <button onClick={logout} className={`flex items-center w-full rounded-lg transition-all font-normal text-sm text-slate-400 hover:text-red-400 hover:bg-red-500/10 ${effectiveExpanded ? 'px-3 py-2 gap-3' : 'h-11 justify-center'}`}>
+            <LogOut size={18} className="shrink-0" />
+            {effectiveExpanded && <span>ออกจากระบบ</span>}
           </button>
         </div>
-
-        {/* Desktop Expand Toggle */}
-        <button 
-          onClick={toggleExpand}
-          className="hidden md:flex absolute -right-3 top-8 bg-slate-800 hover:bg-emerald-500 text-white p-1 rounded-full border border-slate-700 shadow-lg transition-colors z-50"
-        >
-          {isExpanded ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
-        </button>
-      </aside>
+      </motion.aside>
     </>
   );
 };

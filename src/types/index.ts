@@ -136,6 +136,7 @@ export interface MemberMealSchedule {
   notes: string;
   is_extra_order?: boolean;
   meal_order_type?: 'subscription' | 'a-la-carte';
+  is_compensatory?: boolean;
   created_at?: string;
   
   // Joined
