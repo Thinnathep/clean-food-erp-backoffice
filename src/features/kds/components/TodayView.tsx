@@ -1,6 +1,6 @@
 import React, { useMemo, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChefHat, CheckCircle2, AlertTriangle, Package, UtensilsCrossed, ChevronLeft, ChevronRight, ChevronDown, X, Printer, Sparkles } from 'lucide-react';
+import { ChefHat, CheckCircle2, AlertTriangle, Package, UtensilsCrossed, ChevronLeft, ChevronRight, ChevronDown, X, Printer, Sparkles, Power } from 'lucide-react';
 import dayjs from 'dayjs';
 import 'dayjs/locale/th';
 import { usePlannerStore } from '../../../store/plannerStore';
@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import { useAutoAnimate } from '@formkit/auto-animate/react';
 import { cn, isUUID } from '../../../lib/utils';
 import type { MemberMealSchedule, KdsTask } from '../../../types';
+import { useSystemStore } from '../../../store/systemStore';
 
 
 const CATEGORY_PRIORITY: Record<string, number> = {
@@ -68,7 +69,12 @@ export const TodayView: React.FC = () => {
   const menus = useMenuStore(state => state.menus);
   const loadMasterData = useMemberStore(state => state.loadMemberData);
   
+  const { isKitchenOpen, loadSystemSettings } = useSystemStore();
   const [parent] = useAutoAnimate();
+
+  useEffect(() => {
+    loadSystemSettings();
+  }, [loadSystemSettings]);
   
   const [filterType, setFilterType] = useState<'all' | 'member' | 'retail' | 'extra' | 'menu'>('all');
   const [viewMode, setViewMode] = useState<'day' | 'week'>('day');
@@ -1049,9 +1055,17 @@ export const TodayView: React.FC = () => {
                 <div className="w-14 h-14 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center shrink-0 shadow-sm"><AlertTriangle size={28} /></div>
                 <div><p className="text-[12px] uppercase text-slate-400 font-bold mb-1">หมายเหตุแพ้อาหาร</p><h3 className="text-3xl font-black text-slate-900">{todayProduction.specialNotesCount} <span className="text-sm font-bold text-slate-400">รายการ</span></h3></div>
             </div>
-            <div className="bg-emerald-500 p-6 rounded-2xl shadow-lg flex flex-col items-center text-center gap-4 border border-emerald-400">
-                <div className="w-14 h-14 bg-white/20 text-white rounded-2xl flex items-center justify-center shrink-0 shadow-sm"><CheckCircle2 size={28} /></div>
-                <div><p className="text-[12px] uppercase text-emerald-100 font-bold mb-1">สถานะระบบ</p><h3 className="text-xl font-black text-white italic">พร้อมทำงาน</h3></div>
+            <div className={cn(
+                "p-6 rounded-2xl shadow-lg flex flex-col items-center text-center gap-4 border transition-all duration-500",
+                isKitchenOpen ? "bg-emerald-500 border-emerald-400" : "bg-rose-500 border-rose-400"
+            )}>
+                <div className="w-14 h-14 bg-white/20 text-white rounded-2xl flex items-center justify-center shrink-0 shadow-sm">
+                    {isKitchenOpen ? <CheckCircle2 size={28} /> : <Power size={28} />}
+                </div>
+                <div>
+                    <p className={cn("text-[12px] uppercase font-bold mb-1", isKitchenOpen ? "text-emerald-100" : "text-rose-100")}>สถานะระบบ</p>
+                    <h3 className="text-xl font-black text-white italic">{isKitchenOpen ? 'พร้อมทำงาน' : 'ปิดทำการ'}</h3>
+                </div>
             </div>
         </div>
 

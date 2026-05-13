@@ -9,12 +9,15 @@ import {
   ClipboardCheck,
   Users,
   Wand2,
+  Database,
+  Info
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useMenuStore } from "../../../store/menuStore";
 import { useMemberStore } from "../../../store/memberStore";
+import { useInventoryStore } from "../../../store/inventoryStore";
 
-// Lazy Load heavy components to improve performance
+// Lazy Load heavy components
 const ProductionRoadmap = React.lazy(() => import("./ProductionRoadmap").then(m => ({ default: m.ProductionRoadmap })));
 const MemberPlanner = React.lazy(() => import("./MemberPlanner").then(m => ({ default: m.MemberPlanner })));
 const TodayView = React.lazy(() => import("./TodayView").then(m => ({ default: m.TodayView })));
@@ -25,18 +28,79 @@ const MenuLibrary = React.lazy(() => import("./MenuLibrary").then(m => ({ defaul
 
 type Tab = "checklist" | "today" | "global" | "member" | "summary" | "template";
 
+const StatusPill = ({ 
+  icon: Icon, 
+  count, 
+  label, 
+  description, 
+  textColor,
+  iconColor,
+  onClick 
+}: { 
+  icon: any, 
+  count: number, 
+  label: string, 
+  description: string, 
+  textColor: string,
+  iconColor: string,
+  onClick: () => void 
+}) => {
+  const [showInfo, setShowInfo] = useState(false);
+
+  return (
+    <div className="relative flex items-center">
+      <button
+        onClick={() => {
+          setShowInfo(!showInfo);
+          setTimeout(() => setShowInfo(false), 3000);
+        }}
+        className="flex items-center gap-1.5 px-1 py-1 group transition-all"
+      >
+        <Icon size={15} className={`${iconColor} transition-transform group-hover:scale-110`} />
+        <span className={`font-bold text-sm tracking-tight ${textColor}`}>{count}</span>
+      </button>
+
+      <AnimatePresence>
+        {showInfo && (
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 5, scale: 0.95 }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onClick();
+            }}
+            className="absolute top-full mt-2 left-0 z-50 min-w-[200px] bg-slate-900 text-white p-3 rounded-xl shadow-2xl border border-white/10 cursor-pointer"
+          >
+            <div className="flex items-start gap-2">
+              <Info size={14} className="text-emerald-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-[11px] font-bold text-white mb-0.5 uppercase tracking-wider">{label}</p>
+                <p className="text-[10px] text-slate-300 font-normal leading-relaxed">{description}</p>
+                <p className="text-[9px] text-emerald-400 mt-2 font-medium flex items-center gap-1">คลิกเพื่อไปยังหน้าจัดการ <Database size={8}/></p>
+              </div>
+            </div>
+            <div className="absolute -top-1 left-4 w-2 h-2 bg-slate-900 rotate-45 border-t border-l border-white/10" />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
 export const KdsDashboard: React.FC = () => {
   const loadMenus = useMenuStore((state) => state.loadMenus);
   const loadMemberData = useMemberStore((state) => state.loadMemberData);
+  const loadInventory = useInventoryStore((state) => state.loadItems);
+  
   const menus = useMenuStore((state) => state.menus);
   const members = useMemberStore((state) => state.members);
-  const activePackages = useMemberStore((state) => state.activePackages);
+  const inventoryItems = useInventoryStore((state) => state.items);
 
   const isLoadingMenu = useMenuStore((state) => state.isLoading);
   const isLoadingMember = useMemberStore((state) => state.isLoading);
-  const menuError = useMenuStore((state) => state.error);
-  const memberError = useMemberStore((state) => state.error);
-
+  const isLoadingInventory = useInventoryStore((state) => state.isLoading);
+  
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     const saved = localStorage.getItem("kds_active_tab");
     return (saved as Tab) || "today";
@@ -46,27 +110,14 @@ export const KdsDashboard: React.FC = () => {
   useEffect(() => {
     loadMenus();
     loadMemberData();
-  }, [loadMenus, loadMemberData]);
+    loadInventory();
+  }, [loadMenus, loadMemberData, loadInventory]);
 
   useEffect(() => {
     localStorage.setItem("kds_active_tab", activeTab);
   }, [activeTab]);
 
-  const isLoadingData = isLoadingMenu || isLoadingMember;
-  const error = menuError || memberError;
-
-  if (error) {
-    return (
-      <div className="flex h-full items-center justify-center bg-[#F8FAFC] p-4">
-        <div className="bg-red-50 text-red-500 p-6 rounded-2xl w-full max-w-lg shadow-sm border border-red-100">
-          <h3 className="text-lg font-normal mb-2">
-            เกิดข้อผิดพลาดในการโหลดข้อมูล
-          </h3>
-          <p className="text-sm font-normal opacity-80">{error}</p>
-        </div>
-      </div>
-    );
-  }
+  const isLoadingData = isLoadingMenu || isLoadingMember || isLoadingInventory;
 
   const ContentSkeleton = () => (
     <div className="flex-1 p-6 space-y-6 overflow-hidden">
@@ -75,15 +126,11 @@ export const KdsDashboard: React.FC = () => {
           <div key={i} className="h-24 bg-white rounded-2xl border border-slate-100 animate-pulse" />
         ))}
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        <div className="lg:col-span-3 h-80 bg-white rounded-2xl border border-slate-100 animate-pulse" />
-        <div className="lg:col-span-2 h-80 bg-white rounded-2xl border border-slate-100 animate-pulse" />
-      </div>
     </div>
   );
 
   return (
-    <div className="flex h-full w-full overflow-hidden bg-slate-50 relative">
+    <div className="flex h-full w-full overflow-hidden bg-slate-50 relative font-prompt">
       {/* 1. Master Menu Sidebar (Drawer) */}
       <div className={`fixed inset-y-0 right-0 z-50 w-full md:max-w-2xl transform transition-transform duration-500 ease-in-out ${isMenuDrawerOpen ? "translate-x-0 shadow-2xl" : "translate-x-full"}`}>
         <React.Suspense fallback={<div className="h-full bg-white flex items-center justify-center"><ChefHat className="animate-spin text-slate-200" size={40} /></div>}>
@@ -97,7 +144,7 @@ export const KdsDashboard: React.FC = () => {
 
       {/* 2. Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
-        {/* Compact & Smart Header */}
+        {/* Header */}
         <div className="bg-white border-b border-slate-200 shadow-sm z-20 shrink-0">
           <div className="px-3 md:px-6 py-2 md:py-3 flex flex-col xl:flex-row items-center justify-between gap-3">
             <div className="flex items-center justify-between w-full xl:w-auto gap-4">
@@ -106,17 +153,37 @@ export const KdsDashboard: React.FC = () => {
                   <UtensilsCrossed size={16} />
                 </div>
                 <div>
-                  <h1 className="text-sm md:text-base font-normal text-slate-900 tracking-tight leading-none mb-1.5">ระบบจัดการห้องครัว</h1>
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1 text-[10px] md:text-xs font-normal text-slate-500 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100">
-                      <MenuSquare size={10} className="text-slate-400" /> <span>{menus.length}</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-[10px] md:text-xs font-normal text-slate-500 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100">
-                      <Users size={10} className="text-slate-400" /> <span>{members.length}</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-[10px] md:text-xs font-normal text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
-                      <Package size={10} className="text-emerald-500" /> <span>{activePackages.length}</span>
-                    </div>
+                  <h1 className="text-[10px] md:text-[11px] font-bold text-slate-400 tracking-[0.1em] leading-none mb-1.5 uppercase">Kitchen System</h1>
+                  <div className="flex items-center gap-3">
+                    <StatusPill 
+                      icon={MenuSquare} 
+                      count={menus.length} 
+                      label="รายการเมนู" 
+                      description="รวมเมนูอาหารทั้งหมดที่ใช้ในระบบห้องครัวและหน้าร้าน" 
+                      iconColor="text-indigo-500"
+                      textColor="text-indigo-900"
+                      onClick={() => setIsMenuDrawerOpen(true)}
+                    />
+                    <div className="w-px h-3 bg-slate-200" />
+                    <StatusPill 
+                      icon={Users} 
+                      count={members.length} 
+                      label="สมาชิก" 
+                      description="จำนวนลูกค้าที่สมัครแพ็กเกจและอยู่ในฐานข้อมูลสมาชิก" 
+                      iconColor="text-amber-500"
+                      textColor="text-amber-900"
+                      onClick={() => setActiveTab("member")}
+                    />
+                    <div className="w-px h-3 bg-slate-200" />
+                    <StatusPill 
+                      icon={Database} 
+                      count={inventoryItems.length} 
+                      label="สต็อกวัตถุดิบ" 
+                      description="รายการวัตถุดิบทั้งหมดที่มีการลงทะเบียนในคลังสินค้า" 
+                      iconColor="text-emerald-500"
+                      textColor="text-emerald-900"
+                      onClick={() => window.location.href = '/inventory/items'}
+                    />
                   </div>
                 </div>
               </div>
@@ -125,7 +192,7 @@ export const KdsDashboard: React.FC = () => {
                 onClick={() => setIsMenuDrawerOpen(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white hover:bg-emerald-600 rounded-lg font-normal text-[11px] md:text-xs transition-all shadow-sm"
               >
-                <MenuSquare size={14} /> <span className="hidden sm:inline">รายการเมนูอาหาร</span><span className="sm:hidden">เมนู</span>
+                <MenuSquare size={14} /> <span className="hidden sm:inline">คลังเมนู</span><span className="sm:hidden">เมนู</span>
               </button>
             </div>
 

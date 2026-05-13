@@ -246,10 +246,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, setMobileOpen })
              )}
           </div>
 
-          <button className={`flex items-center w-full rounded-lg transition-all font-normal text-sm text-slate-400 hover:text-white hover:bg-white/5 ${effectiveExpanded ? 'px-3 py-2 gap-3' : 'h-11 justify-center'}`}>
+          <NavLink to="/settings" className={({ isActive }) => `flex items-center w-full rounded-lg transition-all font-normal text-sm ${isActive ? 'text-white bg-white/10 shadow-sm' : 'text-slate-400 hover:text-white hover:bg-white/5'} ${effectiveExpanded ? 'px-3 py-2 gap-3' : 'h-11 justify-center'}`}>
             <Settings size={18} className="shrink-0" />
             {effectiveExpanded && <span>ตั้งค่าระบบ</span>}
-          </button>
+          </NavLink>
 
           <button onClick={logout} className={`flex items-center w-full rounded-lg transition-all font-normal text-sm text-slate-400 hover:text-red-400 hover:bg-red-500/10 ${effectiveExpanded ? 'px-3 py-2 gap-3' : 'h-11 justify-center'}`}>
             <LogOut size={18} className="shrink-0" />

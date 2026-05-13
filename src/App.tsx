@@ -15,6 +15,7 @@ import { MenuManagement } from './features/menu/components/MenuManagement';
 import { LogisticsDashboard } from './features/logistics/components/LogisticsDashboard';
 import { ShippingCalculator } from './features/logistics/components/ShippingCalculator';
 import { PromotionManagement } from './features/members/components/PromotionManagement';
+import { SettingsPage } from './features/auth/SettingsPage';
 
 
 // Re-saved to ensure all imports are matched correctly
@@ -97,6 +98,7 @@ function App() {
         <Route path="/logistics" element={<ProtectedRoute><MainLayout><LogisticsDashboard /></MainLayout></ProtectedRoute>} />
         <Route path="/logistics/calculator" element={<ProtectedRoute><MainLayout><ShippingCalculator /></MainLayout></ProtectedRoute>} />
         <Route path="/promotions" element={<ProtectedRoute><MainLayout><PromotionManagement /></MainLayout></ProtectedRoute>} />
+        <Route path="/settings" element={<ProtectedRoute><MainLayout><SettingsPage /></MainLayout></ProtectedRoute>} />
 
       </Routes>
     </BrowserRouter>

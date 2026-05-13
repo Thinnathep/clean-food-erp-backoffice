@@ -19,13 +19,27 @@
     background: rgba(16, 185, 129, 0.1);
     border-left: 3px solid #10b981;
   }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 }
 
 @layer base {
   body {
     font-family: var(--font-prompt);
     font-size: 15px;
-    @apply bg-[#F8FAFC] text-slate-700 selection:bg-emerald-100 antialiased;
+    background-color: #F8FAFC;
+    color: #334155;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background-color: #d1fae5;
   }
   
   ::-webkit-scrollbar { width: 6px; }
