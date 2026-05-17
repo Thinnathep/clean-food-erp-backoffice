@@ -1,5 +1,6 @@
-import React from "react";
-import { Printer, Cable } from "lucide-react";
+import React, { useState } from "react";
+import { Printer, Bluetooth, Cable } from "lucide-react";
+import { BluetoothPrinterSection } from "./BluetoothPrinterSection";
 import { SerialPrinterSection } from "./SerialPrinterSection";
 
 interface PrinterSupportCardProps {
@@ -22,12 +23,20 @@ export const PrinterSupportCard: React.FC<PrinterSupportCardProps> = ({
   printerEnabled,
   updateSystemConfig,
   bluetoothDevice,
+  isConnectingBluetooth,
+  handleConnectBluetooth,
+  disconnectBluetooth,
   serialPort,
   isConnectingSerial,
   handleConnectSerial,
   disconnectSerial,
   handleTestPrint,
 }) => {
+  const [connectionType, setConnectionType] = useState<"bluetooth" | "serial">(() => {
+    if (serialPort) return "serial";
+    return "bluetooth";
+  });
+
   return (
     <div className="p-6 rounded-[2.5rem] bg-white border border-slate-100 shadow-sm flex flex-col justify-between space-y-4 w-full">
       {/* Header switch */}
@@ -70,29 +79,61 @@ export const PrinterSupportCard: React.FC<PrinterSupportCardProps> = ({
 
       {printerEnabled ? (
         <div className="pt-2 space-y-4 w-full">
-          {/* Connection Type Indicator (Static, premium) */}
+          {/* Connection Type Tab Selector */}
           <div className="space-y-1">
             <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-2 ml-0.5">
-              รูปแบบการเชื่อมต่อ (Connection Type)
+              เลือกรูปแบบเชื่อมต่อ (Connection Type)
             </span>
-            <div className="flex items-center gap-2 bg-slate-50 px-4 py-2.5 rounded-2xl border border-slate-100">
-              <Cable size={14} className="text-purple-600 animate-pulse" />
-              <span className="text-xs font-bold text-slate-800">
-                ต่อสาย BT / USB / COM{" "}
-              </span>
+            <div className="grid grid-cols-2 gap-2 bg-slate-50 p-1 rounded-xl border border-slate-100">
+              <button
+                type="button"
+                onClick={() => setConnectionType("bluetooth")}
+                className={`py-1.5 px-3 rounded-lg flex items-center justify-center gap-1.5 text-[10px] font-bold transition-all ${
+                  connectionType === "bluetooth"
+                    ? "bg-slate-900 text-white shadow-sm"
+                    : "text-slate-500 hover:text-slate-800 hover:bg-slate-100/50"
+                }`}
+              >
+                <Bluetooth size={12} />
+                <span>Bluetoothไร้สาย</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setConnectionType("serial")}
+                className={`py-1.5 px-3 rounded-lg flex items-center justify-center gap-1.5 text-[10px] font-bold transition-all ${
+                  connectionType === "serial"
+                    ? "bg-slate-900 text-white shadow-sm"
+                    : "text-slate-500 hover:text-slate-800 hover:bg-slate-100/50"
+                }`}
+              >
+                <Cable size={12} />
+                <span>ต่อสาย BT / USB / COM</span>
+              </button>
             </div>
           </div>
 
           {/* Connection Details */}
           <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 w-full min-h-[110px] flex flex-col justify-center items-center">
-            <SerialPrinterSection
-              serialPort={serialPort}
-              isConnectingSerial={isConnectingSerial}
-              handleConnectSerial={handleConnectSerial}
-              disconnectSerial={disconnectSerial}
-              bluetoothDevice={bluetoothDevice}
-              handleTestPrint={handleTestPrint}
-            />
+            {connectionType === "bluetooth" ? (
+              <BluetoothPrinterSection
+                bluetoothDevice={bluetoothDevice}
+                isConnectingBluetooth={isConnectingBluetooth}
+                handleConnectBluetooth={handleConnectBluetooth}
+                disconnectBluetooth={disconnectBluetooth}
+                serialPort={serialPort}
+                handleTestPrint={handleTestPrint}
+              />
+            ) : (
+              <SerialPrinterSection
+                serialPort={serialPort}
+                isConnectingSerial={isConnectingSerial}
+                handleConnectSerial={handleConnectSerial}
+                disconnectSerial={disconnectSerial}
+                bluetoothDevice={bluetoothDevice}
+                handleTestPrint={handleTestPrint}
+              />
+            )}
           </div>
 
           {/* Quick Info */}
