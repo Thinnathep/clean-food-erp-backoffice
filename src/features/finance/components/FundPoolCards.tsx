@@ -90,7 +90,7 @@ export const FundPoolCards: React.FC<Props> = ({ pools, isCEO, transactions, isD
               <span className="text-xl">{cfg.icon}</span>
               <div>
                 <p className={`text-sm font-bold transition-colors ${isDarkMode ? 'text-slate-200' : 'text-slate-950'}`}>
-                  {isCEO ? pool.display_name : pool.display_name_public}
+                  {isCEO ? (pool.display_name === 'ค่าดำเนินการ' ? 'ค่าบิล' : pool.display_name) : pool.display_name_public}
                 </p>
                 {isCEO && pool.display_name !== pool.display_name_public && (
                   <p className={`text-[10px] transition-colors ${isDarkMode ? 'text-slate-600' : 'text-slate-500'}`}>

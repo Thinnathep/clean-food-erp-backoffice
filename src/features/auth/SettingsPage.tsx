@@ -4,13 +4,12 @@ import {
   Truck, 
   Store, 
   RefreshCw,
-  ChevronRight,
   DollarSign,
   Clock
 } from 'lucide-react';
 import { supabase } from '../../config/supabase';
 import { toast } from 'sonner';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 
 import { useSystemStore } from '../../store/systemStore';
 import { GeneralSettings } from './settings/GeneralSettings';
@@ -161,31 +160,43 @@ export const SettingsPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden flex flex-col lg:flex-row p-4 md:p-8 gap-8">
-        {/* Navigation Sidebar */}
-        <div className="w-full lg:w-64 space-y-2 shrink-0">
+      {/* Tab Selector */}
+      <div className="px-4 md:px-8 pt-6 shrink-0">
+        <div className="bg-slate-100/70 p-1.5 rounded-2xl border border-slate-200/50 flex flex-wrap gap-1 relative w-full overflow-hidden max-w-fit">
           {[
             { id: 'general', label: 'ทั่วไป & ร้านค้า', icon: Store },
             { id: 'logistics', label: 'การจัดส่ง', icon: Truck },
             { id: 'discounts', label: 'ส่วนลดค่าส่ง', icon: DollarSign },
             { id: 'kds', label: 'ระบบครัว (KDS)', icon: Clock },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => handleTabChange(tab.id as any)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all font-normal text-sm
-                ${activeTab === tab.id 
-                  ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20' 
-                  : 'text-slate-500 hover:bg-white hover:text-slate-900'}
-              `}
-            >
-              <tab.icon size={18} />
-              <span>{tab.label}</span>
-              {activeTab === tab.id && <ChevronRight size={14} className="ml-auto opacity-50" />}
-            </button>
-          ))}
+          ].map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => handleTabChange(tab.id as any)}
+                className={`relative px-5 py-2 rounded-xl flex items-center gap-2 text-xs font-bold transition-colors cursor-pointer select-none outline-none ${
+                  isActive ? 'text-slate-900 font-extrabold' : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                {/* Active Backdrop Capsule */}
+                {isActive && (
+                  <motion.div
+                    layoutId="settingsActiveTab"
+                    className="absolute inset-0 bg-white rounded-xl shadow-sm border border-slate-200/40 z-0"
+                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                  />
+                )}
+                <span className="relative z-10 flex items-center gap-2">
+                  <tab.icon size={14} className={isActive ? 'text-slate-900' : 'text-slate-400'} />
+                  {tab.label}
+                </span>
+              </button>
+            );
+          })}
         </div>
+      </div>
 
+      <div className="flex-1 overflow-hidden p-4 md:p-8 flex flex-col">
         {/* Content Area */}
         <div className="flex-1 bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden flex flex-col">
           <div className="flex-1 overflow-y-auto p-8 scrollbar-hide">

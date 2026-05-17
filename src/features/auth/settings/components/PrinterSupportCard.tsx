@@ -34,10 +34,12 @@ export const PrinterSupportCard: React.FC<PrinterSupportCardProps> = ({
   handleTestPrint,
 }) => {
   const { printerMode, setPrinterMode } = useSystemStore();
-  const [connectionType, setConnectionType] = useState<"bluetooth" | "serial">(() => {
-    if (serialPort) return "serial";
-    return "bluetooth";
-  });
+  const [connectionType, setConnectionType] = useState<"bluetooth" | "serial">(
+    () => {
+      if (serialPort) return "serial";
+      return "bluetooth";
+    },
+  );
 
   return (
     <div className="p-6 rounded-[2.5rem] bg-white border border-slate-100 shadow-sm flex flex-col justify-between space-y-4 w-full">
@@ -154,7 +156,9 @@ export const PrinterSupportCard: React.FC<PrinterSupportCardProps> = ({
                 }`}
               >
                 <span>โหมดรูปภาพกราฟิก</span>
-                <span className="text-[7.5px] opacity-75 font-normal">สระภาษาไทยสมบูรณ์แบบ</span>
+                <span className="text-[7.5px] opacity-75 font-normal">
+                  สระภาษาไทยสมบูรณ์แบบ
+                </span>
               </button>
 
               <button
@@ -166,13 +170,14 @@ export const PrinterSupportCard: React.FC<PrinterSupportCardProps> = ({
                     : "text-slate-500 hover:text-slate-800 hover:bg-slate-100/50"
                 }`}
               >
-                <span className="flex items-center gap-1">โหมดตัวอักษร ⚡ เร็วทันที</span>
-                <span className="text-[7.5px] opacity-75 font-normal">คมชัดสูง / พิมพ์เสร็จใน 1 วินาที</span>
+                <span className="flex items-center gap-1">
+                  โหมดตัวอักษร ⚡ เร็วทันที
+                </span>
+                <span className="text-[7.5px] opacity-75 font-normal">
+                  คมชัดสูง / พิมพ์เสร็จใน 1 วินาที
+                </span>
               </button>
             </div>
-            <p className="text-[9px] text-amber-600 font-bold leading-normal ml-0.5 mt-1 bg-amber-50/50 p-2.5 rounded-xl border border-amber-100/50">
-              💡 <strong>คำแนะนำสำหรับมือถือ/iPad:</strong> หากพิมพ์โหมดกราฟิกแล้วช้ามาก ("กึดๆๆ") หรือตัวอักษรเบลอ ให้เปลี่ยนมาใช้ <strong>"โหมดตัวอักษร ⚡ เร็วทันที"</strong> เพื่อความเร็วสูงสุดและตัวหนังสือที่คมชัดดั้งเดิมครับ!
-            </p>
           </div>
 
           {/* Quick Info */}

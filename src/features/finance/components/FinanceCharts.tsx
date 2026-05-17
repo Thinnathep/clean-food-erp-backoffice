@@ -30,8 +30,8 @@ export const FinanceCharts: React.FC<Props> = ({ transactions, buckets, isDarkMo
     return {
       date: dayjs(date).format('DD'),
       fullDate: dayjs(date).format('DD MMM'),
-      income,
-      expense
+      income: Number(income.toFixed(2)),
+      expense: Number(expense.toFixed(2))
     };
   });
 
@@ -97,6 +97,7 @@ export const FinanceCharts: React.FC<Props> = ({ transactions, buckets, isDarkMo
                 tickFormatter={(value) => `฿${value.toLocaleString()}`}
               />
               <Tooltip 
+                formatter={(value: any) => `฿${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                 contentStyle={{ 
                   backgroundColor: themeColors.tooltipBg, 
                   borderColor: themeColors.tooltipBorder,
@@ -150,7 +151,7 @@ export const FinanceCharts: React.FC<Props> = ({ transactions, buckets, isDarkMo
                 ))}
               </Pie>
               <Tooltip 
-                formatter={(value: any) => `฿${Number(value).toLocaleString()}`}
+                formatter={(value: any) => `฿${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                 contentStyle={{ 
                   backgroundColor: themeColors.tooltipBg, 
                   borderColor: themeColors.tooltipBorder,
@@ -167,7 +168,7 @@ export const FinanceCharts: React.FC<Props> = ({ transactions, buckets, isDarkMo
                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
                    <span className="text-slate-500 truncate max-w-[80px]">{item.name}</span>
                 </div>
-                <span className={`font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>฿{item.value.toLocaleString()}</span>
+                <span className={`font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>฿{item.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
              </div>
            ))}
         </div>

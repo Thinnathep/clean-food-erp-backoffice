@@ -600,13 +600,18 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
 
         {/* Warning Card */}
         {activePoolData && activePoolData.current_balance < (activePoolData.target_amount * 0.2) && (
-           <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 flex gap-3 animate-pulse">
-              <AlertCircle className="text-red-500 shrink-0" size={20} />
+           <div className={`border rounded-2xl p-4 flex gap-3 shadow-sm transition-all ${
+             isDarkMode ? 'bg-rose-500/5 border-rose-500/20' : 'bg-rose-50/60 border-rose-100'
+           }`}>
+              <AlertCircle className={`shrink-0 ${isDarkMode ? 'text-rose-400' : 'text-rose-600'}`} size={20} />
               <div>
-                 <p className="text-xs font-bold text-red-600 uppercase">คำเตือน: เงินกองทุนต่ำมาก</p>
-                 <p className="text-[10px] text-red-500 mt-1">
-                    ยอดเงินในกอง {activePoolData.display_name} เหลือเพียง ฿{activePoolData.current_balance.toLocaleString()} 
-                    ซึ่งต่ำกว่า 20% ของงบประมาณที่ควรมี
+                 <p className={`text-xs font-black uppercase ${
+                   isDarkMode ? 'text-rose-300' : 'text-rose-800'
+                 }`}>คำเตือน: เงินกองทุนต่ำมาก</p>
+                 <p className={`text-[10.5px] mt-1 leading-relaxed ${
+                   isDarkMode ? 'text-slate-400' : 'text-slate-600'
+                 }`}>
+                    ยอดเงินในกอง <span className={`font-black ${isDarkMode ? 'text-rose-400' : 'text-rose-600'}`}>{activePoolData.display_name === 'ค่าดำเนินการ' ? 'ค่าบิล' : activePoolData.display_name}</span> เหลือเพียง <span className={`font-extrabold ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>฿{activePoolData.current_balance.toLocaleString(undefined, { minimumFractionDigits: activePoolData.current_balance % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 })}</span> ซึ่งต่ำกว่า 20% ของงบประมาณที่ควรมี
                  </p>
               </div>
            </div>

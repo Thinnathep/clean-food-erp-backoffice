@@ -326,18 +326,46 @@ export const FinanceDashboard: React.FC = () => {
               <>
                 {/* Fund Depletion Alerts */}
                 {visiblePools.filter(p => p.target_amount > 0 && p.current_balance < (p.target_amount * 0.2)).length > 0 && (
-                  <div className={`p-4 rounded-2xl border animate-pulse transition-all bg-red-500/10 border-red-500/30 flex items-start gap-4 mb-6`}>
-                    <div className="p-2 rounded-xl bg-red-500 text-white">
+                  <div className={`p-4.5 rounded-2xl border transition-all flex items-start gap-4 mb-6 shadow-sm ${
+                    isDarkMode ? 'bg-rose-500/5 border-rose-500/20' : 'bg-rose-50/60 border-rose-100'
+                  }`}>
+                    <div className={`p-2.5 rounded-xl shrink-0 shadow-sm ${
+                      isDarkMode ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : 'bg-rose-600 text-white'
+                    }`}>
                       <AlertTriangle size={20} />
                     </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-red-500">แจ้งเตือน: เงินในบางกองทุนต่ำกว่าเกณฑ์!</h4>
-                      <p className="text-xs text-red-400 mt-0.5">
+                    <div className="space-y-2">
+                      <h4 className={`text-sm font-black uppercase tracking-wide ${
+                        isDarkMode ? 'text-rose-300' : 'text-rose-800'
+                      }`}>
+                        แจ้งเตือน: เงินในบางกองทุนต่ำกว่าเกณฑ์!
+                      </h4>
+                      <div className="flex flex-wrap gap-2 pt-0.5">
                         {visiblePools
                           .filter(p => p.target_amount > 0 && p.current_balance < (p.target_amount * 0.2))
-                          .map(p => `${p.display_name} (เหลือ ฿${p.current_balance.toLocaleString()})`)
-                          .join(', ')}
-                      </p>
+                          .map(p => {
+                            const displayName = p.display_name === 'ค่าดำเนินการ' ? 'ค่าบิล' : p.display_name;
+                            const isRemainingFloat = p.current_balance % 1 !== 0;
+                            const formattedBalance = p.current_balance.toLocaleString(undefined, { 
+                              minimumFractionDigits: isRemainingFloat ? 2 : 0, 
+                              maximumFractionDigits: 2 
+                            });
+                            return (
+                              <span 
+                                key={p.id} 
+                                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl border text-xs shadow-sm transition-all ${
+                                  isDarkMode ? 'bg-slate-900/80 border-rose-950/50' : 'bg-white border-rose-100'
+                                }`}
+                              >
+                                <span className={`font-black ${isDarkMode ? 'text-rose-400' : 'text-rose-600'}`}>{displayName}</span>
+                                <span className={isDarkMode ? 'text-slate-800' : 'text-rose-100'}>|</span>
+                                <span className={`font-extrabold ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                                  เหลือ ฿{formattedBalance}
+                                </span>
+                              </span>
+                            );
+                          })}
+                      </div>
                     </div>
                   </div>
                 )}
