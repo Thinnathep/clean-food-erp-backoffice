@@ -205,7 +205,7 @@ export const renderTextToCanvas = (
   const dividerHeight = isLarge ? 2 : 1.5;
   
   canvas.width = width;
-  canvas.height = lines.length * lineHeight + 20; // Tighter vertical margins
+  canvas.height = lines.length * lineHeight - 4; // Generous cropping to give top room
   
   ctx.fillStyle = '#FFFFFF';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -218,7 +218,10 @@ export const renderTextToCanvas = (
     let line = origLine.trim();
     if (line.length === 0) continue;
     
-    const y = i * lineHeight + lineHeight / 2 + 10; // Tight top padding
+    // Shift text to the top edge: first line is at min y=23 to give 6px safety margin for Thai upper vowels (like "ใ"), others are shifted up by 6px
+    const y = i === 0 
+      ? Math.max(23, (i * lineHeight + lineHeight / 2) - 6)
+      : (i * lineHeight + lineHeight / 2) - 6;
     
     // Check if line should be bold or italic
     let isBold = false;

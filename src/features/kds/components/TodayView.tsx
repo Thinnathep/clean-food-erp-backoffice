@@ -268,12 +268,13 @@ export const TodayView: React.FC = () => {
           });
 
           fullText += "--------------------------------\n";
-          fullText += `[B] พลังงานรวมทั้งหมด | [B] ${Math.max(0, item.totalKcal || 0)} KCAL\n`;
-          fullText += `สารอาหารรวม | P:${Math.max(0, item.totalP || 0).toFixed(1)}g  C:${Math.max(0, item.totalC || 0).toFixed(1)}g  F:${Math.max(0, item.totalF || 0).toFixed(1)}g\n`;
+          fullText += `[B] แคลอรี่รวม | [B] ${Math.max(0, item.totalKcal || 0)} KCAL\n`;
+          fullText += `โภชนาการ | โปรตีน:${Math.max(0, item.totalP || 0).toFixed(1)}g  คาร์บ:${Math.max(0, item.totalC || 0).toFixed(1)}g  ไขมัน:${Math.max(0, item.totalF || 0).toFixed(1)}g\n`;
           fullText += "--------------------------------\n";
 
           // Warm thank you greetings in thin italic text
-          fullText += "\n";
+          fullText +=
+            "[I] *หมายเหตุ:ข้อมูลโภชนาการเป็นค่าประมาณการ อาจจะคลาดเคลื่อนเล็กน้อย\n\n";
           fullText += "[I] ขอบคุณที่ให้เราดูแลสุขภาพของคุณนะคะ\n";
           fullText += "[I] ทานให้อร่อยและสุขภาพแข็งแรงในทุกๆ วันนะคะ ♥\n";
 
@@ -324,7 +325,12 @@ export const TodayView: React.FC = () => {
           });
 
           bodyText += "--------------------------------\n";
-          bodyText += `พลังงานรวม: ${item.totalKcal} KCAL\n`;
+          bodyText += `โภชนาการรวม: ${item.totalKcal} KCAL\n`;
+          bodyText += "--------------------------------\n";
+          bodyText +=
+            "*ข้อมูลโภชนาการเป็นค่าประมาณ อาจจะคลาดเคลื่อนเล็กน้อย\n\n";
+          bodyText += "ขอบคุณที่ให้เราดูแลสุขภาพของคุณนะคะ\n";
+          bodyText += "ทานให้อร่อยและสุขภาพแข็งแรงในทุกๆ วันนะคะ ♥\n";
 
           const bodyBytes = encodeThaiOverprint(bodyText);
 
@@ -701,7 +707,15 @@ export const TodayView: React.FC = () => {
     });
 
     return { groups: grouped, specialNotesCount: specialNotes };
-  }, [memberSchedules, tasks, menus, selectedDate, filterType, viewMode, mealIndices]);
+  }, [
+    memberSchedules,
+    tasks,
+    menus,
+    selectedDate,
+    filterType,
+    viewMode,
+    mealIndices,
+  ]);
 
   const weeklySummary = useMemo(() => {
     if (viewMode !== "week") return null;

@@ -14,6 +14,8 @@ export {
   renderTextToCanvas 
 };
 
+let isAutoConnecting = false;
+
 interface SystemState {
   isKitchenOpen: boolean;
   notificationSoundEnabled: boolean;
@@ -150,6 +152,12 @@ export const useSystemStore = create<SystemState>((set) => ({
   },
 
   connectBluetooth: async () => {
+    const { isConnectingBluetooth } = useSystemStore.getState();
+    if (isConnectingBluetooth) {
+      console.log("📶 [Bluetooth] กำลังเชื่อมต่ออยู่แล้ว ข้ามการทำงานซ้อน");
+      return;
+    }
+
     const nav = navigator as any;
     if (!nav.bluetooth) {
       console.log("❌ Web Bluetooth not supported in this browser");
@@ -274,6 +282,9 @@ export const useSystemStore = create<SystemState>((set) => ({
     } catch (err: any) {
       console.error("❌ การเชื่อมต่อบลูทูธล้มเหลว:", err);
       set({ isConnectingBluetooth: false });
+      if (err.name === 'NotFoundError' || (err.message && err.message.includes('User cancelled'))) {
+        throw new Error("ยกเลิกการเชื่อมต่อ: คุณไม่ได้เลือกเครื่องพิมพ์บลูทูธครับ");
+      }
       throw err;
     }
   },
@@ -334,7 +345,7 @@ export const useSystemStore = create<SystemState>((set) => ({
         "[B] ข้าวมันไก่ผสมอกไก่ (มื้อที่ 1) | [B] 1 กล่อง\n" +
         "[B] *สระวรรณยุกต์ | [B] ต่อสำเร็จ!\n" +
         "--------------------------------\n" +
-        "พลังงานรวม | 550 KCAL\n" +
+        "แคลลอรี่รวม | 550 KCAL\n" +
         "โปรตีน (Protein) | 42.0 g\n" +
         "คาร์โบไฮเดรต (Carbs) | 45.0 g\n" +
         "ไขมัน (Fat) | 12.0 g\n" +
@@ -345,6 +356,7 @@ export const useSystemStore = create<SystemState>((set) => ({
 
       finalBytes = new Uint8Array([
         0x1B, 0x40, // Initialize
+        0x1B, 0x6A, 0x38, // ESC j 56 (Feed paper backward by 56 units)
         ...Array.from(imgBytes),
         0x0A, 0x0A, 0x0A, 0x0A, // Feed lines
         0x1D, 0x56, 66, 0x00    // ESC/POS Cut paper command (GS V 66 0)
@@ -360,6 +372,7 @@ export const useSystemStore = create<SystemState>((set) => ({
 
       const esc = [
         0x1B, 0x40, // Initialize
+        0x1B, 0x6A, 0x38, // ESC j 56 (Feed paper backward by 56 units)
         0x1B, 0x74, thaiCodePage, // Select dynamic Thai code page
         0x1B, 0x61, 0x01, // Center align
         0x1B, 0x21, 0x30, // Double height & width
@@ -401,6 +414,12 @@ export const useSystemStore = create<SystemState>((set) => ({
   },
 
   connectSerial: async () => {
+    const { isConnectingSerial } = useSystemStore.getState();
+    if (isConnectingSerial) {
+      console.log("🔌 [Serial] กำลังเชื่อมต่ออยู่แล้ว ข้ามการทำงานซ้อน");
+      return;
+    }
+
     const nav = navigator as any;
     if (!nav.serial) {
       throw new Error("เว็บบราวเซอร์ของคุณไม่รองรับ Web Serial API (กรุณาใช้ Chrome หรือ Edge บนคอมพิวเตอร์ครับ)");
@@ -414,8 +433,9 @@ export const useSystemStore = create<SystemState>((set) => ({
       try {
         await port.open({ baudRate: 9600 });
       } catch (openErr: any) {
-        if (openErr.message && openErr.message.includes("already open")) {
-          console.log("🔌 [2/3] พอร์ตนี้เปิดใช้งานอยู่แล้ว ข้ามขั้นตอนการเปิดพอร์ตใหม่");
+        const msg = openErr.message || '';
+        if (msg.includes("already open") || msg.includes("already in progress")) {
+          console.log("🔌 [2/3] พอร์ตนี้กำลังเปิดหรือเปิดใช้งานอยู่แล้ว ข้ามขั้นตอนการเปิดพอร์ตใหม่");
         } else {
           throw openErr;
         }
@@ -429,6 +449,9 @@ export const useSystemStore = create<SystemState>((set) => ({
     } catch (err: any) {
       console.error("❌ การเชื่อมต่อ Serial ล้มเหลว:", err);
       set({ isConnectingSerial: false });
+      if (err.name === 'NotFoundError' || (err.message && err.message.includes('No port selected'))) {
+        throw new Error("ยกเลิกการเชื่อมต่อ: คุณไม่ได้เลือกพอร์ตเชื่อมต่อเครื่องพิมพ์ครับ");
+      }
       throw err;
     }
   },
@@ -453,6 +476,31 @@ export const useSystemStore = create<SystemState>((set) => ({
       throw new Error("กรุณาเชื่อมต่อผ่าน USB/Serial ก่อนสั่งพิมพ์ครับ");
     }
 
+    // Safely try to open the port if it's closed or writable is null
+    if (!serialPort.writable) {
+      console.log("🔌 [printToSerial] พอร์ตปิดอยู่หรือ writable เป็น null, กำลังลองเปิดพอร์ตใหม่...");
+      try {
+        await serialPort.open({ baudRate: 9600 });
+      } catch (err: any) {
+        const msg = err.message || '';
+        if (msg.includes("already open") || msg.includes("already in progress")) {
+          console.log("🔌 [printToSerial] พอร์ตกำลังทำงานอยู่");
+        } else {
+          console.error("❌ ไม่สามารถเปิดพอร์ตใหม่ได้:", err);
+          throw new Error("เครื่องพิมพ์ Serial ขัดข้อง: กรุณาถอดสายแล้วเชื่อมต่อใหม่อีกครั้งครับ");
+        }
+      }
+    }
+
+    // Wait a brief moment if still initializing
+    if (!serialPort.writable) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+
+    if (!serialPort.writable) {
+      throw new Error("ไม่สามารถเขียนข้อมูลลงพอร์ตเครื่องพิมพ์ได้ (ช่องส่งข้อมูลยังไม่พร้อม) กรุณาเชื่อมต่อสายใหม่อีกครั้งครับ");
+    }
+
     const writer = serialPort.writable.getWriter();
     try {
       await writer.write(data);
@@ -463,103 +511,119 @@ export const useSystemStore = create<SystemState>((set) => ({
   },
 
   autoConnectDevices: async () => {
-    const nav = navigator as any;
-    
-    // 1. Try Serial Ports auto-connect
-    if (nav.serial) {
-      try {
-        const ports = await nav.serial.getPorts();
-        if (ports.length > 0) {
-          console.log("🔌 [Auto-Connect] พบ Serial Port ที่เคยได้รับอนุญาตแล้ว! กำลังเชื่อมต่ออัตโนมัติ...");
-          const port = ports[0];
-          set({ isConnectingSerial: true });
-          try {
-            await port.open({ baudRate: 9600 });
-            set({
-              serialPort: port,
-              isConnectingSerial: false
-            });
-            console.log("🔌 [Auto-Connect] เชื่อมต่อสาย USB/COM อัตโนมัติสำเร็จ!");
-            return;
-          } catch (openErr: any) {
-            set({ isConnectingSerial: false });
-            if (openErr.message && openErr.message.includes("already open")) {
-              set({ serialPort: port });
+    if (isAutoConnecting) return;
+    isAutoConnecting = true;
+
+    try {
+      const nav = navigator as any;
+      
+      // 1. Try Serial Ports auto-connect
+      const { isConnectingSerial, serialPort } = useSystemStore.getState();
+      if (serialPort) return;
+
+      if (nav.serial && !isConnectingSerial) {
+        try {
+          const ports = await nav.serial.getPorts();
+          if (ports.length > 0) {
+            console.log("🔌 [Auto-Connect] พบ Serial Port ที่เคยได้รับอนุญาตแล้ว! กำลังเชื่อมต่ออัตโนมัติ...");
+            const port = ports[0];
+            set({ isConnectingSerial: true });
+            try {
+              const openPromise = port.open({ baudRate: 9600 });
+              const timeoutPromise = new Promise<void>((_, reject) =>
+                setTimeout(() => reject(new Error("เปิดพอร์ตหมดเวลา (Timeout)")), 12000)
+              );
+              await Promise.race([openPromise, timeoutPromise]);
+              
+              set({
+                serialPort: port,
+                isConnectingSerial: false
+              });
+              console.log("🔌 [Auto-Connect] เชื่อมต่อสาย Serial/COM อัตโนมัติสำเร็จ!");
               return;
+            } catch (openErr: any) {
+              set({ isConnectingSerial: false });
+              const msg = openErr.message || '';
+              if (msg.includes("already open") || msg.includes("already in progress")) {
+                set({ serialPort: port });
+                return;
+              }
             }
           }
+        } catch (err) {
+          console.error("🔌 [Auto-Connect] เชื่อมต่อสาย Serial อัตโนมัติล้มเหลว:", err);
+          set({ isConnectingSerial: false });
         }
-      } catch (err) {
-        console.error("🔌 [Auto-Connect] เชื่อมต่อสาย USB อัตโนมัติล้มเหลว:", err);
-        set({ isConnectingSerial: false });
       }
-    }
 
-    // 2. Try Bluetooth Devices auto-connect
-    if (nav.bluetooth && typeof nav.bluetooth.getDevices === 'function') {
-      try {
-        const devices = await nav.bluetooth.getDevices();
-        if (devices.length > 0) {
-          console.log("📶 [Auto-Connect] พบอุปกรณ์ Bluetooth ที่เคยจับคู่แล้ว! กำลังเชื่อมต่ออัตโนมัติ...");
-          const device = devices[0];
-          set({ isConnectingBluetooth: true });
-          
-          const server = await device.gatt.connect();
-          
-          const uuids = [
-            '000018f0-0000-1000-8000-00805f9b34fb',
-            '0000e781-0000-1000-8000-00805f9b34fb',
-            '49535343-fe7d-295b-7f04-bf7e130d0000',
-            '00004953-0000-1000-8000-00805f9b34fb',
-            '00001101-0000-1000-8000-00805f9b34fb'
-          ];
-          
-          let targetCharacteristic: any = null;
-          for (const uuid of uuids) {
-            try {
-              const service = await server.getPrimaryService(uuid);
-              const characteristics = await service.getCharacteristics();
-              const writeChar = characteristics.find((c: any) => c.properties.write || c.properties.writeWithoutResponse);
-              if (writeChar) {
-                targetCharacteristic = writeChar;
-                break;
-              }
-            } catch (e) {}
-          }
-          
-          if (!targetCharacteristic) {
-            try {
-              const services = await server.getPrimaryServices();
-              for (const service of services) {
+      // 2. Try Bluetooth Devices auto-connect
+      if (nav.bluetooth && typeof nav.bluetooth.getDevices === 'function') {
+        try {
+          const devices = await nav.bluetooth.getDevices();
+          if (devices.length > 0) {
+            console.log("📶 [Auto-Connect] พบอุปกรณ์ Bluetooth ที่เคยจับคู่แล้ว! กำลังเชื่อมต่ออัตโนมัติ...");
+            const device = devices[0];
+            set({ isConnectingBluetooth: true });
+            
+            const server = await device.gatt.connect();
+            
+            const uuids = [
+              '000018f0-0000-1000-8000-00805f9b34fb',
+              '0000e781-0000-1000-8000-00805f9b34fb',
+              '49535343-fe7d-295b-7f04-bf7e130d0000',
+              '00004953-0000-1000-8000-00805f9b34fb',
+              '00001101-0000-1000-8000-00805f9b34fb'
+            ];
+            
+            let targetCharacteristic: any = null;
+            for (const uuid of uuids) {
+              try {
+                const service = await server.getPrimaryService(uuid);
                 const characteristics = await service.getCharacteristics();
                 const writeChar = characteristics.find((c: any) => c.properties.write || c.properties.writeWithoutResponse);
                 if (writeChar) {
                   targetCharacteristic = writeChar;
                   break;
                 }
-              }
-            } catch (e) {}
-          }
-          
-          if (targetCharacteristic) {
-            set({
-              bluetoothDevice: device,
-              bluetoothCharacteristic: targetCharacteristic,
-              isConnectingBluetooth: false
-            });
-            console.log("📶 [Auto-Connect] เชื่อมต่อ Bluetooth อัตโนมัติสำเร็จ!");
+              } catch (e) {}
+            }
             
-            device.addEventListener('gattserverdisconnected', () => {
-              set({ bluetoothDevice: null, bluetoothCharacteristic: null });
-            });
-          } else {
-            set({ isConnectingBluetooth: false });
+            if (!targetCharacteristic) {
+              try {
+                const services = await server.getPrimaryServices();
+                for (const service of services) {
+                  const characteristics = await service.getCharacteristics();
+                  const writeChar = characteristics.find((c: any) => c.properties.write || c.properties.writeWithoutResponse);
+                  if (writeChar) {
+                    targetCharacteristic = writeChar;
+                    break;
+                  }
+                }
+              } catch (e) {}
+            }
+            
+            if (targetCharacteristic) {
+              set({
+                bluetoothDevice: device,
+                bluetoothCharacteristic: targetCharacteristic,
+                isConnectingBluetooth: false
+              });
+              console.log("📶 [Auto-Connect] เชื่อมต่อ Bluetooth อัตโนมัติสำเร็จ!");
+              
+              device.addEventListener('gattserverdisconnected', () => {
+                set({ bluetoothDevice: null, bluetoothCharacteristic: null });
+              });
+            } else {
+              set({ isConnectingBluetooth: false });
+            }
           }
+        } catch (err) {
+          console.error("📶 [Auto-Connect] เชื่อมต่อบลูทูธอัตโนมัติล้มเหลว:", err);
+          set({ isConnectingBluetooth: false });
         }
-      } catch (err) {
-        console.error("📶 [Auto-Connect] เชื่อมต่อบลูทูธอัตโนมัติล้มเหลว:", err);
-        set({ isConnectingBluetooth: false });
       }
+    } finally {
+      isAutoConnecting = false;
     }
   }
 }));
