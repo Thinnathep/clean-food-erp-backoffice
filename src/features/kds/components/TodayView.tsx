@@ -124,8 +124,8 @@ export const TodayView: React.FC = () => {
         new Set(
           memberSchedules
             .map((s) => s.package_id)
-            .filter((pid): pid is string => !!pid && isUUID(pid))
-        )
+            .filter((pid): pid is string => !!pid && isUUID(pid)),
+        ),
       );
 
       if (pids.length === 0) return;
@@ -230,7 +230,7 @@ export const TodayView: React.FC = () => {
 
           let fullText =
             "[B] ใบสั่งเตรียมอาหาร KDS\n" +
-            "[B] ใบออเดอร์อาหาร Clean Food CR\n" +
+            "[B] ออเดอร์อาหาร Clean Food CR\n" +
             "--------------------------------\n" +
             `ลูกค้า | ${memberName}\n` +
             `รอบส่ง | ${time}\n` +
@@ -1276,7 +1276,9 @@ export const TodayView: React.FC = () => {
                             return ` (มื้อที่ ${mealIndices[o.id]})`;
                           } else if (o.mealType) {
                             const matchDigit = String(o.mealType).match(/\d+/);
-                            return matchDigit ? ` (มื้อที่ ${matchDigit[0]})` : "";
+                            return matchDigit
+                              ? ` (มื้อที่ ${matchDigit[0]})`
+                              : "";
                           }
                           return "";
                         })()}
@@ -2210,16 +2212,23 @@ export const TodayView: React.FC = () => {
                                                       "text-white",
                                                   )}
                                                 >
-                                                   {order.menuName}
-                                                   {(() => {
-                                                     if (order.id && mealIndices[order.id]) {
-                                                       return ` (มื้อที่ ${mealIndices[order.id]})`;
-                                                     } else if (order.mealType) {
-                                                       const matchDigit = String(order.mealType).match(/\d+/);
-                                                       return matchDigit ? ` (มื้อที่ ${matchDigit[0]})` : "";
-                                                     }
-                                                     return "";
-                                                   })()}
+                                                  {order.menuName}
+                                                  {(() => {
+                                                    if (
+                                                      order.id &&
+                                                      mealIndices[order.id]
+                                                    ) {
+                                                      return ` (มื้อที่ ${mealIndices[order.id]})`;
+                                                    } else if (order.mealType) {
+                                                      const matchDigit = String(
+                                                        order.mealType,
+                                                      ).match(/\d+/);
+                                                      return matchDigit
+                                                        ? ` (มื้อที่ ${matchDigit[0]})`
+                                                        : "";
+                                                    }
+                                                    return "";
+                                                  })()}
                                                 </p>
                                               </div>
                                               <div className="flex flex-col items-end gap-1">

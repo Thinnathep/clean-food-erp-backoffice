@@ -259,7 +259,7 @@ export const renderTextToCanvas = (
     if (
       line === "CLEAN FOOD CR" || 
       line === "ใบสั่งเตรียมอาหาร KDS" || 
-      line === "ใบออเดอร์อาหาร Clean Food CR" ||
+      line === "ออเดอร์อาหาร Clean Food CR" ||
       (isBold && (line.includes("ใบสั่งเตรียมอาหาร") || line.includes("Clean Food") || line.includes("CLEAN FOOD")))
     ) {
       ctx.font = `${fontStyle} ${fontWeight} ${titleSize}px '${activeFont}', 'Sarabun', 'Prompt', sans-serif`;

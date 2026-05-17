@@ -323,7 +323,7 @@ export const useSystemStore = create<SystemState>((set) => ({
     if (printerMode === 'graphic') {
       const fullText = 
         "[B] ใบสั่งเตรียมอาหาร KDS\n" +
-        "[B] ใบออเดอร์อาหาร Clean Food CR\n" +
+        "[B] ออเดอร์อาหาร Clean Food CR\n" +
         "--------------------------------\n" +
         "ลูกค้า | คุณสมชาย ดีใจ\n" +
         "เบอร์โทร | 081-234-5678\n" +
