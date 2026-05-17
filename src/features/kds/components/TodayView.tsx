@@ -386,6 +386,7 @@ export const TodayView: React.FC = () => {
     // Process Member Schedules
     memberSchedules.forEach(s => {
       const memberData = Array.isArray(s.members) ? s.members[0] : s.members;
+      if (memberData?.is_banned) return;
       
       if (days[s.delivery_date]) {
         days[s.delivery_date].total += s.quantity;
