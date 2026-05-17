@@ -232,7 +232,7 @@ export const TodayView: React.FC = () => {
             "[B] ใบสั่งเตรียมอาหาร KDS\n" +
             "[B] ออเดอร์อาหาร Clean Food CR\n" +
             "--------------------------------\n" +
-            `ลูกค้า | ${memberName}\n` +
+            `ลูกค้า | คุณ${memberName}\n` +
             `รอบส่ง | ${time}\n` +
             `วันที่ | ${dayjs(selectedDate).format("DD/MM/YYYY")}\n` +
             `จำนวนกล่อง | ${item.orders.reduce((sum: number, o: any) => sum + o.qty, 0)} กล่อง\n` +
@@ -311,7 +311,7 @@ export const TodayView: React.FC = () => {
           const headerBytes = encodeThaiCP874("ใบสั่งเตรียมอาหาร KDS\n");
 
           let bodyText =
-            `สมาชิก: ${memberName}\n` +
+            `สมาชิก: คุณ${memberName}\n` +
             `รอบส่ง: ${time}\n` +
             `วันที่: ${dayjs(selectedDate).format("DD/MM/YYYY")}\n` +
             "--------------------------------\n";
@@ -672,8 +672,36 @@ export const TodayView: React.FC = () => {
         (grouped[targetLabel].categoryStats[category] || 0) + qty;
     });
 
+    Object.values(grouped).forEach((group: any) => {
+      if (group.members) {
+        Object.values(group.members).forEach((member: any) => {
+          if (member.orders && Array.isArray(member.orders)) {
+            member.orders.sort((a: any, b: any) => {
+              let mealA = 999999;
+              if (a.id && mealIndices[a.id]) {
+                mealA = mealIndices[a.id];
+              } else if (a.mealType) {
+                const matchDigit = String(a.mealType).match(/\d+/);
+                if (matchDigit) mealA = parseInt(matchDigit[0], 10);
+              }
+
+              let mealB = 999999;
+              if (b.id && mealIndices[b.id]) {
+                mealB = mealIndices[b.id];
+              } else if (b.mealType) {
+                const matchDigit = String(b.mealType).match(/\d+/);
+                if (matchDigit) mealB = parseInt(matchDigit[0], 10);
+              }
+
+              return mealA - mealB;
+            });
+          }
+        });
+      }
+    });
+
     return { groups: grouped, specialNotesCount: specialNotes };
-  }, [memberSchedules, tasks, menus, selectedDate, filterType, viewMode]);
+  }, [memberSchedules, tasks, menus, selectedDate, filterType, viewMode, mealIndices]);
 
   const weeklySummary = useMemo(() => {
     if (viewMode !== "week") return null;
