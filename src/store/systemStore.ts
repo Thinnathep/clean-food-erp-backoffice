@@ -295,11 +295,22 @@ export const useSystemStore = create<SystemState>((set) => ({
       throw new Error("กรุณาเชื่อมต่อเครื่องพิมพ์บลูทูธก่อนสั่งพิมพ์ครับ");
     }
 
-    const chunkSize = 20;
+    // Modern BLE devices easily support 120-byte chunk sizes
+    const chunkSize = 120;
+    const canWriteWithoutResponse =
+      bluetoothCharacteristic.properties.writeWithoutResponse;
+
     for (let i = 0; i < data.length; i += chunkSize) {
       const chunk = data.slice(i, i + chunkSize);
-      await bluetoothCharacteristic.writeValue(chunk);
-      await new Promise(resolve => setTimeout(resolve, 20)); // 20ms delay
+      if (canWriteWithoutResponse) {
+        await bluetoothCharacteristic.writeValueWithoutResponse(chunk);
+        // Minimal delay for streaming without response to prevent printer buffer overrun
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      } else {
+        await bluetoothCharacteristic.writeValue(chunk);
+        // Standard delay for write with response
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
     }
   },
 

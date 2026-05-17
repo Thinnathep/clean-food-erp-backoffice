@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Printer, Bluetooth, Cable } from "lucide-react";
 import { BluetoothPrinterSection } from "./BluetoothPrinterSection";
 import { SerialPrinterSection } from "./SerialPrinterSection";
+import { useSystemStore } from "../../../../store/systemStore";
 
 interface PrinterSupportCardProps {
   printerEnabled: boolean;
@@ -32,6 +33,7 @@ export const PrinterSupportCard: React.FC<PrinterSupportCardProps> = ({
   disconnectSerial,
   handleTestPrint,
 }) => {
+  const { printerMode, setPrinterMode } = useSystemStore();
   const [connectionType, setConnectionType] = useState<"bluetooth" | "serial">(() => {
     if (serialPort) return "serial";
     return "bluetooth";
@@ -134,6 +136,43 @@ export const PrinterSupportCard: React.FC<PrinterSupportCardProps> = ({
                 handleTestPrint={handleTestPrint}
               />
             )}
+          </div>
+
+          {/* Printer Mode Toggle */}
+          <div className="space-y-1.5 pt-3 border-t border-slate-100">
+            <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-2 ml-0.5">
+              โหมดการจัดรูปแบบสั่งพิมพ์ (Print Formatting Mode)
+            </span>
+            <div className="grid grid-cols-2 gap-2 bg-slate-50 p-1 rounded-xl border border-slate-100">
+              <button
+                type="button"
+                onClick={() => setPrinterMode("graphic")}
+                className={`py-1.5 px-3 rounded-lg flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold transition-all cursor-pointer ${
+                  printerMode === "graphic"
+                    ? "bg-slate-900 text-white shadow-sm"
+                    : "text-slate-500 hover:text-slate-800 hover:bg-slate-100/50"
+                }`}
+              >
+                <span>โหมดรูปภาพกราฟิก</span>
+                <span className="text-[7.5px] opacity-75 font-normal">สระภาษาไทยสมบูรณ์แบบ</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPrinterMode("text")}
+                className={`py-1.5 px-3 rounded-lg flex flex-col items-center justify-center gap-0.5 text-[10px] font-bold transition-all cursor-pointer ${
+                  printerMode === "text"
+                    ? "bg-slate-900 text-white shadow-sm"
+                    : "text-slate-500 hover:text-slate-800 hover:bg-slate-100/50"
+                }`}
+              >
+                <span className="flex items-center gap-1">โหมดตัวอักษร ⚡ เร็วทันที</span>
+                <span className="text-[7.5px] opacity-75 font-normal">คมชัดสูง / พิมพ์เสร็จใน 1 วินาที</span>
+              </button>
+            </div>
+            <p className="text-[9px] text-amber-600 font-bold leading-normal ml-0.5 mt-1 bg-amber-50/50 p-2.5 rounded-xl border border-amber-100/50">
+              💡 <strong>คำแนะนำสำหรับมือถือ/iPad:</strong> หากพิมพ์โหมดกราฟิกแล้วช้ามาก ("กึดๆๆ") หรือตัวอักษรเบลอ ให้เปลี่ยนมาใช้ <strong>"โหมดตัวอักษร ⚡ เร็วทันที"</strong> เพื่อความเร็วสูงสุดและตัวหนังสือที่คมชัดดั้งเดิมครับ!
+            </p>
           </div>
 
           {/* Quick Info */}
