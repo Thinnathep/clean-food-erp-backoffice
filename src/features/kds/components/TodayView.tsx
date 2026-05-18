@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useState } from "react";
+import React, { useMemo, useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChefHat,
@@ -12,8 +12,12 @@ import {
   X,
   Printer,
   Sparkles,
+  Info,
   Power,
+  Download,
+  Copy,
 } from "lucide-react";
+import html2canvas from "html2canvas";
 import dayjs from "dayjs";
 import "dayjs/locale/th";
 import { usePlannerStore } from "../../../store/plannerStore";
@@ -1223,6 +1227,151 @@ export const TodayView: React.FC = () => {
     time: string;
   } | null>(null);
 
+  const ticketRef = useRef<HTMLDivElement>(null);
+
+  const handleSaveAsPNG = async () => {
+    if (!nutritionModal || !ticketRef.current) return;
+
+    const toastId = toast.loading("กำลังเตรียมจัดทำไฟล์รูปภาพสลิป PNG...");
+    try {
+      const canvas = await html2canvas(ticketRef.current, {
+        scale: 2.5, // Crisp resolution for high-density reading
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+        onclone: (_clonedDoc, clonedElement) => {
+          if (!ticketRef.current || !clonedElement) return;
+
+          // Helper to dynamically translate oklch() color strings into safe rgba() format using native Canvas2D parsing
+          const resolveOklchColor = (colorStr: string): string => {
+            if (!colorStr || typeof colorStr !== 'string') return colorStr;
+            if (!colorStr.includes('oklch')) return colorStr;
+            
+            try {
+              const tempCanvas = document.createElement('canvas');
+              tempCanvas.width = 1;
+              tempCanvas.height = 1;
+              const ctx = tempCanvas.getContext('2d');
+              if (!ctx) return colorStr;
+              
+              ctx.fillStyle = colorStr;
+              ctx.fillRect(0, 0, 1, 1);
+              const data = ctx.getImageData(0, 0, 1, 1).data;
+              return `rgba(${data[0]}, ${data[1]}, ${data[2]}, ${data[3] / 255})`;
+            } catch (e) {
+              return colorStr;
+            }
+          };
+
+          // 1. Copy and resolve ONLY color properties to keep exact visual colors (green, rose, slate)
+          const colorProps = [
+            'color', 'backgroundColor', 'borderColor',
+            'borderTopColor', 'borderBottomColor', 'borderLeftColor', 'borderRightColor'
+          ];
+
+          const copyColorStyles = (src: HTMLElement, dest: HTMLElement) => {
+            const computed = window.getComputedStyle(src);
+            colorProps.forEach(prop => {
+              const val = computed.getPropertyValue(prop) || (computed as any)[prop];
+              if (val) {
+                const resolvedColor = resolveOklchColor(val);
+                dest.style.setProperty(prop, resolvedColor);
+              }
+            });
+          };
+
+          // Copy color styles for the root cloned element
+          copyColorStyles(ticketRef.current, clonedElement);
+
+          // Copy color styles for all descendants
+          const originalElements = ticketRef.current.getElementsByTagName("*");
+          const clonedElements = clonedElement.getElementsByTagName("*");
+          
+          for (let i = 0; i < originalElements.length; i++) {
+            const origEl = originalElements[i] as HTMLElement;
+            const cloneEl = clonedElements[i] as HTMLElement;
+            if (origEl && cloneEl) {
+              copyColorStyles(origEl, cloneEl);
+            }
+          }
+
+          // 2. Sanitize all <style> tags in the cloned document by replacing oklch definitions with standard colors
+          // This keeps the stylesheet fully active for layout (so no squishing/overlapping!) but makes it crash-free.
+          const styleTags = _clonedDoc.getElementsByTagName('style');
+          for (let i = 0; i < styleTags.length; i++) {
+            const tag = styleTags[i];
+            if (tag.textContent && tag.textContent.includes('oklch')) {
+              tag.textContent = tag.textContent.replace(/oklch\([^)]+\)/g, 'rgb(30, 41, 59)');
+            }
+          }
+
+          // 3. Recursive CSS rule sanitizer for same-origin stylesheets (including linked css files)
+          const sanitizeRule = (rule: CSSRule, sheet: CSSStyleSheet | CSSGroupingRule, index: number) => {
+            try {
+              if (rule.cssText && rule.cssText.includes('oklch')) {
+                const groupingRule = rule as CSSGroupingRule;
+                if (groupingRule.cssRules) {
+                  for (let k = groupingRule.cssRules.length - 1; k >= 0; k--) {
+                    sanitizeRule(groupingRule.cssRules[k], groupingRule, k);
+                  }
+                } else {
+                  const newCssText = rule.cssText.replace(/oklch\([^)]+\)/g, 'rgb(30, 41, 59)');
+                  try {
+                    sheet.deleteRule(index);
+                    sheet.insertRule(newCssText, index);
+                  } catch (err) {
+                    try {
+                      sheet.deleteRule(index);
+                    } catch (e) {}
+                  }
+                }
+              }
+            } catch (e) {}
+          };
+
+          try {
+            const sheets = _clonedDoc.styleSheets;
+            for (let i = 0; i < sheets.length; i++) {
+              try {
+                const sheet = sheets[i];
+                const rules = sheet.cssRules || sheet.rules;
+                if (!rules) continue;
+                for (let j = rules.length - 1; j >= 0; j--) {
+                  sanitizeRule(rules[j], sheet, j);
+                }
+              } catch (e) {
+                // Ignore security exceptions for cross-origin stylesheets
+              }
+            }
+          } catch (e) {}
+        }
+      });
+
+      const dataUrl = canvas.toDataURL("image/png");
+
+      const link = document.createElement("a");
+      link.href = dataUrl;
+
+      const dateStr = dayjs(selectedDate).format("YYYYMMDD");
+      const cleanName = nutritionModal.memberName.replace(/[^a-zA-Z0-9ก-๙]/g, "");
+      link.download = `CF_Slip_${cleanName}_${dateStr}.png`;
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success("บันทึกสลิปใบเสร็จ (.png) เรียบร้อยแล้ว! 💾", {
+        id: toastId,
+        description: "รูปภาพนามสกุล PNG คมชัดสูง อ่านง่ายสะดวกย้อนหลัง",
+      });
+    } catch (err: any) {
+      console.error("Failed to generate PNG image:", err);
+      toast.error("บันทึกสลิปรูปภาพล้มเหลว: " + err.message, {
+        id: toastId,
+      });
+    }
+  };
+
   const handleCopyNutrition = (memberName: string, item: any, time: string) => {
     const dateStr = dayjs(selectedDate).locale("th").format("DD MMMM YYYY");
     let text = `📋 ข้อมูลโภชนาการประจำวันที่ ${dateStr}\n`;
@@ -1270,128 +1419,287 @@ export const TodayView: React.FC = () => {
           </button>
         </div>
       )}
-      {/* Nutrition Modal */}
+      {/* Nutrition Modal / Upgraded Details & Digital Slip */}
       <AnimatePresence>
         {nutritionModal && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md"
           >
             <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-white rounded-[32px] shadow-2xl w-full max-w-md overflow-hidden"
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="bg-[#F8FAFC] rounded-[36px] shadow-2xl w-full max-w-7xl md:w-[94vw] overflow-hidden border border-slate-100 flex flex-col max-h-[95vh] h-[92vh]"
             >
-              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              {/* Modal Header */}
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
                 <div>
-                  <h3 className="text-xl font-bold text-slate-900 leading-none">
-                    ข้อมูลโภชนาการ
+                  <h3 className="text-xl font-black text-slate-900 leading-none">
+                    รายละเอียดและสลิปโภชนาการ
                   </h3>
-                  <p className="text-base font-bold text-slate-900 mt-1 uppercase tracking-tight">
-                    {nutritionModal.memberName}
+                  <p className="text-[11px] font-bold text-slate-400 mt-1.5 uppercase tracking-wider">
+                    Order Details & Nutrition Slip
                   </p>
                 </div>
                 <button
                   onClick={() => setNutritionModal(null)}
-                  className="p-2 hover:bg-white rounded-xl transition-colors shadow-sm text-slate-400 hover:text-slate-900 active:scale-90"
+                  className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all flex items-center justify-center border border-slate-100 shadow-sm"
                 >
                   <X size={20} />
                 </button>
               </div>
-              <div className="p-5 max-h-[50vh] overflow-y-auto space-y-2 custom-scrollbar">
-                {nutritionModal.item.orders.map((o: any, idx: number) => (
-                  <motion.div
-                    key={idx}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: idx * 0.05 }}
-                    className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between gap-3"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="font-bold text-slate-900 text-base truncate">
-                        {o.menuName}
-                        {(() => {
-                          if (o.id && mealIndices[o.id]) {
-                            return ` (มื้อที่ ${mealIndices[o.id]})`;
-                          } else if (o.mealType) {
-                            const matchDigit = String(o.mealType).match(/\d+/);
-                            return matchDigit
-                              ? ` (มื้อที่ ${matchDigit[0]})`
-                              : "";
-                          }
-                          return "";
-                        })()}
-                      </p>
-                      <p className="text-[11px] text-slate-500 font-bold uppercase tracking-tight mt-0.5">
-                        🔥{" "}
-                        <span className="text-slate-900 font-bold">
-                          {o.kcal * o.qty}
-                        </span>{" "}
-                        KCAL | {o.macros}
-                      </p>
+
+              {/* Modal Body - Dual Column Grid */}
+              <div className="flex-1 overflow-y-auto md:overflow-hidden p-6 pb-16 md:p-8 bg-slate-50/50 flex flex-col min-h-0 custom-scrollbar">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start md:items-stretch flex-1 min-h-0">
+                  
+                   {/* Left Column: Interactive Details */}
+                  <div className="md:col-span-7 flex flex-col md:h-full md:min-h-0 space-y-5">
+                    {/* Customer & Delivery Card */}
+                    <div className="bg-white rounded-[20px] p-5 shadow-sm border border-slate-100 space-y-3 shrink-0">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] text-indigo-500 uppercase tracking-widest bg-indigo-50 px-2.5 py-0.5 rounded font-medium">
+                          ข้อมูลจัดส่ง (Delivery Info)
+                        </span>
+                        {/* Status Badge */}
+                        <span className={cn(
+                          "px-2.5 py-1 rounded-lg text-[10px] font-medium border",
+                          nutritionModal.item.orders.every((o: any) => o.status === "ready" || o.status === "done" || o.status === "เสร็จสิ้น")
+                            ? "bg-emerald-50 text-emerald-600 border-emerald-100"
+                            : "bg-amber-50 text-amber-600 border-amber-100"
+                        )}>
+                          {nutritionModal.item.orders.every((o: any) => o.status === "ready" || o.status === "done" || o.status === "เสร็จสิ้น")
+                            ? "จัดเตรียมแล้ว"
+                            : "รอจัดเตรียม"}
+                        </span>
+                      </div>
+
+                      {/* Clean Tabular Customer Info - Matching the Print structure but beautifully styled */}
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-2.5 pt-3 border-t border-slate-100 text-xs text-slate-600">
+                        <div className="flex justify-between border-b border-dashed border-slate-100 pb-1">
+                          <span className="text-slate-400">ลูกค้า (Customer):</span>
+                          <span className="text-slate-800 font-normal">คุณ{nutritionModal.memberName}</span>
+                        </div>
+                        <div className="flex justify-between border-b border-dashed border-slate-100 pb-1">
+                          <span className="text-slate-400">รอบส่ง (Round):</span>
+                          <span className="text-slate-800 font-normal">{nutritionModal.time}</span>
+                        </div>
+                        <div className="flex justify-between border-b border-dashed border-slate-100 pb-1">
+                          <span className="text-slate-400">วันที่ (Date):</span>
+                          <span className="text-slate-800 font-normal">{dayjs(selectedDate).format("DD/MM/YYYY")}</span>
+                        </div>
+                        <div className="flex justify-between border-b border-dashed border-slate-100 pb-1">
+                          <span className="text-slate-400">จำนวน (Quantity):</span>
+                          <span className="text-slate-800 font-normal">
+                            {nutritionModal.item.orders.reduce((sum: number, o: any) => sum + o.qty, 0)} กล่อง
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex flex-col items-center justify-center bg-white px-2.5 py-1 rounded-xl shadow-sm border border-slate-100 min-w-[40px]">
-                      <span className="text-[12px] font-black text-slate-900">
-                        x{o.qty}
-                      </span>
+
+                    {/* List of Dishes */}
+                    <div className="space-y-3 md:flex-1 flex flex-col md:min-h-0">
+                      <p className="text-xs text-slate-400 uppercase tracking-widest pl-2 shrink-0">รายการเตรียมอาหาร</p>
+                      
+                      <div className="space-y-2.5 md:overflow-y-auto custom-scrollbar pr-1 md:flex-1 md:min-h-0 overflow-visible">
+                        {nutritionModal.item.orders.map((o: any, idx: number) => (
+                          <div key={idx} className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col gap-2 hover:border-slate-200 transition-colors">
+                            {/* Food Row: Title and Qty */}
+                            <div className="flex justify-between items-start gap-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-1.5 mb-1">
+                                  <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[o.category] || "#CBD5E1" }} />
+                                  <span className="text-[9px] text-slate-400 uppercase tracking-wider">{o.category}</span>
+                                </div>
+                                <h5 className="text-sm text-slate-800 font-normal leading-snug">
+                                  {o.menuName}
+                                  {(() => {
+                                    if (o.id && mealIndices[o.id]) {
+                                      return ` (มื้อที่ ${mealIndices[o.id]})`;
+                                    } else if (o.mealType) {
+                                      const matchDigit = String(o.mealType).match(/\d+/);
+                                      return matchDigit ? ` (มื้อที่ ${matchDigit[0]})` : "";
+                                    }
+                                    return "";
+                                  })()}
+                                </h5>
+                              </div>
+                              <span className="text-xs text-slate-600 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100 font-normal shrink-0">
+                                x{o.qty}
+                              </span>
+                            </div>
+
+                            {/* Macro Info row - matching print macros info exactly but clean and light */}
+                            <div className="pt-2 border-t border-dashed border-slate-50 flex justify-between items-center text-[10.5px]">
+                              <span className="text-slate-400">โภชนาการอาหาร</span>
+                              <div className="flex gap-3 text-slate-500 font-normal">
+                                <span>🔥 {o.kcal * o.qty} KCAL</span>
+                                <span>•</span>
+                                <span className="text-slate-500">P: {o.protein}g</span>
+                                <span className="text-slate-500">C: {o.carbs}g</span>
+                                <span className="text-slate-500">F: {o.fat}g</span>
+                              </div>
+                            </div>
+
+                            {/* Note pill - extremely compact and not bold */}
+                            {o.note && (
+                              <div className="mt-1 bg-rose-50 border border-rose-100 p-2.5 rounded-xl flex items-start gap-2">
+                                <AlertTriangle size={13} className="text-rose-500 shrink-0 mt-0.5" />
+                                <p className="text-[11px] font-normal text-rose-700 leading-tight">
+                                  {o.note}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </motion.div>
-                ))}
-              </div>
-              <div className="p-6 bg-slate-900 text-white relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl -mr-16 -mt-16" />
-                <div className="flex justify-between items-end mb-6 relative z-10">
-                  <div>
-                    <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-1">
-                      ยอดรวมโภชนาการประจำวัน
-                    </p>
-                    <h4 className="text-4xl font-bold tracking-tighter">
-                      {nutritionModal.item.totalKcal}{" "}
-                      <span className="text-sm font-bold opacity-30 tracking-normal ml-1">
-                        KCAL
-                      </span>
-                    </h4>
                   </div>
-                  <div className="text-right">
-                    <div className="flex flex-col items-end gap-0.5">
-                      <p className="text-[13px] font-bold tracking-widest leading-none">
-                        <span className="text-slate-400">P:</span>
-                        <span className="text-blue-400">
-                          {Math.max(0, nutritionModal.item.totalP).toFixed(0)}
-                        </span>
-                      </p>
-                      <p className="text-[13px] font-bold tracking-widest leading-none">
-                        <span className="text-slate-400">C:</span>
-                        <span className="text-emerald-400">
-                          {Math.max(0, nutritionModal.item.totalC).toFixed(0)}
-                        </span>
-                      </p>
-                      <p className="text-[13px] font-bold tracking-widest leading-none">
-                        <span className="text-slate-400">F:</span>
-                        <span className="text-amber-400">
-                          {Math.max(0, nutritionModal.item.totalF).toFixed(0)}
-                        </span>
-                      </p>
+
+                  {/* Right Column: Ticket Preview */}
+                  <div className="md:col-span-5 flex flex-col items-center gap-4 md:h-full md:min-h-0 justify-between w-full">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest w-full text-center shrink-0">ใบเสร็จดิจิทัลโภชนาการ (Digital Slip)</p>
+                    
+                    {/* Ticket Outer Wrapper - representing a physical receipt roll */}
+                    <div className="relative w-full max-w-[340px] md:flex-1 md:overflow-y-auto custom-scrollbar py-1 shrink md:min-h-0 overflow-visible">
+                      {/* Ticket Header Dark Top bar */}
+                      <div className="h-1.5 bg-slate-900 rounded-t-xl w-full"></div>
+                      
+                      {/* Main Ticket Target - Thermal Receipt Monochrome Simulator */}
+                      <div 
+                        ref={ticketRef} 
+                        className="bg-white p-6 pb-8 text-black border-x border-slate-200 text-left select-none relative overflow-hidden flex flex-col"
+                        style={{ fontFamily: "'Courier New', Courier, monospace" }}
+                      >
+                        {/* Header Brand */}
+                        <div className="text-center space-y-1 mb-3 text-black">
+                          <h5 className="text-sm font-bold tracking-tight uppercase leading-none">ใบสั่งเตรียมอาหาร KDS</h5>
+                          <h6 className="text-[10px] font-bold uppercase leading-none mt-1.5">ใบออเดอร์อาหาร Clean Food CR</h6>
+                        </div>
+                        
+                        <div className="border-b border-dashed border-slate-400 my-2"></div>
+                        
+                        {/* Ticket Info */}
+                        <div className="space-y-1.5 text-xs text-black">
+                          <div className="flex justify-between">
+                            <span className="text-slate-900">ลูกค้า</span>
+                            <span className="font-bold">คุณ{nutritionModal.memberName}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-900">รอบส่ง</span>
+                            <span className="font-bold">{nutritionModal.time}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-900">วันที่</span>
+                            <span className="font-bold">{dayjs(selectedDate).format("DD/MM/YYYY")}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-900">จำนวนกล่อง</span>
+                            <span className="font-bold">
+                              {nutritionModal.item.orders.reduce((sum: number, o: any) => sum + o.qty, 0)} กล่อง
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <div className="border-b border-dashed border-slate-400 my-2"></div>
+                        
+                        {/* Itemized List */}
+                        <div className="space-y-2.5 text-black">
+                          {nutritionModal.item.orders.map((o: any, idx: number) => {
+                            let mealNumText = "";
+                            if (o.id && mealIndices[o.id]) {
+                              mealNumText = ` (มื้อที่ ${mealIndices[o.id]})`;
+                            } else if (o.mealType) {
+                              const matchDigit = String(o.mealType).match(/\d+/);
+                              mealNumText = matchDigit ? ` (มื้อที่ ${matchDigit[0]})` : "";
+                            }
+                            return (
+                              <div key={idx} className="space-y-0.5 text-xs">
+                                <div className="flex justify-between items-start gap-2">
+                                  <span className="font-bold leading-tight">
+                                    {o.menuName}{mealNumText}
+                                  </span>
+                                  <span className="font-bold shrink-0">x{o.qty}</span>
+                                </div>
+                                {o.note && (
+                                  <div className="text-[10px] text-black font-normal">
+                                    *โน้ต: {o.note}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        
+                        <div className="border-b border-dashed border-slate-400 my-2"></div>
+                        
+                        {/* Summary Totals */}
+                        <div className="space-y-1.5 text-xs text-black">
+                          <div className="flex justify-between font-bold">
+                            <span>พลังงานรวม</span>
+                            <span>{Math.max(0, nutritionModal.item.totalKcal)} KCAL</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>โปรตีน (Protein)</span>
+                            <span>{Math.max(0, nutritionModal.item.totalP).toFixed(1)} g</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>คาร์โบไฮเดรต (Carbs)</span>
+                            <span>{Math.max(0, nutritionModal.item.totalC).toFixed(1)} g</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>ไขมัน (Fat)</span>
+                            <span>{Math.max(0, nutritionModal.item.totalF).toFixed(1)} g</span>
+                          </div>
+                        </div>
+                        
+                        <div className="border-b border-dashed border-slate-400 my-2"></div>
+                        
+                        {/* Receipt Footer with Remark Note */}
+                        <div className="text-center space-y-3 text-black">
+                          <p className="text-[9px] text-slate-600 leading-tight">
+                            *หมายเหตุ: ข้อมูลโภชนาการเป็นค่าประมาณการ<br/>อาจจะคลาดเคลื่อนเล็กน้อย
+                          </p>
+                          <p className="text-[9px] text-black leading-tight">
+                            ขอบคุณที่ให้เราดูแลสุขภาพของคุณนะคะ<br/>
+                            ทานให้อร่อยและสุขภาพแข็งแรงในทุกๆ วันนะคะ ♥
+                          </p>
+                        </div>
+                      </div>
+                      
+                      {/* Ticket bottom jagged/dashed edge visual */}
+                      <div className="h-3 bg-white w-full rounded-b-xl border-x border-b border-slate-200 relative overflow-hidden flex gap-1 px-2">
+                        {Array.from({ length: 15 }).map((_, i) => (
+                          <div key={i} className="w-4 h-4 bg-slate-50 rounded-full -mt-2 shrink-0 border border-slate-200/20"></div>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    {/* Buttons Panel */}
+                    <div className="w-full max-w-[340px] space-y-3 pb-6 md:pb-0">
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={handleSaveAsPNG}
+                        className="w-full py-3.5 bg-slate-900 hover:bg-slate-950 text-white rounded-2xl font-bold flex items-center justify-center gap-3 transition-all shadow-lg shadow-slate-900/20 text-sm cursor-pointer"
+                      >
+                        <Download size={18} /> บันทึกสลิปรูปภาพ (PNG) 💾
+                      </motion.button>
+                      
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => handleCopyNutrition(nutritionModal.memberName, nutritionModal.item, nutritionModal.time)}
+                        className="w-full py-3.5 bg-white hover:bg-slate-50 border border-slate-200 rounded-2xl text-slate-700 font-bold flex items-center justify-center gap-2 transition-all text-sm cursor-pointer"
+                      >
+                        <Copy size={16} className="text-slate-400" /> คัดลอกข้อความสรุป 📋
+                      </motion.button>
                     </div>
                   </div>
                 </div>
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() =>
-                    handleCopyNutrition(
-                      nutritionModal.memberName,
-                      nutritionModal.item,
-                      nutritionModal.time,
-                    )
-                  }
-                  className="w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-white rounded-2xl font-bold flex items-center justify-center gap-3 transition-all shadow-lg shadow-emerald-500/20"
-                >
-                  <Sparkles size={20} /> คัดลอกข้อมูลสรุป
-                </motion.button>
               </div>
             </motion.div>
           </motion.div>
@@ -2372,7 +2680,7 @@ export const TodayView: React.FC = () => {
                                         }}
                                         className="flex items-center justify-center gap-2 py-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-[10px] font-bold text-slate-600 transition-all border border-slate-100"
                                       >
-                                        <Printer size={13} /> พิมพ์ใบสั่ง
+                                        <Printer size={13} /> พิมพ์
                                       </motion.button>
                                     )}
                                     <motion.button
@@ -2389,7 +2697,7 @@ export const TodayView: React.FC = () => {
                                       }}
                                       className="flex items-center justify-center gap-2 py-2 bg-emerald-50 hover:bg-emerald-100 rounded-xl text-[10px] font-bold text-emerald-600 transition-all border border-emerald-100 w-full"
                                     >
-                                      <Sparkles size={13} /> โภชนาการ
+                                      <Info size={13} /> รายละเอียด
                                     </motion.button>
                                   </div>
                                 </div>
