@@ -278,9 +278,10 @@ export const TodayView: React.FC = () => {
 
           // Warm thank you greetings in thin italic text
           fullText +=
-            "[I] *หมายเหตุ:ข้อมูลโภชนาการเป็นค่าประมาณการ อาจจะคลาดเคลื่อนเล็กน้อย\n\n";
-          fullText += "[I] ขอบคุณที่ให้เราดูแลสุขภาพของคุณนะคะ\n";
-          fullText += "[I] ทานให้อร่อยและสุขภาพแข็งแรงในทุกๆ วันนะคะ ♥\n";
+            "[I][C] *หมายเหตุ: ข้อมูลโภชนาการเป็นค่าประมาณการ\n" +
+            "[I][C] อาจจะคลาดเคลื่อนเล็กน้อย\n\n";
+          fullText += "[I][C] ขอบคุณที่ให้เราดูแลสุขภาพของคุณนะคะ\n";
+          fullText += "[I][C] ทานให้อร่อยและสุขภาพแข็งแรงในทุกๆ วันนะคะ ♥\n";
 
           const canvas = renderTextToCanvas(fullText, 576, thaiFont);
           const imgBytes = convertCanvasToEscPosBytes(canvas);
@@ -331,12 +332,16 @@ export const TodayView: React.FC = () => {
           bodyText += "--------------------------------\n";
           bodyText += `โภชนาการรวม: ${item.totalKcal} KCAL\n`;
           bodyText += "--------------------------------\n";
-          bodyText +=
-            "*ข้อมูลโภชนาการเป็นค่าประมาณ อาจจะคลาดเคลื่อนเล็กน้อย\n\n";
-          bodyText += "ขอบคุณที่ให้เราดูแลสุขภาพของคุณนะคะ\n";
-          bodyText += "ทานให้อร่อยและสุขภาพแข็งแรงในทุกๆ วันนะคะ ♥\n";
 
           const bodyBytes = encodeThaiOverprint(bodyText);
+
+          const footerText =
+            "*ข้อมูลโภชนาการเป็นค่าประมาณการ\n" +
+            "อาจจะคลาดเคลื่อนเล็กน้อย\n\n" +
+            "ขอบคุณที่ให้เราดูแลสุขภาพของคุณนะคะ\n" +
+            "ทานให้อร่อยและสุขภาพแข็งแรงในทุกๆ วันนะคะ ♥\n";
+
+          const footerBytes = encodeThaiOverprint(footerText);
 
           finalBytes = new Uint8Array([
             ...esc,
@@ -348,6 +353,10 @@ export const TodayView: React.FC = () => {
             0x61,
             0x00, // Left align
             ...Array.from(bodyBytes),
+            0x1b,
+            0x61,
+            0x01, // Center align for footer
+            ...Array.from(footerBytes),
             0x0a,
             0x0a,
             0x0a,

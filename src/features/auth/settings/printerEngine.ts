@@ -223,19 +223,29 @@ export const renderTextToCanvas = (
       ? Math.max(23, (i * lineHeight + lineHeight / 2) - 6)
       : (i * lineHeight + lineHeight / 2) - 6;
     
-    // Check if line should be bold or italic
+    // Check if line should be bold, italic or centered
     let isBold = false;
     let isItalic = false;
+    let isCenter = false;
     
-    if (line.startsWith("[I]")) {
-      isItalic = true;
-      line = line.substring(3).trim();
-    } else if (line.startsWith("**") && line.endsWith("**")) {
+    while (true) {
+      if (line.startsWith("[I]")) {
+        isItalic = true;
+        line = line.substring(3).trim();
+      } else if (line.startsWith("[B]")) {
+        isBold = true;
+        line = line.substring(3).trim();
+      } else if (line.startsWith("[C]")) {
+        isCenter = true;
+        line = line.substring(3).trim();
+      } else {
+        break;
+      }
+    }
+    
+    if (line.startsWith("**") && line.endsWith("**")) {
       isBold = true;
       line = line.substring(2, line.length - 2).trim();
-    } else if (line.startsWith("[B]")) {
-      isBold = true;
-      line = line.substring(3).trim();
     }
 
     const fontWeight = isBold ? 'bold' : 'normal';
@@ -258,14 +268,16 @@ export const renderTextToCanvas = (
       continue;
     }
     
-    // Center-align main headers
-    if (
+    // Center-align main headers or lines with [C] tag
+    const isTitleLine = 
       line === "CLEAN FOOD CR" || 
       line === "ใบสั่งเตรียมอาหาร KDS" || 
       line === "ออเดอร์อาหาร Clean Food CR" ||
-      (isBold && (line.includes("ใบสั่งเตรียมอาหาร") || line.includes("Clean Food") || line.includes("CLEAN FOOD")))
-    ) {
-      ctx.font = `${fontStyle} ${fontWeight} ${titleSize}px '${activeFont}', 'Sarabun', 'Prompt', sans-serif`;
+      (!isCenter && isBold && (line.includes("ใบสั่งเตรียมอาหาร") || line.includes("Clean Food") || line.includes("CLEAN FOOD")));
+
+    if (isCenter || isTitleLine) {
+      const fontSize = isTitleLine ? titleSize : bodySize;
+      ctx.font = `${fontStyle} ${fontWeight} ${fontSize}px '${activeFont}', 'Sarabun', 'Prompt', sans-serif`;
       ctx.textAlign = 'center';
       ctx.fillText(line, width / 2, y);
     } else if (line.includes(" | ")) {
