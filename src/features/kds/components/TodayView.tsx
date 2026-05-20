@@ -75,6 +75,84 @@ const CATEGORY_COLORS: Record<string, string> = {
   เมนูหลัก: "#475569",
 };
 
+const getCategoryBgClass = (category: string) => {
+  switch (category) {
+    case "ของหวาน":
+      return "bg-rose-600";
+    case "ทานเล่น":
+      return "bg-violet-500";
+    case "สลัด":
+      return "bg-emerald-500";
+    case "ซูวี":
+      return "bg-indigo-600";
+    case "ซุป":
+    case "ต้ม":
+    case "แกง":
+      return "bg-teal-600";
+    case "เส้น":
+      return "bg-amber-600";
+    case "ผัด":
+      return "bg-orange-600";
+    case "ชุดเซต":
+    case "เมนูหลัก":
+      return "bg-slate-600";
+    default:
+      return "bg-slate-300";
+  }
+};
+
+const getCategoryTextClass = (category: string) => {
+  switch (category) {
+    case "ของหวาน":
+      return "text-rose-600";
+    case "ทานเล่น":
+      return "text-violet-500";
+    case "สลัด":
+      return "text-emerald-500";
+    case "ซูวี":
+      return "text-indigo-600";
+    case "ซุป":
+    case "ต้ม":
+    case "แกง":
+      return "text-teal-600";
+    case "เส้น":
+      return "text-amber-600";
+    case "ผัด":
+      return "text-orange-600";
+    case "ชุดเซต":
+    case "เมนูหลัก":
+      return "text-slate-600";
+    default:
+      return "text-slate-500";
+  }
+};
+
+const getCategoryBgLightClass = (category: string) => {
+  switch (category) {
+    case "ของหวาน":
+      return "bg-rose-600/20";
+    case "ทานเล่น":
+      return "bg-violet-500/20";
+    case "สลัด":
+      return "bg-emerald-500/20";
+    case "ซูวี":
+      return "bg-indigo-600/20";
+    case "ซุป":
+    case "ต้ม":
+    case "แกง":
+      return "bg-teal-600/20";
+    case "เส้น":
+      return "bg-amber-600/20";
+    case "ผัด":
+      return "bg-orange-600/20";
+    case "ชุดเซต":
+    case "เมนูหลัก":
+      return "bg-slate-600/20";
+    default:
+      return "bg-slate-100/20";
+  }
+};
+
 const getCleanTimeLabel = (rawTime: string) => {
   if (!rawTime) return "ออเดอร์สั่งด่วน (Retail)";
   const timeMatch = rawTime.match(/(\d{1,2})[:.](\d{2})/);
@@ -1456,6 +1534,8 @@ export const TodayView: React.FC = () => {
                 <button
                   onClick={() => setNutritionModal(null)}
                   className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all flex items-center justify-center border border-slate-100 shadow-sm"
+                  title="ปิด"
+                  aria-label="ปิด"
                 >
                   <X size={20} />
                 </button>
@@ -1520,7 +1600,7 @@ export const TodayView: React.FC = () => {
                             <div className="flex justify-between items-start gap-4">
                               <div className="flex-1">
                                 <div className="flex items-center gap-1.5 mb-1">
-                                  <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[o.category] || "#CBD5E1" }} />
+                                  <span className={cn("w-1.5 h-1.5 rounded-full", getCategoryBgClass(o.category))} />
                                   <span className="text-[9px] text-slate-400 uppercase tracking-wider">{o.category}</span>
                                 </div>
                                 <h5 className="text-sm text-slate-800 font-normal leading-snug">
@@ -1580,8 +1660,7 @@ export const TodayView: React.FC = () => {
                       {/* Main Ticket Target - Thermal Receipt Monochrome Simulator */}
                       <div 
                         ref={ticketRef} 
-                        className="bg-white p-6 pb-8 text-black border-x border-slate-200 text-left select-none relative overflow-hidden flex flex-col"
-                        style={{ fontFamily: "'Courier New', Courier, monospace" }}
+                        className="bg-white p-6 pb-8 text-black border-x border-slate-200 text-left select-none relative overflow-hidden flex flex-col font-receipt"
                       >
                         {/* Header Brand */}
                         <div className="text-center space-y-1 mb-3 text-black">
@@ -1866,6 +1945,8 @@ export const TodayView: React.FC = () => {
                 <button
                   onClick={() => setFilterType("all")}
                   className="px-2 text-slate-300 hover:text-slate-500"
+                  title="ล้างตัวกรอง"
+                  aria-label="ล้างตัวกรอง"
                 >
                   <X size={14} />
                 </button>
@@ -1892,6 +1973,8 @@ export const TodayView: React.FC = () => {
               <button
                 onClick={() => changeDate(-1)}
                 className="p-2.5 hover:bg-slate-50 text-slate-400 hover:text-slate-900 rounded-xl transition-all"
+                title="วันก่อนหน้า"
+                aria-label="วันก่อนหน้า"
               >
                 <ChevronLeft size={18} />
               </button>
@@ -1906,6 +1989,8 @@ export const TodayView: React.FC = () => {
               <button
                 onClick={() => changeDate(1)}
                 className="p-2.5 hover:bg-slate-50 text-slate-400 hover:text-slate-900 rounded-xl transition-all"
+                title="วันถัดไป"
+                aria-label="วันถัดไป"
               >
                 <ChevronRight size={18} />
               </button>
@@ -2096,6 +2181,8 @@ export const TodayView: React.FC = () => {
                         <button
                           onClick={() => setSummarySearchTerm("")}
                           className="absolute inset-y-0 right-4 flex items-center text-slate-300 hover:text-slate-500 transition-colors"
+                          title="ล้างคำค้นหา"
+                          aria-label="ล้างคำค้นหา"
                         >
                           <X size={16} />
                         </button>
@@ -2109,6 +2196,8 @@ export const TodayView: React.FC = () => {
                           setSummaryCategoryFilter(e.target.value)
                         }
                         className="w-full pl-4 pr-10 py-3 bg-slate-50 border-none rounded-2xl text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:bg-white transition-all shadow-inner appearance-none cursor-pointer"
+                        title="เลือกหมวดหมู่"
+                        aria-label="เลือกหมวดหมู่"
                       >
                         <option value="all">ทุกหมวดหมู่</option>
                         {Array.from(new Set(Object.keys(CATEGORY_PRIORITY)))
@@ -2158,11 +2247,10 @@ export const TodayView: React.FC = () => {
                       <div key={category} className="p-4 md:p-6">
                         <div className="flex items-center gap-2 mb-4">
                           <div
-                            className="w-1.5 h-5 rounded-full"
-                            style={{
-                              backgroundColor:
-                                CATEGORY_COLORS[category] || "#cbd5e1",
-                            }}
+                            className={cn(
+                              "w-1.5 h-5 rounded-full",
+                              getCategoryBgClass(category),
+                            )}
                           />
                           <h4 className="text-[13px] font-bold text-slate-600 uppercase tracking-widest">
                             {category}
@@ -2207,12 +2295,11 @@ export const TodayView: React.FC = () => {
                               >
                                 <div className="flex items-center gap-2 min-w-0">
                                   <div
-                                    className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-                                    style={{
-                                      backgroundColor: `${CATEGORY_COLORS[category] || "#f1f5f9"}20`,
-                                      color:
-                                        CATEGORY_COLORS[category] || "#64748b",
-                                    }}
+                                    className={cn(
+                                      "w-7 h-7 rounded-lg flex items-center justify-center shrink-0",
+                                      getCategoryBgLightClass(category),
+                                      getCategoryTextClass(category),
+                                    )}
                                   >
                                     <ChefHat size={14} />
                                   </div>
@@ -2541,13 +2628,10 @@ export const TodayView: React.FC = () => {
                                               <div className="flex-1">
                                                 <div className="flex items-center gap-2 mb-1.5">
                                                   <span
-                                                    className="w-2 h-2 rounded-full"
-                                                    style={{
-                                                      backgroundColor:
-                                                        CATEGORY_COLORS[
-                                                          order.category
-                                                        ] || "#CBD5E1",
-                                                    }}
+                                                    className={cn(
+                                                      "w-2 h-2 rounded-full",
+                                                      getCategoryBgClass(order.category),
+                                                    )}
                                                   ></span>
                                                   <span
                                                     className={cn(
@@ -2749,6 +2833,9 @@ export const TodayView: React.FC = () => {
         @media print {
           .custom-scrollbar { overflow: visible !important; }
         }
+        .font-receipt {
+          font-family: 'Courier New', Courier, monospace;
+        }
       `}</style>
 
       {/* Summary Detail Modal */}
@@ -2771,13 +2858,11 @@ export const TodayView: React.FC = () => {
               <div className="p-8 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
                 <div className="flex items-center gap-4">
                   <div
-                    className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-inner"
-                    style={{
-                      backgroundColor: `${CATEGORY_COLORS[selectedSummaryMenu.category] || "#f1f5f9"}20`,
-                      color:
-                        CATEGORY_COLORS[selectedSummaryMenu.category] ||
-                        "#64748b",
-                    }}
+                    className={cn(
+                      "w-12 h-12 rounded-2xl flex items-center justify-center shadow-inner",
+                      getCategoryBgLightClass(selectedSummaryMenu.category),
+                      getCategoryTextClass(selectedSummaryMenu.category),
+                    )}
                   >
                     <ChefHat size={24} />
                   </div>
@@ -2793,6 +2878,8 @@ export const TodayView: React.FC = () => {
                 <button
                   onClick={() => setSelectedSummaryMenu(null)}
                   className="w-10 h-10 rounded-xl bg-white text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all flex items-center justify-center border border-slate-100 shadow-sm"
+                  title="ปิด"
+                  aria-label="ปิด"
                 >
                   <X size={20} />
                 </button>
@@ -2915,6 +3002,8 @@ export const TodayView: React.FC = () => {
                 <button
                   onClick={() => setIsPrepSummaryOpen(false)}
                   className="w-12 h-12 rounded-2xl bg-white text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all flex items-center justify-center border border-slate-100 shadow-sm"
+                  title="ปิด"
+                  aria-label="ปิด"
                 >
                   <X size={24} />
                 </button>
