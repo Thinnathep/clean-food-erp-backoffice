@@ -169,6 +169,31 @@ export const fetchActivePackages = async (): Promise<PintoPackage[]> => {
     .order('created_at', { ascending: false });
 
   if (error) throw new Error(error.message);
+
+  // FETCH REAL COUNT TO OVERRIDE DB CLAMPING
+  // This ensures the UI is 100% accurate even if the database constraint blocked negative values in the past
+  const activeIds = data.map(p => p.id);
+  if (activeIds.length > 0) {
+     const { data: scheduleCounts } = await supabase
+       .from('erp_member_meal_schedules')
+       .select('package_id, quantity')
+       .in('package_id', activeIds)
+       .eq('is_extra_order', false)
+       .eq('is_compensatory', false);
+       
+     if (scheduleCounts) {
+       const countMap: Record<string, number> = {};
+       scheduleCounts.forEach(s => {
+          countMap[s.package_id] = (countMap[s.package_id] || 0) + (s.quantity || 1);
+       });
+       
+       data.forEach(p => {
+          const used = countMap[p.id] || 0;
+          p.meals_remaining = p.meals_total - used; // This will correctly allow negative values
+       });
+     }
+  }
+
   return data as unknown as PintoPackage[];
 };
 

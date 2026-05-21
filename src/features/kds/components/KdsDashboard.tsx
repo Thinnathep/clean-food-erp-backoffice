@@ -197,19 +197,19 @@ export const KdsDashboard: React.FC = () => {
             </div>
 
             {/* Compact Tabs */}
-            <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 overflow-x-auto scrollbar-hide w-full xl:w-auto">
+            <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 overflow-x-auto scrollbar-hide w-full xl:w-auto items-center">
               {[
-                { id: "template", label: "แม่แบบ", icon: Wand2, activeColor: "bg-indigo-600 text-white" },
-                { id: "checklist", label: "เช็คลิสต์", icon: ClipboardCheck, activeColor: "bg-indigo-600 text-white" },
-                { id: "global", label: "แผนผลิต", icon: CalendarDays, activeColor: "bg-slate-900 text-white" },
-                { id: "member", label: "แผนลูกค้า", icon: Calendar, activeColor: "bg-emerald-500 text-white" },
                 { id: "today", label: "วันนี้", icon: ChefHat, activeColor: "bg-blue-500 text-white" },
+                { id: "member", label: "แผนลูกค้า", icon: Calendar, activeColor: "bg-emerald-500 text-white" },
+                { id: "global", label: "แผนผลิต", icon: CalendarDays, activeColor: "bg-slate-900 text-white" },
+                { id: "checklist", label: "เช็คลิสต์", icon: ClipboardCheck, activeColor: "bg-indigo-600 text-white" },
+                { id: "template", label: "แม่แบบ", icon: Wand2, activeColor: "bg-indigo-600 text-white" },
                 { id: "summary", label: "สรุปยอด", icon: Package, activeColor: "bg-purple-600 text-white" },
               ].map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as Tab)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] md:text-xs font-normal whitespace-nowrap transition-all duration-300 relative ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] md:text-xs font-normal whitespace-nowrap transition-all duration-300 relative min-h-[44px] ${
                     activeTab === tab.id ? tab.activeColor : "text-slate-500 hover:text-slate-800 hover:bg-slate-200/50"
                   }`}
                 >

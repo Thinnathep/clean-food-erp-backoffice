@@ -13,21 +13,25 @@ import { FinanceCharts } from './FinanceCharts.tsx';
 import { LTVAnalysis } from './LTVAnalysis.tsx';
 import { FinanceSettings } from './FinanceSettings.tsx';
 import { PromotionBuilder } from './PromotionBuilder.tsx';
+import { PLStatement } from './PLStatement.tsx';
+import { InvoiceManager } from './InvoiceManager.tsx';
+import { CashReconciliation } from './CashReconciliation.tsx';
 import dayjs from 'dayjs';
 import { toast } from 'sonner';
 import Swal from 'sweetalert2';
 import { 
   TrendingUp, TrendingDown, RefreshCw, Sun, Moon, Package, AlertTriangle, Download, Users, Settings,
-  ChevronLeft, ChevronRight, Calculator, PiggyBank, Wallet, Receipt, History, Rocket, CheckCircle2
+  ChevronLeft, ChevronRight, Calculator, PiggyBank, Wallet, Receipt, History, Rocket, CheckCircle2,
+  FileBarChart, FileText, Coins
 } from 'lucide-react';
 
-type TabKey = 'overview' | 'income' | 'expense' | 'history' | 'simulator' | 'promotions' | 'customers' | 'settings';
+type TabKey = 'overview' | 'income' | 'expense' | 'history' | 'simulator' | 'promotions' | 'customers' | 'settings' | 'pl' | 'invoices' | 'cash_recon';
 
-export const FinanceDashboard: React.FC = () => {
+export const FinanceDashboard: React.FC<{ initialTab?: TabKey }> = ({ initialTab = 'overview' }) => {
   const { user } = useAuthStore();
   const isCEO = user?.role === 'ADMIN'; // CEO/CFO sees everything
 
-  const [activeTab, setActiveTab] = useState<TabKey>('overview');
+  const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [pools, setPools] = useState<FundPool[]>([]);
   const [buckets, setBuckets] = useState<RevenueBucket[]>([]);
@@ -71,6 +75,10 @@ export const FinanceDashboard: React.FC = () => {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
+  useEffect(() => {
+    if (initialTab) setActiveTab(initialTab);
+  }, [initialTab]);
+
   // Filter by visibility
   const visiblePools = pools.filter(p => {
     if (isCEO) return true;
@@ -93,16 +101,7 @@ export const FinanceDashboard: React.FC = () => {
   const activePackages = monthBuckets.filter(b => b.source_type === 'PACKAGE' || b.source_type === 'MUSCLE_CUSTOM').length;
   const netProfit = monthIncome - monthExpense;
 
-  const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
-    { key: 'overview', label: 'ภาพรวม', icon: <Wallet size={18} /> },
-    { key: 'income', label: 'บันทึกรายรับ', icon: <TrendingUp size={18} /> },
-    { key: 'expense', label: 'บันทึกรายจ่าย', icon: <TrendingDown size={18} /> },
-    { key: 'history', label: 'ประวัติ', icon: <History size={18} /> },
-    { key: 'promotions', label: 'สร้างโปรฯ', icon: <Rocket size={18} /> },
-    { key: 'customers', label: 'ลูกค้า (LTV)', icon: <Users size={18} /> },
-    { key: 'simulator', label: 'จำลอง Split', icon: <Calculator size={18} /> },
-    { key: 'settings', label: 'ตั้งค่า', icon: <Settings size={18} /> },
-  ];
+
 
   const handleSyncBalances = async () => {
     const result = await Swal.fire({
@@ -272,43 +271,6 @@ export const FinanceDashboard: React.FC = () => {
               <RefreshCw size={18} className={isLoading ? 'animate-spin' : ''} />
             </button>
           </div>
-        </div>
-
-        {/* Tabs */}
-        <div className={`flex gap-1 rounded-xl p-1 border transition-all ${
-          isDarkMode ? 'bg-slate-800/40 border-slate-700/50' : 'bg-slate-100 border-slate-200 shadow-inner'
-        }`}>
-          {tabs.map(tab => (
-            <motion.button
-              key={tab.key}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => setActiveTab(tab.key)}
-              className={`relative flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                activeTab === tab.key
-                  ? 'text-emerald-600'
-                  : isDarkMode
-                    ? 'text-slate-500 hover:text-slate-300'
-                    : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              {activeTab === tab.key && (
-                <motion.div
-                  layoutId="activeTab"
-                  className={`absolute inset-0 rounded-lg shadow-sm ${
-                    isDarkMode 
-                      ? 'bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 border border-emerald-500/30' 
-                      : 'bg-white border border-emerald-200'
-                  }`}
-                  transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                />
-              )}
-              <span className="relative z-10 flex items-center gap-2">
-                {tab.icon}
-                <span className="hidden md:inline">{tab.label}</span>
-              </span>
-            </motion.button>
-          ))}
         </div>
       </div>
 
@@ -554,6 +516,18 @@ export const FinanceDashboard: React.FC = () => {
 
             {activeTab === 'settings' && (
               <FinanceSettings configs={configs} onRefresh={fetchAll} isDarkMode={isDarkMode} />
+            )}
+
+            {activeTab === 'pl' && (
+              <PLStatement />
+            )}
+
+            {activeTab === 'invoices' && (
+              <InvoiceManager />
+            )}
+
+            {activeTab === 'cash_recon' && (
+              <CashReconciliation />
             )}
           </motion.div>
         </AnimatePresence>

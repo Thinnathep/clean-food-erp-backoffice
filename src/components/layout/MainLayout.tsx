@@ -8,8 +8,7 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
   return (
     <div className="flex h-screen overflow-hidden bg-[#F8FAFC]">
       <Sidebar isMobileOpen={isMobileOpen} setMobileOpen={setMobileOpen} />
-      
-      <main className="flex-1 flex flex-col min-w-0 relative xl:ml-20 transition-all duration-300 overflow-hidden">
+      <main className="flex-1 flex flex-col min-w-0 relative xl:ml-[72px] transition-all duration-300 overflow-hidden">
         {/* Mobile Header (Now includes iPad & iPad Pro) */}
         <div className="xl:hidden bg-slate-900 text-white p-4 flex items-center justify-between z-10 shadow-md shrink-0">
           <div className="flex items-center gap-2">

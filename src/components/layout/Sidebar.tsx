@@ -14,7 +14,18 @@ import {
   Calculator,
   LayoutDashboard,
   Utensils,
-  Store
+  Store,
+  ShoppingCart,
+  ClipboardList,
+  Factory,
+  ShieldCheck,
+  TrendingUp,
+  FileBarChart,
+  FileText,
+  History,
+  Rocket,
+  Coins,
+  TrendingDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../store/authStore';
@@ -35,9 +46,10 @@ const PackageIcon = ({ size, className }: { size: number, className?: string }) 
 
 interface SubNavItem {
   label: string;
-  path: string;
+  path?: string;
   icon?: any;
   end?: boolean;
+  isHeader?: boolean;
 }
 
 interface NavItem {
@@ -48,7 +60,16 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { label: 'งานห้องครัว (KDS)', icon: ChefHat, path: '/kds' },
+  { 
+    label: 'งานห้องครัว (KDS)', 
+    icon: ChefHat, 
+    children: [
+      { label: 'จัดการหน้าหลัก', path: '/kds', icon: LayoutDashboard, end: true },
+      { label: 'ใบสั่งผลิต', path: '/kds/production', icon: Factory },
+      { label: 'HACCP', path: '/kds/haccp', icon: ShieldCheck },
+      { label: 'พยากรณ์', path: '/kds/forecast', icon: TrendingUp },
+    ]
+  },
   { 
     label: 'สมาชิก & โปรโมชั่น', 
     icon: Users, 
@@ -66,6 +87,14 @@ const navItems: NavItem[] = [
     ]
   },
   { 
+    label: 'จัดซื้อ', 
+    icon: ShoppingCart,
+    children: [
+      { label: 'ใบสั่งซื้อ (PO)', path: '/procurement', icon: ShoppingCart, end: true },
+      { label: 'รับสินค้า (GR)', path: '/procurement/receiving', icon: ClipboardList },
+    ]
+  },
+  { 
     label: 'จัดการเมนูอาหาร', 
     icon: BookOpen, 
     children: [
@@ -73,7 +102,30 @@ const navItems: NavItem[] = [
       { label: 'เมนูร้าน', path: '/menu/retail', icon: Store },
     ]
   },
-  { label: 'บัญชี', icon: Wallet, path: '/finance' },
+  { 
+    label: 'บัญชีและการเงิน', 
+    icon: Wallet, 
+    children: [
+      { label: 'ภาพรวม', isHeader: true },
+      { label: 'แดชบอร์ดการเงิน', path: '/finance', icon: LayoutDashboard, end: true },
+      { label: 'ประวัติธุรกรรม', path: '/finance/history', icon: History },
+      
+      { label: 'ปฏิบัติการ (Operation)', isHeader: true },
+      { label: 'บันทึกรายรับ', path: '/finance/income', icon: TrendingUp },
+      { label: 'บันทึกรายจ่าย', path: '/finance/expense', icon: TrendingDown },
+      { label: 'เงินสด (Cash Recon)', path: '/finance/cash_recon', icon: Coins },
+      
+      { label: 'เอกสาร & รายงาน', isHeader: true },
+      { label: 'ใบเสร็จ/ใบกำกับภาษี', path: '/finance/invoices', icon: FileText },
+      { label: 'งบกำไรขาดทุน (P&L)', path: '/finance/pl', icon: FileBarChart },
+      
+      { label: 'วิเคราะห์ & ตั้งค่า', isHeader: true },
+      { label: 'ลูกค้า (LTV)', path: '/finance/customers', icon: Users },
+      { label: 'โปรโมชั่น', path: '/finance/promotions', icon: Rocket },
+      { label: 'จำลองการแยกเงิน', path: '/finance/simulator', icon: Calculator },
+      { label: 'ตั้งค่าบัญชี', path: '/finance/settings', icon: Settings },
+    ]
+  },
   { 
     label: 'ระบบจัดส่ง', 
     icon: Truck, 
@@ -210,20 +262,26 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, setMobileOpen })
                       exit={{ height: 0, opacity: 0 }}
                       className="ml-8 mt-1 border-l border-slate-800 overflow-hidden"
                     >
-                      {item.children?.map(child => (
-                        <NavLink
-                          key={child.path}
-                          to={child.path}
-                          end={child.end}
-                          onClick={() => setMobileOpen(false)}
-                          className={({ isActive }) =>
-                            `flex items-center gap-2 px-4 py-2 rounded-lg transition-all font-normal text-[11px] whitespace-nowrap
-                            ${isActive ? 'text-emerald-400 bg-emerald-500/5' : 'text-slate-500 hover:text-white hover:bg-white/5'}`
-                          }
-                        >
-                          {child.icon && <child.icon size={12} className="shrink-0" />}
-                          {child.label}
-                        </NavLink>
+                      {item.children?.map((child, idx) => (
+                        child.isHeader ? (
+                          <div key={`header-${idx}`} className="px-4 py-2 mt-2 mb-1 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                            {child.label}
+                          </div>
+                        ) : (
+                          <NavLink
+                            key={child.path || idx}
+                            to={child.path || ''}
+                            end={child.end}
+                            onClick={() => setMobileOpen(false)}
+                            className={({ isActive }) =>
+                              `flex items-center gap-2 px-4 py-2 rounded-lg transition-all font-normal text-[11px] whitespace-nowrap
+                              ${isActive ? 'text-emerald-400 bg-emerald-500/5' : 'text-slate-500 hover:text-white hover:bg-white/5'}`
+                            }
+                          >
+                            {child.icon && <child.icon size={12} className="shrink-0" />}
+                            {child.label}
+                          </NavLink>
+                        )
                       ))}
                     </motion.div>
                   )}

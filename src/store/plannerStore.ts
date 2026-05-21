@@ -68,6 +68,7 @@ interface PlannerState {
   updateGlobalSlotNote: (date: string, meal: string, note: string) => Promise<void>;
   applyCycleTemplate: (startDate: string, endDate: string, category?: string) => Promise<void>;
   applyTemplateToMember: (pkgId: string, memberId: string, weekStartDate: string, category: string) => Promise<void>;
+  getProjectedRemaining: (pkgId: string) => number;
 }
 
 export const usePlannerStore = create<PlannerState>((set, get) => ({
@@ -87,6 +88,17 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
   setCategoryFilter: (cat) => set({ categoryFilter: cat }),
   clearSelection: () => set({ selectedDate: null, selectedMealType: null, isPanelOpen: false }),
   openMenuPanel: (date, meal) => set({ selectedDate: date, selectedMealType: meal, isPanelOpen: true }),
+  
+  getProjectedRemaining: (pkgId: string) => {
+    const pkg = useMemberStore.getState().activePackages.find(p => p.id === pkgId);
+    if (!pkg) return 0;
+    const dbRemaining = pkg.meals_remaining ?? 0;
+    const currentWeekSubQty = get().memberSchedules
+      .filter(s => s.package_id === pkgId && !s.is_extra_order && !s.is_compensatory)
+      .reduce((sum, s) => sum + (s.quantity || 1), 0);
+    const delta = currentWeekSubQty - get().initialWeekSubscriptionQty;
+    return dbRemaining - delta;
+  },
 
   clearCopiedPlan: () => set({ copiedDaySlots: null }),
 
@@ -166,14 +178,23 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
 
   assignMemberSlot: async (scheduleId, pkgId, memberId, date, meal, menuId, qty, time, notes, isExtraOrder = false, orderType = 'subscription', boxSize = 'regular', isCompensatory = false) => {
     const pkg = useMemberStore.getState().activePackages.find(p => p.id === pkgId);
-    if (pkg && !isExtraOrder && !isCompensatory && pkg.meals_remaining < qty) {
-        const result = await Swal.fire({
-            icon: 'warning',
-            title: 'เกินโควต้า!',
-            text: 'จำนวนมื้อที่เหลือไม่เพียงพอ (จะติดลบ) ยืนยันที่จะลงมื้ออาหารหรือไม่?',
-            showCancelButton: true
+    
+    // Use the projected remaining to account for unsaved changes in the current view
+    const projectedRemaining = get().getProjectedRemaining(pkgId);
+    
+    // If it's a new slot (or we are increasing quantity), check if we have enough quota
+    const existingSlot = get().memberSchedules.find(s => s.id === scheduleId);
+    const existingQty = existingSlot && !existingSlot.is_extra_order && !existingSlot.is_compensatory ? (existingSlot.quantity || 1) : 0;
+    const netQtyIncrease = qty - existingQty;
+
+    if (pkg && !isExtraOrder && !isCompensatory && projectedRemaining < netQtyIncrease) {
+        Swal.fire({
+            icon: 'error',
+            title: 'โควต้าไม่พอ!',
+            text: 'จำนวนมื้อที่เหลือไม่เพียงพอ ไม่สามารถลงมื้ออาหารปกติได้ (ระบบไม่อนุญาตให้ยอดติดลบ)',
+            confirmButtonColor: '#ef4444'
         });
-        if (!result.isConfirmed) return;
+        return;
     }
 
     const menu = useMenuStore.getState().menus.find(m => m.id === menuId);
@@ -212,11 +233,38 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
       }));
     } else {
       try {
+        const scheduleToDelete = get().memberSchedules.find(s => s.id === scheduleId);
         await removeMemberSchedule(scheduleId);
+        
         set(state => ({
           memberSchedules: state.memberSchedules.filter(s => s.id !== scheduleId)
         }));
-        toast.success('ลบมื้ออาหารเรียบร้อย');
+        
+        if (scheduleToDelete && scheduleToDelete.package_id) {
+          const { data: allSchedules } = await supabase
+            .from('erp_member_meal_schedules')
+            .select('quantity, is_extra_order, is_compensatory')
+            .eq('package_id', scheduleToDelete.package_id);
+            
+          if (allSchedules) {
+            const totalUsed = allSchedules
+              .filter(s => !s.is_extra_order && !s.is_compensatory)
+              .reduce((sum, s) => sum + (s.quantity || 1), 0);
+              
+            const pkg = useMemberStore.getState().activePackages.find(p => p.id === scheduleToDelete.package_id);
+            if (pkg) {
+              const newRemaining = pkg.meals_total - totalUsed;
+              await supabase
+                .from('pinto_packages')
+                .update({ meals_remaining: newRemaining })
+                .eq('id', scheduleToDelete.package_id);
+                
+              await useMemberStore.getState().loadMemberData(true);
+            }
+          }
+        }
+        
+        toast.success('ลบมื้ออาหารและคืนโควต้าเรียบร้อย');
       } catch (error) {
         toast.error('ลบไม่สำเร็จ');
       }
@@ -238,9 +286,25 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
     if (!result.isConfirmed) return;
 
     const newSchedules = [...get().memberSchedules];
+    let skippedCount = 0;
+    
     activePackages.forEach(pkg => {
         if (pkg.members?.is_banned) return;
         const existingIdx = newSchedules.findIndex(s => s.delivery_date === date && s.meal_type === mealType && s.package_id === pkg.id);
+        
+        // Strictly check quota for new slots
+        if (existingIdx === -1) {
+          const currentWeekSubQty = newSchedules
+            .filter(s => s.package_id === pkg.id && !s.is_extra_order && !s.is_compensatory)
+            .reduce((sum, s) => sum + (s.quantity || 1), 0);
+          const delta = currentWeekSubQty - (pkg.id === get().selectedPackageId ? get().initialWeekSubscriptionQty : 0);
+          const rem = (pkg.meals_remaining ?? 0) - delta;
+          if (rem <= 0) {
+            skippedCount++;
+            return; // Skip this package as it has no quota
+          }
+        }
+        
         const slotData = {
             id: existingIdx !== -1 ? newSchedules[existingIdx].id : `temp_${Math.random()}`,
             package_id: pkg.id,
@@ -262,7 +326,12 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
     });
 
     set({ memberSchedules: newSchedules, hasUnsavedChanges: true });
-    toast.success('ลงเมนูให้ลูกค้าทุกคนแล้ว (แบบร่าง)');
+    
+    if (skippedCount > 0) {
+      toast.warning(`ลงเมนูให้ลูกค้าทุกคนแล้ว (ข้าม ${skippedCount} แพ็กเกจที่โควต้าหมด)`);
+    } else {
+      toast.success('ลงเมนูให้ลูกค้าทุกคนแล้ว (แบบร่าง)');
+    }
   },
 
   saveChanges: async () => {
@@ -374,19 +443,74 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
     if (!copied) return;
     
     const newSchedules = [...get().memberSchedules];
+    let skipped = false;
+    
     copied.forEach(s => {
+      if (!s.is_extra_order && !s.is_compensatory) {
+        const currentWeekSubQty = newSchedules
+          .filter(sch => sch.package_id === pkgId && !sch.is_extra_order && !sch.is_compensatory)
+          .reduce((sum, sch) => sum + (sch.quantity || 1), 0);
+        const delta = currentWeekSubQty - get().initialWeekSubscriptionQty;
+        const pkg = useMemberStore.getState().activePackages.find(p => p.id === pkgId);
+        const rem = (pkg?.meals_remaining ?? 0) - delta;
+        
+        if (rem < (s.quantity || 1)) {
+          skipped = true;
+          return; // Skip this slot due to insufficient quota
+        }
+      }
       const newSlot = { ...s, id: `temp_${Math.random()}`, delivery_date: targetDate, package_id: pkgId, member_id: memberId };
       newSchedules.push(newSlot as any);
     });
+    
     set({ memberSchedules: newSchedules, hasUnsavedChanges: true });
-    toast.success('วางแผนงานเรียบร้อย');
+    if (skipped) {
+      toast.warning('วางแผนงานแล้ว (ข้ามบางมื้อเนื่องจากโควต้าไม่พอ)');
+    } else {
+      toast.success('วางแผนงานเรียบร้อย');
+    }
   },
 
   clearDayPlan: async (date, pkgId) => {
-    set(state => ({
-      memberSchedules: state.memberSchedules.filter(s => !(s.delivery_date === date && s.package_id === pkgId)),
-      hasUnsavedChanges: true
-    }));
+    try {
+      const toDelete = get().memberSchedules.filter(s => s.delivery_date === date && s.package_id === pkgId && !s.id.toString().startsWith('temp_'));
+      
+      for (const s of toDelete) {
+        await removeMemberSchedule(s.id);
+      }
+      
+      set(state => ({
+        memberSchedules: state.memberSchedules.filter(s => !(s.delivery_date === date && s.package_id === pkgId)),
+        hasUnsavedChanges: true
+      }));
+      
+      if (toDelete.length > 0) {
+        const { data: allSchedules } = await supabase
+          .from('erp_member_meal_schedules')
+          .select('quantity, is_extra_order, is_compensatory')
+          .eq('package_id', pkgId);
+          
+        if (allSchedules) {
+          const totalUsed = allSchedules
+            .filter(s => !s.is_extra_order && !s.is_compensatory)
+            .reduce((sum, s) => sum + (s.quantity || 1), 0);
+            
+          const pkg = useMemberStore.getState().activePackages.find(p => p.id === pkgId);
+          if (pkg) {
+            const newRemaining = pkg.meals_total - totalUsed;
+            await supabase
+              .from('pinto_packages')
+              .update({ meals_remaining: newRemaining })
+              .eq('id', pkgId);
+              
+            await useMemberStore.getState().loadMemberData(true);
+          }
+        }
+      }
+      toast.success('ล้างแผนและคืนโควต้าเรียบร้อย');
+    } catch (error) {
+      toast.error('ลบไม่สำเร็จ');
+    }
   },
 
   applyCycleTemplate: async (start: string, end: string, category: string = 'normal') => {
@@ -498,6 +622,8 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
       const weekTemplates = templates.filter(t => t.week_number === weekNum);
       const allMenus = useMenuStore.getState().menus;
       const newSchedules = [...get().memberSchedules];
+      
+      let skipped = false;
 
       // 3. Map templates to schedule slots
       weekTemplates.forEach(t => {
@@ -512,6 +638,20 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
             s.meal_type === mealKey && 
             s.package_id === pkgId
           );
+
+          if (existingIdx === -1) {
+            const currentWeekSubQty = newSchedules
+              .filter(sch => sch.package_id === pkgId && !sch.is_extra_order && !sch.is_compensatory)
+              .reduce((sum, sch) => sum + (sch.quantity || 1), 0);
+            const delta = currentWeekSubQty - get().initialWeekSubscriptionQty;
+            const pkg = useMemberStore.getState().activePackages.find(p => p.id === pkgId);
+            const rem = (pkg?.meals_remaining ?? 0) - delta;
+            
+            if (rem <= 0) {
+              skipped = true;
+              return; // Skip this slot as quota is depleted
+            }
+          }
 
           const slotData = {
             id: existingIdx !== -1 ? newSchedules[existingIdx].id : `temp_${Math.random()}`,
@@ -536,7 +676,11 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
       });
 
       set({ memberSchedules: newSchedules, hasUnsavedChanges: true, isLoading: false });
-      toast.success(`ปรับปรุงเมนูจาก Template ${category} เรียบร้อย (กดบันทึกเพื่อยืนยัน)`);
+      if (skipped) {
+        toast.warning(`ปรับปรุงเมนูจาก Template ${category} เรียบร้อย (ข้ามบางมื้อเนื่องจากโควต้าหมด)`);
+      } else {
+        toast.success(`ปรับปรุงเมนูจาก Template ${category} เรียบร้อย (กดบันทึกเพื่อยืนยัน)`);
+      }
     } catch (error: any) {
       set({ isLoading: false });
       toast.error(error.message || 'เกิดข้อผิดพลาดในการลงเมนู');

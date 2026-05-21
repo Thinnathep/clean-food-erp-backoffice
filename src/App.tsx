@@ -16,7 +16,10 @@ import { LogisticsDashboard } from './features/logistics/components/LogisticsDas
 import { ShippingCalculator } from './features/logistics/components/ShippingCalculator';
 import { PromotionManagement } from './features/members/components/PromotionManagement';
 import { SettingsPage } from './features/auth/SettingsPage';
-
+import { ProcurementDashboard } from './features/procurement/components/ProcurementDashboard';
+import { ProductionOrderPanel } from './features/kds/components/ProductionOrderPanel';
+import { FoodSafetyLog } from './features/kds/components/FoodSafetyLog';
+import { DemandForecastView } from './features/kds/components/DemandForecastView';
 
 // Re-saved to ensure all imports are matched correctly
 
@@ -85,6 +88,9 @@ function App() {
         
         {/* Protected ERP Routes */}
         <Route path="/kds" element={<ProtectedRoute><MainLayout><KdsDashboard /></MainLayout></ProtectedRoute>} />
+        <Route path="/kds/production" element={<ProtectedRoute><MainLayout><ProductionOrderPanel /></MainLayout></ProtectedRoute>} />
+        <Route path="/kds/haccp" element={<ProtectedRoute><MainLayout><FoodSafetyLog /></MainLayout></ProtectedRoute>} />
+        <Route path="/kds/forecast" element={<ProtectedRoute><MainLayout><DemandForecastView /></MainLayout></ProtectedRoute>} />
         <Route path="/members" element={<ProtectedRoute><MainLayout><MemberManagement /></MainLayout></ProtectedRoute>} />
         <Route path="/inventory/items" element={<ProtectedRoute><MainLayout><IngredientMasterPage /></MainLayout></ProtectedRoute>} />
         <Route path="/inventory/stock" element={<ProtectedRoute><MainLayout><InventoryPage /></MainLayout></ProtectedRoute>} />
@@ -94,10 +100,22 @@ function App() {
         <Route path="/menu/retail" element={<ProtectedRoute><MainLayout><MenuManagement type="retail" /></MainLayout></ProtectedRoute>} />
         <Route path="/menu" element={<Navigate to="/menu/member" replace />} />
 
-        <Route path="/finance" element={<ProtectedRoute><MainLayout><FinanceDashboard /></MainLayout></ProtectedRoute>} />
+        <Route path="/finance" element={<ProtectedRoute><MainLayout><FinanceDashboard initialTab="overview" /></MainLayout></ProtectedRoute>} />
+        <Route path="/finance/history" element={<ProtectedRoute><MainLayout><FinanceDashboard initialTab="history" /></MainLayout></ProtectedRoute>} />
+        <Route path="/finance/income" element={<ProtectedRoute><MainLayout><FinanceDashboard initialTab="income" /></MainLayout></ProtectedRoute>} />
+        <Route path="/finance/expense" element={<ProtectedRoute><MainLayout><FinanceDashboard initialTab="expense" /></MainLayout></ProtectedRoute>} />
+        <Route path="/finance/cash_recon" element={<ProtectedRoute><MainLayout><FinanceDashboard initialTab="cash_recon" /></MainLayout></ProtectedRoute>} />
+        <Route path="/finance/invoices" element={<ProtectedRoute><MainLayout><FinanceDashboard initialTab="invoices" /></MainLayout></ProtectedRoute>} />
+        <Route path="/finance/pl" element={<ProtectedRoute><MainLayout><FinanceDashboard initialTab="pl" /></MainLayout></ProtectedRoute>} />
+        <Route path="/finance/customers" element={<ProtectedRoute><MainLayout><FinanceDashboard initialTab="customers" /></MainLayout></ProtectedRoute>} />
+        <Route path="/finance/promotions" element={<ProtectedRoute><MainLayout><FinanceDashboard initialTab="promotions" /></MainLayout></ProtectedRoute>} />
+        <Route path="/finance/simulator" element={<ProtectedRoute><MainLayout><FinanceDashboard initialTab="simulator" /></MainLayout></ProtectedRoute>} />
+        <Route path="/finance/settings" element={<ProtectedRoute><MainLayout><FinanceDashboard initialTab="settings" /></MainLayout></ProtectedRoute>} />
         <Route path="/logistics" element={<ProtectedRoute><MainLayout><LogisticsDashboard /></MainLayout></ProtectedRoute>} />
         <Route path="/logistics/calculator" element={<ProtectedRoute><MainLayout><ShippingCalculator /></MainLayout></ProtectedRoute>} />
         <Route path="/promotions" element={<ProtectedRoute><MainLayout><PromotionManagement /></MainLayout></ProtectedRoute>} />
+        <Route path="/procurement" element={<ProtectedRoute><MainLayout><ProcurementDashboard /></MainLayout></ProtectedRoute>} />
+        <Route path="/procurement/receiving" element={<ProtectedRoute><MainLayout><ProcurementDashboard initialTab="gr" /></MainLayout></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><MainLayout><SettingsPage /></MainLayout></ProtectedRoute>} />
 
       </Routes>

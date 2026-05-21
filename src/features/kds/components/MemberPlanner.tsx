@@ -1899,7 +1899,7 @@ export const MemberPlanner: React.FC = () => {
                     {
                       allPackageSchedules.filter(
                         (s) => !s.is_compensatory && !s.is_extra_order,
-                      ).length
+                      ).reduce((sum, s) => sum + (s.quantity || 1), 0)
                     }{" "}
                     / {selectedPackage.meals_total}
                   </div>
@@ -1956,7 +1956,7 @@ export const MemberPlanner: React.FC = () => {
                   <div className="text-lg font-bold text-orange-600">
                     {
                       allPackageSchedules.filter((s) => s.is_compensatory)
-                        .length
+                        .reduce((sum, s) => sum + (s.quantity || 1), 0)
                     }
                   </div>
                 </div>
