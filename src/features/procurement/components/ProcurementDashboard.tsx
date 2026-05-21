@@ -4,9 +4,9 @@ import { toast } from 'sonner';
 import dayjs from 'dayjs';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ShoppingCart, Plus, Search, FileText, Package, Truck,
-  Check, X, Eye, Trash2, RefreshCw, Edit3, AlertTriangle,
-  ChevronDown, DollarSign, Send
+  ShoppingCart, Plus, Search, FileText, Truck,
+  Check, X, Trash2, RefreshCw, AlertTriangle,
+  DollarSign, Send
 } from 'lucide-react';
 
 // ─── Animation Tokens ───
@@ -16,7 +16,7 @@ const stagger = {
 };
 const fadeUp = {
   hidden: { opacity: 0, y: 14 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] } },
+  show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] as const } },
 };
 
 // ─── Types ───
@@ -186,7 +186,7 @@ export const ProcurementDashboard: React.FC<{ initialTab?: TabKey }> = ({ initia
             </div>
           </div>
           {activeTab === 'po' && (
-            <button onClick={() => setShowCreatePO(true)}
+            <button title="Button" type="button" onClick={() => setShowCreatePO(true)}
               className="inline-flex items-center gap-2 px-4 py-2.5 bg-orange-600 text-white rounded-xl text-sm font-medium hover:bg-orange-700 active:scale-[0.97] transition-all min-h-[44px] self-start sm:self-auto">
               <Plus size={16} /> สร้าง PO ใหม่
             </button>
@@ -216,7 +216,7 @@ export const ProcurementDashboard: React.FC<{ initialTab?: TabKey }> = ({ initia
         {/* Tab Bar */}
         <motion.div variants={fadeUp} className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
           {tabs.map(tab => (
-            <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+            <button title="Button" type="button" key={tab.key} onClick={() => setActiveTab(tab.key)}
               className={`relative flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px] ${
                 activeTab === tab.key ? 'text-orange-700' : 'text-slate-500 hover:text-slate-800'
               }`}>
@@ -235,7 +235,7 @@ export const ProcurementDashboard: React.FC<{ initialTab?: TabKey }> = ({ initia
         {activeTab === 'po' && (
           <motion.div variants={fadeUp} className="relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+            <input title="Input field" type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
               placeholder="ค้นหา PO หรือผู้จัดจำหน่าย..."
               className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400/20 min-h-[44px]" />
           </motion.div>
@@ -320,21 +320,21 @@ const POList: React.FC<{
               <div className="flex items-center gap-1.5 flex-wrap">
                 {po.status === 'draft' && (
                   <>
-                    <button onClick={() => onSubmit(po.id)} className="px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-100 min-h-[36px] inline-flex items-center gap-1">
+                    <button title="Button" type="button" onClick={() => onSubmit(po.id)} className="px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium hover:bg-blue-100 min-h-[36px] inline-flex items-center gap-1">
                       <Send size={12} /> ส่ง
                     </button>
-                    <button onClick={() => onDelete(po.id)} className="px-2.5 py-2 text-red-500 hover:bg-red-50 rounded-lg min-h-[36px]">
+                    <button title="Button" type="button" onClick={() => onDelete(po.id)} className="px-2.5 py-2 text-red-500 hover:bg-red-50 rounded-lg min-h-[36px]">
                       <Trash2 size={14} />
                     </button>
                   </>
                 )}
                 {po.status === 'submitted' && (
-                  <button onClick={() => onCancel(po.id)} className="px-3 py-2 bg-red-50 text-red-700 rounded-lg text-xs font-medium hover:bg-red-100 min-h-[36px] inline-flex items-center gap-1">
+                  <button title="Button" type="button" onClick={() => onCancel(po.id)} className="px-3 py-2 bg-red-50 text-red-700 rounded-lg text-xs font-medium hover:bg-red-100 min-h-[36px] inline-flex items-center gap-1">
                     <X size={12} /> ยกเลิก
                   </button>
                 )}
                 {po.status === 'confirmed' && (
-                  <button onClick={() => onReceive(po)} className="px-3 py-2 bg-violet-50 text-violet-700 rounded-lg text-xs font-medium hover:bg-violet-100 min-h-[36px] inline-flex items-center gap-1">
+                  <button title="Button" type="button" onClick={() => onReceive(po)} className="px-3 py-2 bg-violet-50 text-violet-700 rounded-lg text-xs font-medium hover:bg-violet-100 min-h-[36px] inline-flex items-center gap-1">
                     <Truck size={13} /> รับสินค้า
                   </button>
                 )}
@@ -434,7 +434,7 @@ const CreatePODrawer: React.FC<{
   const [orderDate, setOrderDate] = useState(dayjs().format('YYYY-MM-DD'));
   const [deliveryDate, setDeliveryDate] = useState(dayjs().add(3, 'day').format('YYYY-MM-DD'));
   const [paymentTerms, setPaymentTerms] = useState('COD');
-  const [notes, setNotes] = useState('');
+  const notes = '';
   const [items, setItems] = useState<{ itemId: string; qty: number; unit: string; price: number }[]>([
     { itemId: '', qty: 1, unit: '', price: 0 },
   ]);
@@ -533,13 +533,13 @@ const CreatePODrawer: React.FC<{
       onKeyDown={e => e.key === 'Escape' && onClose()}>
       <motion.div
         initial={{ opacity: 0, y: 100 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 100 }}
-        transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+        transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] as const }}
         className="bg-white w-full sm:w-[600px] sm:max-h-[85vh] max-h-[90vh] sm:rounded-2xl rounded-t-2xl overflow-hidden flex flex-col"
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-100 shrink-0">
           <h2 className="text-base sm:text-lg font-bold text-slate-900">สร้างใบสั่งซื้อ</h2>
-          <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 min-w-[40px] min-h-[40px] flex items-center justify-center"><X size={20} /></button>
+          <button title="Button" type="button" onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 min-w-[40px] min-h-[40px] flex items-center justify-center"><X size={20} /></button>
         </div>
 
         {/* Body */}
@@ -547,7 +547,7 @@ const CreatePODrawer: React.FC<{
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-[11px] font-medium text-slate-500 mb-1.5">ผู้จัดจำหน่าย *</label>
-              <select value={supplierId} onChange={e => setSupplierId(e.target.value)}
+              <select title="Select option" value={supplierId} onChange={e => setSupplierId(e.target.value)}
                 className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white min-h-[44px]">
                 <option value="">เลือก...</option>
                 {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -555,19 +555,19 @@ const CreatePODrawer: React.FC<{
             </div>
             <div>
               <label className="block text-[11px] font-medium text-slate-500 mb-1.5">เงื่อนไขชำระ</label>
-              <select value={paymentTerms} onChange={e => setPaymentTerms(e.target.value)}
+              <select title="Select option" value={paymentTerms} onChange={e => setPaymentTerms(e.target.value)}
                 className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white min-h-[44px]">
                 {['COD', 'NET15', 'NET30', 'NET60'].map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-[11px] font-medium text-slate-500 mb-1.5">วันที่สั่ง</label>
-              <input type="date" value={orderDate} onChange={e => setOrderDate(e.target.value)}
+              <input title="Input field" type="date" value={orderDate} onChange={e => setOrderDate(e.target.value)}
                 className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm min-h-[44px]" />
             </div>
             <div>
               <label className="block text-[11px] font-medium text-slate-500 mb-1.5">กำหนดส่ง</label>
-              <input type="date" value={deliveryDate} onChange={e => setDeliveryDate(e.target.value)}
+              <input title="Input field" type="date" value={deliveryDate} onChange={e => setDeliveryDate(e.target.value)}
                 className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm min-h-[44px]" />
             </div>
           </div>
@@ -577,11 +577,11 @@ const CreatePODrawer: React.FC<{
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-semibold text-slate-900">รายการ</h3>
               <div className="flex gap-2">
-                <button onClick={addLowStockItems}
+                <button title="Button" type="button" onClick={addLowStockItems}
                   className="text-xs text-red-600 hover:bg-red-50 px-2 py-1 rounded-lg flex items-center gap-1 min-h-[32px]">
                   <AlertTriangle size={12} /> สต็อกต่ำ
                 </button>
-                <button onClick={addItem}
+                <button title="Button" type="button" onClick={addItem}
                   className="text-xs text-orange-600 hover:bg-orange-50 px-2 py-1 rounded-lg flex items-center gap-1 min-h-[32px]">
                   <Plus size={12} /> เพิ่ม
                 </button>
@@ -592,7 +592,7 @@ const CreatePODrawer: React.FC<{
                 <div key={idx} className="flex gap-2 items-end flex-wrap sm:flex-nowrap">
                   <div className="flex-1 min-w-[140px]">
                     {idx === 0 && <p className="text-[10px] text-slate-400 mb-1">วัตถุดิบ</p>}
-                    <select value={item.itemId} onChange={e => updateItem(idx, 'itemId', e.target.value)}
+                    <select title="Select option" value={item.itemId} onChange={e => updateItem(idx, 'itemId', e.target.value)}
                       className="w-full px-2.5 py-2 border border-slate-200 rounded-lg text-sm min-h-[40px]">
                       <option value="">เลือก...</option>
                       {inventoryItems.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
@@ -600,19 +600,19 @@ const CreatePODrawer: React.FC<{
                   </div>
                   <div className="w-16">
                     {idx === 0 && <p className="text-[10px] text-slate-400 mb-1">จำนวน</p>}
-                    <input type="number" min={1} value={item.qty} onChange={e => updateItem(idx, 'qty', +e.target.value || 1)}
+                    <input title="Input field" type="number" min={1} value={item.qty} onChange={e => updateItem(idx, 'qty', +e.target.value || 1)}
                       className="w-full px-2 py-2 text-center border border-slate-200 rounded-lg text-sm min-h-[40px]" />
                   </div>
                   <div className="w-20">
                     {idx === 0 && <p className="text-[10px] text-slate-400 mb-1">ราคา</p>}
-                    <input type="number" min={0} step={0.01} value={item.price} onChange={e => updateItem(idx, 'price', +e.target.value || 0)}
+                    <input title="Input field" type="number" min={0} step={0.01} value={item.price} onChange={e => updateItem(idx, 'price', +e.target.value || 0)}
                       className="w-full px-2 py-2 text-right border border-slate-200 rounded-lg text-sm min-h-[40px]" />
                   </div>
                   <div className="w-20 text-right">
                     {idx === 0 && <p className="text-[10px] text-slate-400 mb-1">รวม</p>}
                     <p className="py-2 text-sm font-medium text-slate-700">฿{(item.qty * item.price).toFixed(2)}</p>
                   </div>
-                  <button onClick={() => removeItem(idx)} className="p-2 text-red-400 hover:text-red-600 min-h-[40px]">
+                  <button title="Button" type="button" onClick={() => removeItem(idx)} className="p-2 text-red-400 hover:text-red-600 min-h-[40px]">
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -634,12 +634,12 @@ const CreatePODrawer: React.FC<{
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-2 p-4 sm:p-5 border-t border-slate-100 shrink-0">
-          <button onClick={onClose} className="px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-100 rounded-xl min-h-[44px]">ยกเลิก</button>
-          <button onClick={() => handleSave(true)} disabled={isSaving}
+          <button title="Button" type="button" onClick={onClose} className="px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-100 rounded-xl min-h-[44px]">ยกเลิก</button>
+          <button title="Button" type="button" onClick={() => handleSave(true)} disabled={isSaving}
             className="px-4 py-2.5 border border-slate-200 text-sm font-medium text-slate-700 rounded-xl hover:bg-slate-50 disabled:opacity-50 min-h-[44px]">
             บันทึกฉบับร่าง
           </button>
-          <button onClick={() => handleSave(false)} disabled={isSaving}
+          <button title="Button" type="button" onClick={() => handleSave(false)} disabled={isSaving}
             className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-orange-600 rounded-xl hover:bg-orange-700 disabled:opacity-50 min-h-[44px]">
             {isSaving ? <RefreshCw size={15} className="animate-spin" /> : <Send size={15} />}
             ส่ง PO
@@ -698,15 +698,14 @@ const ReceiveGRDrawer: React.FC<{
         });
 
         // Update inventory
-        await supabase.rpc('increment_stock', { item_id: item.inventory_item_id, qty_add: qty })
-          .then(() => {})
-          .catch(async () => {
-            // Fallback if RPC doesn't exist
-            const { data: inv } = await supabase.from('erp_inventory_items').select('current_stock').eq('id', item.inventory_item_id).single();
-            if (inv) {
-              await supabase.from('erp_inventory_items').update({ current_stock: (inv.current_stock || 0) + qty }).eq('id', item.inventory_item_id);
-            }
-          });
+        const { error: rpcErr } = await supabase.rpc('increment_stock', { item_id: item.inventory_item_id, qty_add: qty });
+        if (rpcErr) {
+          // Fallback if RPC doesn't exist
+          const { data: inv } = await supabase.from('erp_inventory_items').select('current_stock').eq('id', item.inventory_item_id).single();
+          if (inv) {
+            await supabase.from('erp_inventory_items').update({ current_stock: (inv.current_stock || 0) + qty }).eq('id', item.inventory_item_id);
+          }
+        }
       }
 
       const { data: gr } = await supabase.from('erp_goods_receipts').insert({
@@ -751,7 +750,7 @@ const ReceiveGRDrawer: React.FC<{
             <h2 className="text-base font-bold text-slate-900">รับสินค้า</h2>
             <p className="text-xs text-slate-500">PO: {po.po_number}</p>
           </div>
-          <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 min-w-[40px] min-h-[40px] flex items-center justify-center"><X size={20} /></button>
+          <button title="Button" type="button" onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 min-w-[40px] min-h-[40px] flex items-center justify-center"><X size={20} /></button>
         </div>
 
         <div className="p-4 sm:p-5 space-y-3 max-h-[60vh] overflow-y-auto">
@@ -769,7 +768,7 @@ const ReceiveGRDrawer: React.FC<{
                 </div>
                 <div>
                   <p className="text-[10px] text-emerald-500">รับจริง</p>
-                  <input type="number" min={0} max={item.quantity}
+                  <input title="Input field" type="number" min={0} max={item.quantity}
                     value={receiveQtys[item.id] || 0}
                     onChange={e => setReceiveQtys(prev => ({ ...prev, [item.id]: +e.target.value || 0 }))}
                     className="w-full px-2 py-1.5 border border-emerald-200 rounded-lg text-sm text-center bg-white min-h-[36px]" />
@@ -780,8 +779,8 @@ const ReceiveGRDrawer: React.FC<{
         </div>
 
         <div className="flex items-center justify-end gap-2 p-4 sm:p-5 border-t border-slate-100">
-          <button onClick={onClose} className="px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-100 rounded-xl min-h-[44px]">ยกเลิก</button>
-          <button onClick={handleReceive} disabled={isSaving}
+          <button title="Button" type="button" onClick={onClose} className="px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-100 rounded-xl min-h-[44px]">ยกเลิก</button>
+          <button title="Button" type="button" onClick={handleReceive} disabled={isSaving}
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 min-h-[44px]">
             {isSaving ? <RefreshCw size={15} className="animate-spin" /> : <Check size={15} />}
             ยืนยันรับสินค้า

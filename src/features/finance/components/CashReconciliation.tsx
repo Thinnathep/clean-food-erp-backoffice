@@ -5,7 +5,7 @@ import dayjs from 'dayjs';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Coins, Save, CheckCircle2, AlertTriangle, Calendar,
-  ChevronLeft, ChevronRight, RefreshCw, History, Plus
+  ChevronLeft, ChevronRight, RefreshCw, History
 } from 'lucide-react';
 
 // ─── Types ───
@@ -49,7 +49,7 @@ const stagger = {
 };
 const fadeUp = {
   hidden: { opacity: 0, y: 16 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] } },
+  show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] as const } },
 };
 
 export const CashReconciliation: React.FC = () => {
@@ -220,20 +220,20 @@ export const CashReconciliation: React.FC = () => {
 
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl px-1">
-            <button onClick={() => navDate(-1)} className="p-2 hover:bg-slate-50 rounded-lg text-slate-500"><ChevronLeft size={16} /></button>
+            <button title="Button" type="button" onClick={() => navDate(-1)} className="p-2 hover:bg-slate-50 rounded-lg text-slate-500"><ChevronLeft size={16} /></button>
             <div className="flex items-center gap-1.5 px-2">
               <Calendar size={14} className="text-slate-400" />
-              <input
+              <input title="Input field"
                 type="date"
                 value={selectedDate}
                 onChange={e => setSelectedDate(e.target.value)}
                 className="text-sm font-medium text-slate-900 border-none outline-none bg-transparent py-1"
               />
             </div>
-            <button onClick={() => navDate(1)} className="p-2 hover:bg-slate-50 rounded-lg text-slate-500"><ChevronRight size={16} /></button>
+            <button title="Button" type="button" onClick={() => navDate(1)} className="p-2 hover:bg-slate-50 rounded-lg text-slate-500"><ChevronRight size={16} /></button>
           </div>
 
-          <button
+          <button title="Button" type="button"
             onClick={() => setShowHistory(!showHistory)}
             className={`inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors border ${
               showHistory
@@ -334,7 +334,7 @@ export const CashReconciliation: React.FC = () => {
               </div>
               <div className="bg-white p-3 sm:p-4 col-span-2 sm:col-span-1">
                 <p className="text-[10px] text-amber-500 uppercase tracking-wider font-medium mb-1">ยอดนับจริง</p>
-                <input
+                <input title="Input field"
                   type="number"
                   step="0.01"
                   value={entry.actual_balance}
@@ -357,7 +357,7 @@ export const CashReconciliation: React.FC = () => {
                     <label className="block text-xs font-medium text-slate-500 mb-1.5">
                       สาเหตุผลต่าง
                     </label>
-                    <input
+                    <input title="Input field"
                       type="text"
                       value={entry.variance_reason}
                       onChange={e => updateVarianceReason(entry.pool_type, e.target.value)}
@@ -378,7 +378,7 @@ export const CashReconciliation: React.FC = () => {
         animate={{ opacity: 1 }}
         className="flex justify-end"
       >
-        <button
+        <button title="Button" type="button"
           onClick={handleSave}
           disabled={isSaving}
           className="inline-flex items-center gap-2 px-6 py-3 bg-amber-500 text-white rounded-xl text-sm font-semibold hover:bg-amber-600 transition-colors shadow-sm disabled:opacity-50"

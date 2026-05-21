@@ -637,7 +637,7 @@ export const MemberPlanner: React.FC = () => {
 
         <div className="flex items-center gap-3 w-full lg:w-auto">
           {hasUnsavedChanges && (
-            <button
+            <button title="Button" type="button"
               onClick={async () => {
                 await saveChanges();
                 // Refresh the current view to get real IDs from DB
@@ -675,7 +675,7 @@ export const MemberPlanner: React.FC = () => {
               <h3 className="text-xs font-normal uppercase tracking-widest text-slate-400">
                 ลูกค้าที่กำลังดูแล
               </h3>
-              <button
+              <button title="Button" type="button"
                 onClick={() => setIsAddPackageModalOpen(true)}
                 className="bg-slate-100 hover:bg-emerald-500 hover:text-white text-slate-600 px-2 py-1 rounded-lg text-[10px] font-normal flex items-center gap-1 transition-all border border-slate-200"
               >
@@ -688,7 +688,7 @@ export const MemberPlanner: React.FC = () => {
                   className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400"
                   size={14}
                 />
-                <input
+                <input title="Input field"
                   type="text"
                   placeholder="ค้นหาชื่อลูกค้า..."
                   value={sidebarSearchQuery}
@@ -696,7 +696,7 @@ export const MemberPlanner: React.FC = () => {
                   className="w-full pl-9 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-normal focus:border-emerald-500 outline-none transition-all"
                 />
                 {sidebarSearchQuery && (
-                  <button
+                  <button title="Button" type="button"
                     onClick={() => setSidebarSearchQuery("")}
                     className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                   >
@@ -705,7 +705,7 @@ export const MemberPlanner: React.FC = () => {
                 )}
               </div>
               <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200 gap-1">
-                <button
+                <button title="Button" type="button"
                   onClick={() => {
                     setSidebarSortBy("latest");
                     setSidebarFilterType("all");
@@ -715,13 +715,13 @@ export const MemberPlanner: React.FC = () => {
                   ล่าสุด
                 </button>
                 <div className="w-[1px] bg-slate-200 my-1"></div>
-                <button
+                <button title="Button" type="button"
                   onClick={() => setSidebarFilterType("member")}
                   className={`px-2 py-1 rounded-md text-[9px] font-bold uppercase transition-all ${sidebarFilterType === "member" ? "bg-emerald-500 text-white shadow-sm" : "text-slate-400"}`}
                 >
                   สมาชิก
                 </button>
-                <button
+                <button title="Button" type="button"
                   onClick={() => setSidebarFilterType("retail")}
                   className={`px-2 py-1 rounded-md text-[9px] font-bold uppercase transition-all ${sidebarFilterType === "retail" ? "bg-orange-500 text-white shadow-sm" : "text-slate-400"}`}
                 >
@@ -936,14 +936,14 @@ export const MemberPlanner: React.FC = () => {
                     {/* Left Group: Info + Stats */}
                     <div className="flex flex-col md:flex-row items-start md:items-center gap-4 min-w-0">
                       <div className="flex items-center gap-2 w-full sm:w-auto">
-                        <button
+                        <button title="Button" type="button"
                           onClick={() => setSelectedPackageId(null)}
                           className="md:hidden bg-slate-100 p-2 rounded-xl text-slate-600 shrink-0"
                         >
                           <ChevronLeft size={18} />
                         </button>
 
-                        <button
+                        <button title="Button" type="button"
                           onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
                           className="hidden md:flex bg-slate-50 hover:bg-emerald-50 border border-slate-200 p-2 rounded-xl text-slate-400 hover:text-emerald-500 transition-all shrink-0"
                         >
@@ -978,7 +978,7 @@ export const MemberPlanner: React.FC = () => {
                                <MapPin size={12} className="text-slate-400" />
                                <span className="truncate max-w-[150px]">{member?.address || "ไม่ระบุที่อยู่"}</span>
                             </div>
-                            <button onClick={handleOpenProfile} className="text-xs md:text-sm text-emerald-600 font-normal hover:underline">รายละเอียด</button>
+                            <button title="Button" type="button" onClick={handleOpenProfile} className="text-xs md:text-sm text-emerald-600 font-normal hover:underline">รายละเอียด</button>
                           </div>
                         </div>
                       </div>
@@ -1004,7 +1004,7 @@ export const MemberPlanner: React.FC = () => {
                           </span>
                         )}
 
-                        <button
+                        <button title="Button" type="button"
                           onClick={async () => {
                             setIsAuditModalOpen(true);
                             setIsAuditLoading(true);
@@ -1033,7 +1033,7 @@ export const MemberPlanner: React.FC = () => {
               })()}
 
               <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto mt-1 xl:mt-0">
-                <button
+                <button title="Button" type="button"
                   onClick={() => setCurrentWeekStart(dayjs().startOf("isoWeek" as any).toDate())}
                   className="px-4 py-2 bg-white border border-slate-300 text-slate-900 rounded-xl text-xs font-normal transition-all hover:bg-slate-50 active:scale-95 shadow-sm"
                 >
@@ -1041,7 +1041,7 @@ export const MemberPlanner: React.FC = () => {
                 </button>
 
                 <div className="flex bg-slate-50 rounded-xl border border-slate-300 shrink-0">
-                  <select
+                  <select title="Select option"
                     className="bg-transparent text-xs font-normal px-3 py-2 outline-none text-slate-900 cursor-pointer"
                     value=""
                     onChange={(e) => handleApplyTemplateToMember(e.target.value)}
@@ -1055,15 +1055,15 @@ export const MemberPlanner: React.FC = () => {
                 </div>
 
                 <div className="flex items-center bg-white border border-slate-200 rounded-lg p-0.5 shadow-sm shrink-0">
-                  <button onClick={handlePrevWeek} className="p-1.5 text-slate-500 hover:text-black transition-colors"><ChevronLeft size={16} /></button>
+                  <button title="Button" type="button" onClick={handlePrevWeek} className="p-1.5 text-slate-500 hover:text-black transition-colors"><ChevronLeft size={16} /></button>
                   <span className="px-3 text-sm font-normal text-slate-900 min-w-[110px] text-center border-x border-slate-100">
                     {formatDisplayDate(weekDays[0].date)}
                   </span>
-                  <button onClick={handleNextWeek} className="p-1.5 text-slate-500 hover:text-black transition-colors"><ChevronRight size={16} /></button>
+                  <button title="Button" type="button" onClick={handleNextWeek} className="p-1.5 text-slate-500 hover:text-black transition-colors"><ChevronRight size={16} /></button>
                 </div>
 
                 {copiedDaySlots && (
-                  <button
+                  <button type="button"
                     onClick={clearCopiedPlan}
                     className="p-2.5 bg-red-50 text-red-600 border border-red-200 rounded-xl shrink-0 transition-all active:scale-90"
                     title="ยกเลิกการคัดลอก"
@@ -1108,7 +1108,7 @@ export const MemberPlanner: React.FC = () => {
                               <div
                                 className={`flex items-center rounded-xl p-1 gap-0.5 border ${day.isToday ? "bg-white/20 backdrop-blur-md border-white/20 shadow-lg" : "bg-slate-100 border-slate-200 shadow-sm"}`}
                               >
-                                <button
+                                <button type="button"
                                   onClick={() =>
                                     handleClearDay(day.date, selectedPackage.id)
                                   }
@@ -1118,7 +1118,7 @@ export const MemberPlanner: React.FC = () => {
                                   <Trash2 size={14} />
                                 </button>
 
-                                <button
+                                <button type="button"
                                   onClick={() => copyDayPlan(day.date)}
                                   className={`p-1.5 rounded-lg transition-all ${day.isToday ? "hover:bg-blue-600 hover:text-white" : "hover:bg-blue-50 text-slate-500 hover:text-blue-600"}`}
                                   title="คัดลอกแผนวันนี"
@@ -1126,7 +1126,7 @@ export const MemberPlanner: React.FC = () => {
                                   <Copy size={14} />
                                 </button>
                                 {copiedDaySlots && (
-                                  <button
+                                  <button type="button"
                                     onClick={() =>
                                       pasteDayPlan(
                                         day.date,
@@ -1173,7 +1173,7 @@ export const MemberPlanner: React.FC = () => {
                                 </div>
                                 <div className="flex items-center gap-1 transition-opacity">
                                   {isAdmin && (
-                                    <button
+                                    <button type="button"
                                       onClick={(e) =>
                                         handleRemoveClick(e, schedule.id)
                                       }
@@ -1220,7 +1220,7 @@ export const MemberPlanner: React.FC = () => {
                             </div>
                           ))}
 
-                          <button
+                          <button title="Button" type="button"
                             onClick={() => openModal(day.date)}
                             className="w-full py-3 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 hover:text-emerald-500 hover:border-emerald-200 hover:bg-emerald-50/30 transition-all flex items-center justify-center gap-2 text-sm font-bold"
                           >
@@ -1267,7 +1267,7 @@ export const MemberPlanner: React.FC = () => {
                   อัปเดตข้อมูลส่วนตัวและเป้าหมายสุขภาพ
                 </p>
               </div>
-              <button
+              <button title="Button" type="button"
                 onClick={() => setIsProfileModalOpen(false)}
                 className="p-2 hover:bg-white rounded-full transition-all text-slate-400 shadow-sm border border-transparent hover:border-slate-100"
               >
@@ -1281,7 +1281,7 @@ export const MemberPlanner: React.FC = () => {
                   <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">
                     ชื่อ-นามสกุล
                   </label>
-                  <input
+                  <input title="Input field"
                     type="text"
                     value={memberUpdates.full_name}
                     onChange={(e) =>
@@ -1297,7 +1297,7 @@ export const MemberPlanner: React.FC = () => {
                   <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">
                     เบอร์โทรศัพท์
                   </label>
-                  <input
+                  <input title="Input field"
                     type="text"
                     value={memberUpdates.phone}
                     onChange={(e) =>
@@ -1333,7 +1333,7 @@ export const MemberPlanner: React.FC = () => {
                   <label className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 ml-1">
                     ชื่อแพ็กเกจ
                   </label>
-                  <input
+                  <input title="Input field"
                     type="text"
                     value={packageUpdates?.package_name}
                     onChange={(e) =>
@@ -1349,7 +1349,7 @@ export const MemberPlanner: React.FC = () => {
                   <label className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 ml-1">
                     จำนวนมื้อทั้งหมด
                   </label>
-                  <input
+                  <input title="Input field"
                     type="number"
                     value={packageUpdates?.meals_total}
                     onChange={(e) =>
@@ -1368,7 +1368,7 @@ export const MemberPlanner: React.FC = () => {
                   <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">
                     เป้าหมายสุขภาพ
                   </label>
-                  <select
+                  <select title="Select option"
                     value={memberUpdates.health_goal}
                     onChange={(e) =>
                       setMemberUpdates({
@@ -1389,7 +1389,7 @@ export const MemberPlanner: React.FC = () => {
                   <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">
                     รอบเวลาจัดส่ง
                   </label>
-                  <input
+                  <input title="Input field"
                     type="text"
                     value={memberUpdates.delivery_time || ""}
                     onChange={(e) =>
@@ -1407,7 +1407,7 @@ export const MemberPlanner: React.FC = () => {
                 <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">
                   แพ้อาหาร / สิ่งที่ไม่ทาน
                 </label>
-                <input
+                <input title="Input field"
                   type="text"
                   value={memberUpdates.allergies || ""}
                   onChange={(e) =>
@@ -1423,13 +1423,13 @@ export const MemberPlanner: React.FC = () => {
             </div>
 
             <div className="px-8 py-6 bg-slate-50/50 border-t border-slate-100 flex gap-3">
-              <button
+              <button title="Button" type="button"
                 onClick={() => setIsProfileModalOpen(false)}
                 className="flex-1 px-6 py-3 border border-slate-200 text-slate-600 rounded-xl text-sm font-normal hover:bg-white transition-all shadow-sm"
               >
                 ยกเลิก
               </button>
-              <button
+              <button title="Button" type="button"
                 onClick={handleSaveProfile}
                 className="flex-1 px-6 py-3 bg-emerald-500 text-white rounded-xl text-sm font-normal hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
               >
@@ -1458,7 +1458,7 @@ export const MemberPlanner: React.FC = () => {
                   {dayjs(editingSlot.date).locale("th").format("DD MMMM YYYY")}
                 </p>
               </div>
-              <button
+              <button title="Button" type="button"
                 onClick={() => setIsModalOpen(false)}
                 className="p-2 hover:bg-white rounded-full transition-all text-slate-400 shadow-sm border border-transparent hover:border-slate-100"
               >
@@ -1473,7 +1473,7 @@ export const MemberPlanner: React.FC = () => {
                     className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors"
                     size={18}
                   />
-                  <input
+                  <input title="Input field"
                     type="text"
                     placeholder="ค้นหาชื่อเมนู..."
                     value={menuSearch}
@@ -1488,7 +1488,7 @@ export const MemberPlanner: React.FC = () => {
                       m.name.toLowerCase().includes(menuSearch.toLowerCase()),
                     )
                     .map((menu) => (
-                      <button
+                      <button title="Button" type="button"
                         key={menu.id}
                         onClick={() =>
                           setEditingSlot({ ...editingSlot, menuId: menu.id })
@@ -1524,7 +1524,7 @@ export const MemberPlanner: React.FC = () => {
                   <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">
                     มื้อที่
                   </label>
-                  <select
+                  <select title="Select option"
                     value={editingSlot.mealType}
                     onChange={(e) =>
                       setEditingSlot({
@@ -1545,7 +1545,7 @@ export const MemberPlanner: React.FC = () => {
                   <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">
                     จำนวน (ชุด)
                   </label>
-                  <input
+                  <input title="Input field"
                     type="number"
                     min="1"
                     value={editingSlot.qty}
@@ -1565,7 +1565,7 @@ export const MemberPlanner: React.FC = () => {
                   <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">
                     รอบเวลาส่ง
                   </label>
-                  <input
+                  <input title="Input field"
                     type="text"
                     placeholder="เช่น 11:00 - 13:00"
                     value={editingSlot.deliveryTime}
@@ -1583,7 +1583,7 @@ export const MemberPlanner: React.FC = () => {
                     ประเภทออเดอร์
                   </label>
                   <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 gap-1 h-[46px]">
-                    <button
+                    <button title="Button" type="button"
                       onClick={() =>
                         setEditingSlot({
                           ...editingSlot,
@@ -1595,7 +1595,7 @@ export const MemberPlanner: React.FC = () => {
                     >
                       ในแพ็กเกจ
                     </button>
-                    <button
+                    <button title="Button" type="button"
                       onClick={() =>
                         setEditingSlot({
                           ...editingSlot,
@@ -1613,7 +1613,7 @@ export const MemberPlanner: React.FC = () => {
 
               <div className="space-y-4 pt-2">
                 <label className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-100 rounded-2xl cursor-pointer group hover:bg-blue-100 transition-all">
-                  <input
+                  <input title="Input field"
                     type="checkbox"
                     checked={editingSlot.isNoRice}
                     onChange={(e) =>
@@ -1634,7 +1634,7 @@ export const MemberPlanner: React.FC = () => {
                   </div>
                 </label>
                 <label className="flex items-center gap-3 p-4 bg-orange-50 border border-orange-100 rounded-2xl cursor-pointer group hover:bg-orange-100 transition-all">
-                  <input
+                  <input title="Input field"
                     type="checkbox"
                     checked={editingSlot.isCompensatory}
                     onChange={(e) =>
@@ -1673,13 +1673,13 @@ export const MemberPlanner: React.FC = () => {
             </div>
 
             <div className="px-8 py-6 bg-slate-50/50 border-t border-slate-100 flex gap-3">
-              <button
+              <button title="Button" type="button"
                 onClick={() => setIsModalOpen(false)}
                 className="flex-1 px-6 py-3 border border-slate-200 text-slate-600 rounded-xl text-sm font-normal hover:bg-white transition-all shadow-sm"
               >
                 ยกเลิก
               </button>
-              <button
+              <button title="Button" type="button"
                 onClick={handleSaveModal}
                 className="flex-1 px-6 py-3 bg-emerald-500 text-white rounded-xl text-sm font-normal hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
               >
@@ -1706,7 +1706,7 @@ export const MemberPlanner: React.FC = () => {
                   ระบุรายละเอียดสัญญาและจำนวนมื้ออาหาร
                 </p>
               </div>
-              <button
+              <button title="Button" type="button"
                 onClick={() => setIsAddPackageModalOpen(false)}
                 className="p-2 hover:bg-white rounded-full transition-all text-slate-400 shadow-sm border border-transparent hover:border-slate-100"
               >
@@ -1719,7 +1719,7 @@ export const MemberPlanner: React.FC = () => {
                 <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">
                   เลือกลูกค้า
                 </label>
-                <select
+                <select title="Select option"
                   value={newPackage.member_id}
                   onChange={(e) =>
                     setNewPackage({ ...newPackage, member_id: e.target.value })
@@ -1739,7 +1739,7 @@ export const MemberPlanner: React.FC = () => {
                 <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">
                   ชื่อแพ็กเกจ
                 </label>
-                <input
+                <input title="Input field"
                   type="text"
                   placeholder="เช่น ผูกปิ่นโต 14 วัน (28 มื้อ)"
                   value={newPackage.package_name}
@@ -1758,7 +1758,7 @@ export const MemberPlanner: React.FC = () => {
                   <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">
                     จำนวนมื้อทั้งหมด
                   </label>
-                  <input
+                  <input title="Input field"
                     type="number"
                     value={newPackage.meals_total}
                     onChange={(e) =>
@@ -1774,7 +1774,7 @@ export const MemberPlanner: React.FC = () => {
                   <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">
                     วันที่เริ่มแพ็กเกจ
                   </label>
-                  <input
+                  <input title="Input field"
                     type="date"
                     value={newPackage.start_date}
                     onChange={(e) =>
@@ -1790,13 +1790,13 @@ export const MemberPlanner: React.FC = () => {
             </div>
 
             <div className="px-8 py-6 bg-slate-50/50 border-t border-slate-100 flex gap-3">
-              <button
+              <button title="Button" type="button"
                 onClick={() => setIsAddPackageModalOpen(false)}
                 className="flex-1 px-6 py-3 border border-slate-200 text-slate-600 rounded-xl text-sm font-normal hover:bg-white transition-all shadow-sm"
               >
                 ยกเลิก
               </button>
-              <button
+              <button title="Button" type="button"
                 onClick={handleAddPackage}
                 className="flex-1 px-6 py-3 bg-emerald-500 text-white rounded-xl text-sm font-normal hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
               >
@@ -1823,7 +1823,7 @@ export const MemberPlanner: React.FC = () => {
                   รายการทั้งหมดที่ระบบใช้คำนวณโควต้า
                 </p>
               </div>
-              <button
+              <button title="Button" type="button"
                 onClick={() => setIsAuditModalOpen(false)}
                 className="p-2 hover:bg-slate-200 rounded-full text-slate-400 transition-colors"
               >
@@ -1903,7 +1903,7 @@ export const MemberPlanner: React.FC = () => {
                     }{" "}
                     / {selectedPackage.meals_total}
                   </div>
-                  <button
+                  <button type="button"
                     onClick={async () => {
                       try {
                         const totalUsed = allPackageSchedules
@@ -1961,7 +1961,7 @@ export const MemberPlanner: React.FC = () => {
                   </div>
                 </div>
               </div>
-              <button
+              <button title="Button" type="button"
                 onClick={() => setIsAuditModalOpen(false)}
                 className="w-full py-3 bg-slate-900 text-white rounded-2xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg"
               >

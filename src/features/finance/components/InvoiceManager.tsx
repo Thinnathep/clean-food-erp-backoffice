@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import dayjs from 'dayjs';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  FileText, Plus, Search, X, Check, Printer,
+  FileText, Plus, Search, X, Check,
   Eye, Receipt, RefreshCw, Trash2, Send, Ban
 } from 'lucide-react';
 
@@ -15,7 +15,7 @@ const stagger = {
 };
 const fadeUp = {
   hidden: { opacity: 0, y: 14 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] } },
+  show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] as const } },
 };
 
 // ─── Types ───
@@ -130,7 +130,7 @@ export const InvoiceManager: React.FC = () => {
             <p className="text-[11px] text-slate-500">สร้าง จัดการ ออกใบเสร็จ ใบกำกับภาษี</p>
           </div>
         </div>
-        <button onClick={() => setShowCreate(true)}
+        <button title="Button" type="button" onClick={() => setShowCreate(true)}
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 active:scale-[0.97] transition-all min-h-[44px] self-start sm:self-auto">
           <Plus size={16} /> สร้างใบเสร็จ
         </button>
@@ -140,17 +140,17 @@ export const InvoiceManager: React.FC = () => {
       <motion.div variants={fadeUp} className="flex flex-col sm:flex-row gap-2 sm:gap-3">
         <div className="relative flex-1">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+          <input title="Input field" type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
             placeholder="ค้นหาเลขที่ หรือชื่อลูกค้า..."
             className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/20 min-h-[44px]" />
         </div>
         <div className="flex gap-2">
-          <select value={filterType} onChange={e => setFilterType(e.target.value)}
+          <select title="Select option" value={filterType} onChange={e => setFilterType(e.target.value)}
             className="flex-1 sm:flex-none px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white min-h-[44px]">
             <option value="">ทุกประเภท</option>
             {Object.entries(TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
-          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+          <select title="Select option" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
             className="flex-1 sm:flex-none px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white min-h-[44px]">
             <option value="">ทุกสถานะ</option>
             {Object.entries(STATUS_MAP).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
@@ -256,7 +256,7 @@ const InvoiceActions: React.FC<{
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
-      <button onClick={() => setOpen(!open)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 min-w-[32px] min-h-[32px] flex items-center justify-center">
+      <button title="Button" type="button" onClick={() => setOpen(!open)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 min-w-[32px] min-h-[32px] flex items-center justify-center">
         <Eye size={15} />
       </button>
       <AnimatePresence>
@@ -269,11 +269,11 @@ const InvoiceActions: React.FC<{
             >
               {inv.status === 'draft' && (
                 <>
-                  <button onClick={() => { onIssue(inv.id); setOpen(false); }}
+                  <button title="Button" type="button" onClick={() => { onIssue(inv.id); setOpen(false); }}
                     className="w-full flex items-center gap-2 px-3 py-2 text-sm text-blue-700 hover:bg-blue-50 rounded-lg min-h-[36px]">
                     <Send size={13} /> ออกใบเสร็จ
                   </button>
-                  <button onClick={() => { onDelete(inv.id); setOpen(false); }}
+                  <button title="Button" type="button" onClick={() => { onDelete(inv.id); setOpen(false); }}
                     className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg min-h-[36px]">
                     <Trash2 size={13} /> ลบ
                   </button>
@@ -281,11 +281,11 @@ const InvoiceActions: React.FC<{
               )}
               {inv.status === 'issued' && (
                 <>
-                  <button onClick={() => { onPaid(inv.id); setOpen(false); }}
+                  <button title="Button" type="button" onClick={() => { onPaid(inv.id); setOpen(false); }}
                     className="w-full flex items-center gap-2 px-3 py-2 text-sm text-emerald-700 hover:bg-emerald-50 rounded-lg min-h-[36px]">
                     <Check size={13} /> ชำระแล้ว
                   </button>
-                  <button onClick={() => { onVoid(inv.id); setOpen(false); }}
+                  <button title="Button" type="button" onClick={() => { onVoid(inv.id); setOpen(false); }}
                     className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg min-h-[36px]">
                     <Ban size={13} /> Void
                   </button>
@@ -386,12 +386,12 @@ const CreateInvoiceDrawer: React.FC<{ onClose: () => void; onSaved: () => void }
       onKeyDown={e => e.key === 'Escape' && onClose()}>
       <motion.div
         initial={{ opacity: 0, y: 100 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 100 }}
-        transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+        transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] as const }}
         className="bg-white w-full sm:w-[600px] sm:max-h-[85vh] max-h-[90vh] sm:rounded-2xl rounded-t-2xl overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-100 shrink-0">
           <h2 className="text-base font-bold text-slate-900">สร้างใบเสร็จใหม่</h2>
-          <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 min-w-[40px] min-h-[40px] flex items-center justify-center"><X size={20} /></button>
+          <button title="Button" type="button" onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 min-w-[40px] min-h-[40px] flex items-center justify-center"><X size={20} /></button>
         </div>
 
         {/* Body */}
@@ -399,25 +399,25 @@ const CreateInvoiceDrawer: React.FC<{ onClose: () => void; onSaved: () => void }
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-[11px] font-medium text-slate-500 mb-1.5">ประเภท</label>
-              <select value={invoiceType} onChange={e => setInvoiceType(e.target.value)}
+              <select title="Select option" value={invoiceType} onChange={e => setInvoiceType(e.target.value)}
                 className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white min-h-[44px]">
                 {Object.entries(TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-[11px] font-medium text-slate-500 mb-1.5">วันที่ออก</label>
-              <input type="date" value={issueDate} onChange={e => setIssueDate(e.target.value)}
+              <input title="Input field" type="date" value={issueDate} onChange={e => setIssueDate(e.target.value)}
                 className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm min-h-[44px]" />
             </div>
             <div>
               <label className="block text-[11px] font-medium text-slate-500 mb-1.5">ชื่อลูกค้า *</label>
-              <input type="text" value={customerName} onChange={e => setCustomerName(e.target.value)}
+              <input title="Input field" type="text" value={customerName} onChange={e => setCustomerName(e.target.value)}
                 placeholder="ชื่อ-สกุล หรือบริษัท"
                 className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm min-h-[44px]" />
             </div>
             <div>
               <label className="block text-[11px] font-medium text-slate-500 mb-1.5">เลข Tax ID</label>
-              <input type="text" value={customerTaxId} onChange={e => setCustomerTaxId(e.target.value)}
+              <input title="Input field" type="text" value={customerTaxId} onChange={e => setCustomerTaxId(e.target.value)}
                 placeholder="13 หลัก (ถ้ามี)"
                 className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm min-h-[44px]" />
             </div>
@@ -427,7 +427,7 @@ const CreateInvoiceDrawer: React.FC<{ onClose: () => void; onSaved: () => void }
           <div>
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-semibold text-slate-900">รายการ</h3>
-              <button onClick={addItem} className="text-xs text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded-lg flex items-center gap-1 min-h-[32px]">
+              <button title="Button" type="button" onClick={addItem} className="text-xs text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded-lg flex items-center gap-1 min-h-[32px]">
                 <Plus size={12} /> เพิ่ม
               </button>
             </div>
@@ -436,25 +436,25 @@ const CreateInvoiceDrawer: React.FC<{ onClose: () => void; onSaved: () => void }
                 <div key={idx} className="flex gap-2 items-end flex-wrap sm:flex-nowrap">
                   <div className="flex-1 min-w-[140px]">
                     {idx === 0 && <p className="text-[10px] text-slate-400 mb-1">รายละเอียด</p>}
-                    <input type="text" value={item.description} onChange={e => updateItem(idx, 'description', e.target.value)}
+                    <input title="Input field" type="text" value={item.description} onChange={e => updateItem(idx, 'description', e.target.value)}
                       placeholder="รายละเอียด"
                       className="w-full px-2.5 py-2 border border-slate-200 rounded-lg text-sm min-h-[40px]" />
                   </div>
                   <div className="w-14">
                     {idx === 0 && <p className="text-[10px] text-slate-400 mb-1">จำนวน</p>}
-                    <input type="number" min={1} value={item.quantity} onChange={e => updateItem(idx, 'quantity', +e.target.value || 1)}
+                    <input title="Input field" type="number" min={1} value={item.quantity} onChange={e => updateItem(idx, 'quantity', +e.target.value || 1)}
                       className="w-full px-2 py-2 text-center border border-slate-200 rounded-lg text-sm min-h-[40px]" />
                   </div>
                   <div className="w-20">
                     {idx === 0 && <p className="text-[10px] text-slate-400 mb-1">ราคา</p>}
-                    <input type="number" min={0} step={0.01} value={item.unit_price} onChange={e => updateItem(idx, 'unit_price', +e.target.value || 0)}
+                    <input title="Input field" type="number" min={0} step={0.01} value={item.unit_price} onChange={e => updateItem(idx, 'unit_price', +e.target.value || 0)}
                       className="w-full px-2 py-2 text-right border border-slate-200 rounded-lg text-sm min-h-[40px]" />
                   </div>
                   <div className="w-20 text-right">
                     {idx === 0 && <p className="text-[10px] text-slate-400 mb-1">รวม</p>}
                     <p className="py-2 text-sm font-medium text-slate-700">฿{item.amount.toFixed(2)}</p>
                   </div>
-                  <button onClick={() => removeItem(idx)} className="p-2 text-red-400 hover:text-red-600 min-h-[40px]"><Trash2 size={14} /></button>
+                  <button title="Button" type="button" onClick={() => removeItem(idx)} className="p-2 text-red-400 hover:text-red-600 min-h-[40px]"><Trash2 size={14} /></button>
                 </div>
               ))}
             </div>
@@ -462,7 +462,7 @@ const CreateInvoiceDrawer: React.FC<{ onClose: () => void; onSaved: () => void }
 
           {/* VAT */}
           <label className="flex items-center gap-2 text-sm cursor-pointer min-h-[44px]">
-            <input type="checkbox" checked={includeVat} onChange={e => setIncludeVat(e.target.checked)}
+            <input title="Input field" type="checkbox" checked={includeVat} onChange={e => setIncludeVat(e.target.checked)}
               className="w-5 h-5 rounded border-slate-300 text-indigo-600" />
             <span className="text-slate-700">VAT 7%</span>
           </label>
@@ -481,8 +481,8 @@ const CreateInvoiceDrawer: React.FC<{ onClose: () => void; onSaved: () => void }
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-2 p-4 sm:p-5 border-t border-slate-100 shrink-0">
-          <button onClick={onClose} className="px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-100 rounded-xl min-h-[44px]">ยกเลิก</button>
-          <button onClick={handleSave} disabled={isSaving}
+          <button title="Button" type="button" onClick={onClose} className="px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-100 rounded-xl min-h-[44px]">ยกเลิก</button>
+          <button title="Button" type="button" onClick={handleSave} disabled={isSaving}
             className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 disabled:opacity-50 min-h-[44px]">
             {isSaving ? <RefreshCw size={15} className="animate-spin" /> : <Check size={15} />}
             บันทึก

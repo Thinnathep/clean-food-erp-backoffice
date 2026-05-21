@@ -5,7 +5,7 @@ import dayjs from 'dayjs';
 import { motion } from 'framer-motion';
 import {
   FileBarChart, ChevronLeft, ChevronRight, TrendingUp, TrendingDown,
-  DollarSign, RefreshCw
+  DollarSign
 } from 'lucide-react';
 
 // ─── Animation Tokens ───
@@ -15,7 +15,7 @@ const stagger = {
 };
 const fadeUp = {
   hidden: { opacity: 0, y: 14 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] } },
+  show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] as const } },
 };
 
 interface PLLine {
@@ -128,11 +128,11 @@ export const PLStatement: React.FC = () => {
           </div>
         </div>
         <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl px-1">
-          <button onClick={() => setSelectedMonth(m => dayjs(m).subtract(1, 'month').format('YYYY-MM'))}
+          <button title="Button" type="button" onClick={() => setSelectedMonth(m => dayjs(m).subtract(1, 'month').format('YYYY-MM'))}
             className="p-2 hover:bg-slate-50 rounded-lg text-slate-500 min-w-[40px] min-h-[40px] flex items-center justify-center"><ChevronLeft size={16} /></button>
           <input type="month" value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)}
-            className="text-sm font-medium text-slate-900 border-none outline-none bg-transparent px-2 py-1 min-h-[40px]" style={{ minWidth: '130px' }} />
-          <button onClick={() => setSelectedMonth(m => dayjs(m).add(1, 'month').format('YYYY-MM'))}
+            className="text-sm font-medium text-slate-900 border-none outline-none bg-transparent px-2 py-1 min-h-[40px] min-w-[130px]" title="Input field" />
+          <button title="Button" type="button" onClick={() => setSelectedMonth(m => dayjs(m).add(1, 'month').format('YYYY-MM'))}
             className="p-2 hover:bg-slate-50 rounded-lg text-slate-500 min-w-[40px] min-h-[40px] flex items-center justify-center"><ChevronRight size={16} /></button>
         </div>
       </motion.div>

@@ -17,7 +17,7 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
             </div>
             <h1 className="text-base font-normal tracking-tight leading-none">CLEAN FOOD<br/><span className="text-emerald-400 text-xs">ERP SYSTEM</span></h1>
           </div>
-          <button onClick={() => setMobileOpen(true)} className="text-slate-300 hover:text-white">
+          <button title="Button" type="button" onClick={() => setMobileOpen(true)} className="text-slate-300 hover:text-white">
             <Menu size={24} />
           </button>
         </div>

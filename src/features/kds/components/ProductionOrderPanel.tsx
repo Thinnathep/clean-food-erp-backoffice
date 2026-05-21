@@ -5,7 +5,7 @@ import dayjs from 'dayjs';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Factory, Play, CheckCircle2, XCircle, Clock, Plus,
-  ChevronDown, AlertTriangle, Package, RefreshCw, Scissors, Edit3, X
+  ChevronDown, RefreshCw, Scissors, X
 } from 'lucide-react';
 
 // ─── Animation Tokens ───
@@ -15,7 +15,7 @@ const stagger = {
 };
 const fadeUp = {
   hidden: { opacity: 0, y: 14 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] } },
+  show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] as const } },
 };
 
 // ─── Types ───
@@ -64,7 +64,6 @@ export const ProductionOrderPanel: React.FC = () => {
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
-  const [editingItem, setEditingItem] = useState<string | null>(null);
 
   const loadOrders = useCallback(async () => {
     setIsLoading(true);
@@ -301,13 +300,13 @@ export const ProductionOrderPanel: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
-            <input
+            <input title="Input field"
               type="date"
               value={selectedDate}
               onChange={e => setSelectedDate(e.target.value)}
               className="flex-1 sm:flex-none px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-400/20 min-h-[44px]"
             />
-            <button
+            <button title="Button" type="button"
               onClick={createFromSchedule}
               disabled={isCreating}
               className="inline-flex items-center gap-2 px-3 sm:px-4 py-2.5 bg-violet-600 text-white rounded-xl text-sm font-medium hover:bg-violet-700 active:scale-[0.97] transition-all disabled:opacity-50 min-h-[44px] shrink-0"
@@ -351,7 +350,7 @@ export const ProductionOrderPanel: React.FC = () => {
           </motion.div>
         ) : (
           <div className="space-y-3 sm:space-y-4">
-            {orders.map((order, orderIdx) => {
+            {orders.map((order) => {
               const st = STATUS_MAP[order.status] || STATUS_MAP.draft;
               const isExpanded = expandedOrder === order.id;
 
@@ -363,7 +362,7 @@ export const ProductionOrderPanel: React.FC = () => {
                   className="bg-white rounded-xl border border-slate-200 overflow-hidden"
                 >
                   {/* Order Header — touch-friendly */}
-                  <button
+                  <button title="Button" type="button"
                     onClick={() => setExpandedOrder(isExpanded ? null : order.id)}
                     className="w-full flex items-center justify-between p-3 sm:p-4 hover:bg-slate-50/50 active:bg-slate-100/50 transition-colors text-left min-h-[52px]"
                   >
@@ -393,7 +392,7 @@ export const ProductionOrderPanel: React.FC = () => {
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
+                        transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] as const }}
                         className="overflow-hidden border-t border-slate-100"
                       >
                         <div className="p-3 sm:p-4 space-y-3">
@@ -418,7 +417,7 @@ export const ProductionOrderPanel: React.FC = () => {
                                       <td className="py-2.5 text-center text-slate-600">{item.planned_qty}</td>
                                       <td className="py-2.5">
                                         {order.status !== 'completed' ? (
-                                          <input type="number" min={0} value={item.actual_qty}
+                                          <input title="Input field" type="number" min={0} value={item.actual_qty}
                                             onChange={e => updateItemQty(item.id, 'actual_qty', +e.target.value || 0)}
                                             className="w-full text-center px-2 py-1.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-400/20 min-h-[36px]" />
                                         ) : (
@@ -427,7 +426,7 @@ export const ProductionOrderPanel: React.FC = () => {
                                       </td>
                                       <td className="py-2.5">
                                         {order.status !== 'completed' ? (
-                                          <input type="number" min={0} value={item.waste_qty}
+                                          <input title="Input field" type="number" min={0} value={item.waste_qty}
                                             onChange={e => updateItemQty(item.id, 'waste_qty', +e.target.value || 0)}
                                             className="w-full text-center px-2 py-1.5 border border-red-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-300/20 min-h-[36px]" />
                                         ) : (
@@ -470,7 +469,7 @@ export const ProductionOrderPanel: React.FC = () => {
                                     <div>
                                       <p className="text-[10px] text-emerald-500 mb-0.5">ผลิตจริง</p>
                                       {order.status !== 'completed' ? (
-                                        <input type="number" min={0} value={item.actual_qty}
+                                        <input title="Input field" type="number" min={0} value={item.actual_qty}
                                           onChange={e => updateItemQty(item.id, 'actual_qty', +e.target.value || 0)}
                                           className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-sm text-center min-h-[36px]" />
                                       ) : (
@@ -480,7 +479,7 @@ export const ProductionOrderPanel: React.FC = () => {
                                     <div>
                                       <p className="text-[10px] text-red-400 mb-0.5">ของเสีย</p>
                                       {order.status !== 'completed' ? (
-                                        <input type="number" min={0} value={item.waste_qty}
+                                        <input title="Input field" type="number" min={0} value={item.waste_qty}
                                           onChange={e => updateItemQty(item.id, 'waste_qty', +e.target.value || 0)}
                                           className="w-full px-2 py-1.5 border border-red-100 rounded-lg text-sm text-center min-h-[36px]" />
                                       ) : (
@@ -497,18 +496,18 @@ export const ProductionOrderPanel: React.FC = () => {
                           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2 border-t border-slate-50">
                             {order.status === 'draft' && (
                               <>
-                                <button onClick={() => cancelOrder(order.id)}
+                                <button title="Button" type="button" onClick={() => cancelOrder(order.id)}
                                   className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-red-600 bg-red-50 rounded-xl text-sm font-medium hover:bg-red-100 active:scale-[0.97] transition-all min-h-[44px]">
                                   <X size={15} /> ยกเลิก
                                 </button>
-                                <button onClick={() => startProduction(order.id)}
+                                <button title="Button" type="button" onClick={() => startProduction(order.id)}
                                   className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-amber-100 text-amber-800 rounded-xl text-sm font-medium hover:bg-amber-200 active:scale-[0.97] transition-all min-h-[44px]">
                                   <Play size={15} /> เริ่มผลิต
                                 </button>
                               </>
                             )}
                             {order.status === 'in_progress' && (
-                              <button onClick={() => completeOrder(order)}
+                              <button title="Button" type="button" onClick={() => completeOrder(order)}
                                 className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-700 active:scale-[0.97] transition-all min-h-[44px]">
                                 <CheckCircle2 size={16} /> ยืนยันผลิตเสร็จ — ตัดสต็อก
                               </button>

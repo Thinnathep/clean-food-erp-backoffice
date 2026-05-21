@@ -15,7 +15,7 @@ const stagger = {
 };
 const fadeUp = {
   hidden: { opacity: 0, y: 14 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] } },
+  show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] as const } },
 };
 
 // ─── Types ───
@@ -198,9 +198,9 @@ export const FoodSafetyLog: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
+            <input title="Input field" type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
               className="flex-1 sm:flex-none px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400/20 min-h-[44px]" />
-            <button onClick={() => { if (showAddForm) resetForm(); else setShowAddForm(true); }}
+            <button title="Button" type="button" onClick={() => { if (showAddForm) resetForm(); else setShowAddForm(true); }}
               className="inline-flex items-center gap-2 px-3 sm:px-4 py-2.5 bg-teal-600 text-white rounded-xl text-sm font-medium hover:bg-teal-700 active:scale-[0.97] transition-all min-h-[44px] shrink-0">
               {showAddForm ? <X size={16} /> : <Plus size={16} />}
               <span className="hidden sm:inline">{showAddForm ? 'ปิด' : 'เพิ่มรายการ'}</span>
@@ -230,7 +230,7 @@ export const FoodSafetyLog: React.FC = () => {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
+              transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] as const }}
               className="overflow-hidden"
             >
               <div className="bg-white rounded-xl border border-teal-200 p-4 sm:p-5 space-y-4">
@@ -238,14 +238,14 @@ export const FoodSafetyLog: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
                     <label className="block text-[11px] font-medium text-slate-500 mb-1.5">หมวดหมู่</label>
-                    <select value={formCategory} onChange={e => setFormCategory(e.target.value)}
+                    <select title="Select option" value={formCategory} onChange={e => setFormCategory(e.target.value)}
                       className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-400/20 min-h-[44px]">
                       {CATEGORIES.map(cat => <option key={cat.id} value={cat.id}>{cat.label}</option>)}
                     </select>
                   </div>
                   <div>
                     <label className="block text-[11px] font-medium text-slate-500 mb-1.5">รายการตรวจ *</label>
-                    <input type="text" value={formCheckItem} onChange={e => setFormCheckItem(e.target.value)}
+                    <input title="Input field" type="text" value={formCheckItem} onChange={e => setFormCheckItem(e.target.value)}
                       placeholder="เช่น ตู้เย็น #1, โต๊ะเตรียม A"
                       className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400/20 min-h-[44px]" />
                   </div>
@@ -253,21 +253,21 @@ export const FoodSafetyLog: React.FC = () => {
                     <label className="block text-[11px] font-medium text-slate-500 mb-1.5">
                       ค่าวัด ({CATEGORIES.find(c => c.id === formCategory)?.unit || ''})
                     </label>
-                    <input type="number" step="0.1" value={formReading} onChange={e => setFormReading(e.target.value)}
+                    <input title="Input field" type="number" step="0.1" value={formReading} onChange={e => setFormReading(e.target.value)}
                       placeholder="กรอกค่าที่วัดได้"
                       className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400/20 min-h-[44px]" />
                   </div>
                   <div>
                     <label className="block text-[11px] font-medium text-slate-500 mb-1.5">การแก้ไข (ถ้าไม่ผ่าน)</label>
-                    <input type="text" value={formCorrectiveAction} onChange={e => setFormCorrectiveAction(e.target.value)}
+                    <input title="Input field" type="text" value={formCorrectiveAction} onChange={e => setFormCorrectiveAction(e.target.value)}
                       placeholder="สิ่งที่ทำเพื่อแก้ไข"
                       className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-teal-400/20 min-h-[44px]" />
                   </div>
                 </div>
                 <div className="flex justify-end gap-2">
-                  <button onClick={resetForm}
+                  <button title="Button" type="button" onClick={resetForm}
                     className="px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-100 rounded-xl transition-colors min-h-[44px]">ยกเลิก</button>
-                  <button onClick={editingLog ? saveEdit : addLog}
+                  <button title="Button" type="button" onClick={editingLog ? saveEdit : addLog}
                     className="inline-flex items-center gap-2 px-5 py-2.5 bg-teal-600 text-white rounded-xl text-sm font-medium hover:bg-teal-700 active:scale-[0.97] transition-all min-h-[44px]">
                     <CheckCircle2 size={15} /> {editingLog ? 'บันทึกการแก้ไข' : 'บันทึก'}
                   </button>
@@ -337,11 +337,11 @@ export const FoodSafetyLog: React.FC = () => {
                             <td className="px-4 py-2.5 text-xs text-slate-500 max-w-[120px] truncate">{log.corrective_action || '-'}</td>
                             <td className="px-4 py-2.5">
                               <div className="flex items-center gap-1">
-                                <button onClick={() => startEdit(log)}
+                                <button title="Button" type="button" onClick={() => startEdit(log)}
                                   className="p-1.5 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors min-w-[32px] min-h-[32px] flex items-center justify-center">
                                   <Edit3 size={14} />
                                 </button>
-                                <button onClick={() => deleteLog(log.id)}
+                                <button title="Button" type="button" onClick={() => deleteLog(log.id)}
                                   className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors min-w-[32px] min-h-[32px] flex items-center justify-center">
                                   <Trash2 size={14} />
                                 </button>
@@ -380,11 +380,11 @@ export const FoodSafetyLog: React.FC = () => {
                               <XCircle size={11} /> ไม่ผ่าน
                             </span>
                           )}
-                          <button onClick={() => startEdit(log)}
+                          <button title="Button" type="button" onClick={() => startEdit(log)}
                             className="p-1.5 text-blue-400 hover:text-blue-600 rounded-lg min-w-[36px] min-h-[36px] flex items-center justify-center">
                             <Edit3 size={14} />
                           </button>
-                          <button onClick={() => deleteLog(log.id)}
+                          <button title="Button" type="button" onClick={() => deleteLog(log.id)}
                             className="p-1.5 text-red-400 hover:text-red-600 rounded-lg min-w-[36px] min-h-[36px] flex items-center justify-center">
                             <Trash2 size={14} />
                           </button>

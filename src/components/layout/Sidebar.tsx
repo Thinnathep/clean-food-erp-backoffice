@@ -145,6 +145,7 @@ const isPathActive = (item: NavItem, currentPath: string) => {
   if (item.path === currentPath) return true;
   if (item.children) {
     return item.children.some((child) => {
+      if (!child.path) return false;
       if (child.end) return currentPath === child.path;
       return currentPath.startsWith(child.path);
     });

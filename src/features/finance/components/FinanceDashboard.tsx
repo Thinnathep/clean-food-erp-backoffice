@@ -19,10 +19,9 @@ import { CashReconciliation } from './CashReconciliation.tsx';
 import dayjs from 'dayjs';
 import { toast } from 'sonner';
 import Swal from 'sweetalert2';
-import { 
-  TrendingUp, TrendingDown, RefreshCw, Sun, Moon, Package, AlertTriangle, Download, Users, Settings,
-  ChevronLeft, ChevronRight, Calculator, PiggyBank, Wallet, Receipt, History, Rocket, CheckCircle2,
-  FileBarChart, FileText, Coins
+import {
+  TrendingUp, TrendingDown, RefreshCw, Sun, Moon, Package, AlertTriangle, Download,
+  ChevronLeft, ChevronRight, PiggyBank, Wallet, Receipt, CheckCircle2
 } from 'lucide-react';
 
 type TabKey = 'overview' | 'income' | 'expense' | 'history' | 'simulator' | 'promotions' | 'customers' | 'settings' | 'pl' | 'invoices' | 'cash_recon';
@@ -199,7 +198,7 @@ export const FinanceDashboard: React.FC<{ initialTab?: TabKey }> = ({ initialTab
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <button
+            <button type="button"
               onClick={() => setIsDarkMode(!isDarkMode)}
               className={`p-2.5 rounded-xl border transition-all ${
                 isDarkMode 
@@ -213,13 +212,13 @@ export const FinanceDashboard: React.FC<{ initialTab?: TabKey }> = ({ initialTab
             <div className={`flex items-center rounded-xl border overflow-hidden ${
               isDarkMode ? 'border-slate-700 bg-slate-800/60' : 'border-slate-200 bg-white shadow-sm'
             }`}>
-              <button
+              <button title="Button" type="button"
                 onClick={() => setSelectedMonth(m => dayjs(m).subtract(1, 'month').format('YYYY-MM'))}
                 className={`p-2.5 transition-colors ${isDarkMode ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-50 text-slate-500'}`}
               >
                 <ChevronLeft size={18} />
               </button>
-              <input
+              <input title="Input field"
                 type="month"
                 value={selectedMonth}
                 onChange={e => setSelectedMonth(e.target.value)}
@@ -230,14 +229,14 @@ export const FinanceDashboard: React.FC<{ initialTab?: TabKey }> = ({ initialTab
                 }`}
                 style={{ minWidth: '130px' }}
               />
-              <button
+              <button title="Button" type="button"
                 onClick={() => setSelectedMonth(m => dayjs(m).add(1, 'month').format('YYYY-MM'))}
                 className={`p-2.5 transition-colors ${isDarkMode ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-50 text-slate-500'}`}
               >
                 <ChevronRight size={18} />
               </button>
             </div>
-            <button
+            <button type="button"
               onClick={exportCSV}
               className={`p-2.5 border rounded-xl transition-all ${
                 isDarkMode
@@ -248,7 +247,7 @@ export const FinanceDashboard: React.FC<{ initialTab?: TabKey }> = ({ initialTab
             >
               <Download size={18} />
             </button>
-            <button
+            <button type="button"
               onClick={handleSyncBalances}
               className={`flex items-center gap-2 px-3 py-2.5 border rounded-xl transition-all ${
                 isDarkMode
@@ -260,7 +259,7 @@ export const FinanceDashboard: React.FC<{ initialTab?: TabKey }> = ({ initialTab
               <RefreshCw size={18} />
               <span className="hidden lg:inline text-xs font-bold">Sync ยอดเงิน</span>
             </button>
-            <button
+            <button title="Button" type="button"
               onClick={fetchAll}
               className={`p-2.5 border rounded-xl transition-all ${
                 isDarkMode
