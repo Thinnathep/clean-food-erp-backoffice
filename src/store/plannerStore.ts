@@ -240,7 +240,7 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
           memberSchedules: state.memberSchedules.filter(s => s.id !== scheduleId)
         }));
         
-        if (scheduleToDelete && scheduleToDelete.package_id) {
+        if (scheduleToDelete && scheduleToDelete.package_id && !scheduleToDelete.package_id.toString().startsWith('retail_')) {
           const { data: allSchedules } = await supabase
             .from('erp_member_meal_schedules')
             .select('quantity, is_extra_order, is_compensatory')
@@ -391,25 +391,27 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
 
       // 3. Recalculate and Update Package Balance
       // We fetch ALL schedules for this package to be 100% accurate
-      const { data: allSchedules, error: countError } = await supabase
-        .from('erp_member_meal_schedules')
-        .select('quantity, is_extra_order, is_compensatory')
-        .eq('package_id', selectedPackageId);
+      if (selectedPackageId && !selectedPackageId.toString().startsWith('retail_')) {
+        const { data: allSchedules, error: countError } = await supabase
+          .from('erp_member_meal_schedules')
+          .select('quantity, is_extra_order, is_compensatory')
+          .eq('package_id', selectedPackageId);
 
-      if (countError) throw countError;
+        if (countError) throw countError;
 
-      const totalUsed = allSchedules
-        .filter(s => !s.is_extra_order && !s.is_compensatory)
-        .reduce((sum, s) => sum + (s.quantity || 1), 0);
-      const pkg = useMemberStore.getState().activePackages.find(p => p.id === selectedPackageId);
-      
-      if (pkg) {
-        // ALLOW NEGATIVE: Do not use Math.max(0, ...) so that exceeded meals show correctly.
-        const newRemaining = pkg.meals_total - totalUsed;
-        await supabase
-          .from('pinto_packages')
-          .update({ meals_remaining: newRemaining })
-          .eq('id', selectedPackageId);
+        const totalUsed = allSchedules
+          .filter(s => !s.is_extra_order && !s.is_compensatory)
+          .reduce((sum, s) => sum + (s.quantity || 1), 0);
+        const pkg = useMemberStore.getState().activePackages.find(p => p.id === selectedPackageId);
+        
+        if (pkg) {
+          // ALLOW NEGATIVE: Do not use Math.max(0, ...) so that exceeded meals show correctly.
+          const newRemaining = pkg.meals_total - totalUsed;
+          await supabase
+            .from('pinto_packages')
+            .update({ meals_remaining: newRemaining })
+            .eq('id', selectedPackageId);
+        }
       }
 
       // 4. Finalize & REFRESH immediately to get real IDs
@@ -484,7 +486,7 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
         hasUnsavedChanges: true
       }));
       
-      if (toDelete.length > 0) {
+      if (toDelete.length > 0 && !pkgId.toString().startsWith('retail_')) {
         const { data: allSchedules } = await supabase
           .from('erp_member_meal_schedules')
           .select('quantity, is_extra_order, is_compensatory')

@@ -243,7 +243,14 @@ export const fetchMemberSchedules = async (startDate: string, endDate: string, p
      console.error("fetchMemberSchedules error:", error.message);
      return [];
   }
-  return data as unknown as MemberMealSchedule[];
+  
+  // Map null package_id back to virtual retail package_id so frontend filtering works
+  const mappedData = (data as any[]).map(s => ({
+    ...s,
+    package_id: s.package_id === null ? `retail_${s.member_id}` : s.package_id
+  }));
+
+  return mappedData as unknown as MemberMealSchedule[];
 };
 
 export const upsertMemberSchedule = async (
@@ -271,6 +278,13 @@ export const upsertMemberSchedule = async (
       .insert({ package_id, member_id, delivery_date, meal_type, menu_item_id, quantity, delivery_time, notes });
     if (error) throw new Error(error.message);
   }
+};
+
+export const bulkImportSchedules = async (payloads: any[]): Promise<void> => {
+  const { error } = await supabase
+    .from('erp_member_meal_schedules')
+    .insert(payloads);
+  if (error) throw new Error(error.message);
 };
 
 export const removeMemberSchedule = async (scheduleId: string): Promise<void> => {

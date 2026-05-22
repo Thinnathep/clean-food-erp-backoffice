@@ -16,6 +16,7 @@ import {
   Trash2,
   MapPin,
   Pin,
+  Wand2,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import dayjs from "dayjs";
@@ -26,8 +27,9 @@ import { useMemberStore } from "../../../store/memberStore";
 import { useMenuStore } from "../../../store/menuStore";
 import { useAuthStore } from "../../../store/authStore";
 import { getWeekDays, formatDisplayDate } from "../../../lib/dateUtils";
-import { fetchMemberSchedules } from "../../../features/kds/api";
+import { fetchMemberSchedules, bulkImportSchedules } from "../../../features/kds/api";
 import type { MemberMealSchedule, PintoPackage } from "../../../types";
+import { SmartImportModal } from "./SmartImportModal";
 
 export const MemberPlanner: React.FC = () => {
   // Authentication & Role
@@ -74,6 +76,7 @@ export const MemberPlanner: React.FC = () => {
 
   // Modal State: New Package
   const [isAddPackageModalOpen, setIsAddPackageModalOpen] = useState(false);
+  const [isSmartImportOpen, setIsSmartImportOpen] = useState(false);
   const [newPackage, setNewPackage] = useState({
     member_id: "",
     package_name: "",
@@ -94,6 +97,7 @@ export const MemberPlanner: React.FC = () => {
   const [lastOrderDates, setLastOrderDates] = useState<Record<string, string>>(
     {},
   );
+  const [retailSchedules, setRetailSchedules] = useState<any[]>([]);
 
   const { menus } = useMenuStore();
   const { activePackages, members, loadMemberData, updateProfile, addPackage } =
@@ -116,6 +120,36 @@ export const MemberPlanner: React.FC = () => {
     isLoading,
     initialWeekSubscriptionQty,
   } = usePlannerStore();
+
+  // Fetch retail schedules for the current week to show badges for unselected retail members
+  useEffect(() => {
+    let isMounted = true;
+    const fetchRetailSchedules = async () => {
+      if (!currentWeekStart) return;
+      try {
+        const startStr = dayjs(currentWeekStart).format("YYYY-MM-DD");
+        const endStr = dayjs(currentWeekStart).add(6, "day").format("YYYY-MM-DD");
+        
+        const { data, error } = await supabase
+          .from("erp_member_meal_schedules")
+          .select("member_id, delivery_date, quantity")
+          .is("package_id", null)
+          .gte("delivery_date", startStr)
+          .lte("delivery_date", endStr);
+          
+        if (!error && data && isMounted) {
+          setRetailSchedules(data);
+        }
+      } catch (err) {
+        console.error("Error fetching retail schedules:", err);
+      }
+    };
+    
+    fetchRetailSchedules();
+    return () => {
+      isMounted = false;
+    };
+  }, [currentWeekStart, hasUnsavedChanges]);
 
   const getDayColorClass = (dayName: string, isToday: boolean) => {
     if (isToday) return "text-white";
@@ -675,12 +709,20 @@ export const MemberPlanner: React.FC = () => {
               <h3 className="text-xs font-normal uppercase tracking-widest text-slate-400">
                 ลูกค้าที่กำลังดูแล
               </h3>
-              <button title="Button" type="button"
-                onClick={() => setIsAddPackageModalOpen(true)}
-                className="bg-slate-100 hover:bg-emerald-500 hover:text-white text-slate-600 px-2 py-1 rounded-lg text-[10px] font-normal flex items-center gap-1 transition-all border border-slate-200"
-              >
-                <Plus size={12} /> เพิ่ม
-              </button>
+              <div className="flex items-center gap-2">
+                <button title="Button" type="button"
+                  onClick={() => setIsSmartImportOpen(true)}
+                  className="bg-indigo-50 hover:bg-indigo-500 hover:text-white text-indigo-600 px-2 py-1 rounded-lg text-[10px] font-normal flex items-center gap-1 transition-all border border-indigo-200"
+                >
+                  <Wand2 size={12} /> นำเข้าออเดอร์
+                </button>
+                <button title="Button" type="button"
+                  onClick={() => setIsAddPackageModalOpen(true)}
+                  className="bg-slate-100 hover:bg-emerald-500 hover:text-white text-slate-600 px-2 py-1 rounded-lg text-[10px] font-normal flex items-center gap-1 transition-all border border-slate-200"
+                >
+                  <Plus size={12} /> เพิ่ม
+                </button>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
@@ -754,7 +796,7 @@ export const MemberPlanner: React.FC = () => {
               <div key={group.member.id} className="mb-3">
                 <div className="px-3 py-1.5 text-base font-medium text-slate-900 flex items-center gap-2 border-b border-slate-100 mb-1">
                   <User size={16} className="text-emerald-500" />{" "}
-                  {group.member.full_name}
+                  {group.member.full_name} {group.member.phone && <span className="text-xs text-slate-400 font-normal ml-1">({group.member.phone})</span>}
                 </div>
                 <div className="space-y-1">
                   {group.packages.map((pkg: any) => {
@@ -795,7 +837,11 @@ export const MemberPlanner: React.FC = () => {
                       : `เหลือ ${rem}/${pkg.meals_total || 0} มื้อ`;
 
                     if (isRetail) {
-                      const activeOrders = pkgSchedules
+                      const sourceSchedules = isSelected 
+                        ? pkgSchedules 
+                        : retailSchedules.filter(s => s.member_id === member.id);
+                        
+                      const activeOrders = sourceSchedules
                         .filter((s) => !dayjs(s.delivery_date).isBefore(today))
                         .reduce((sum, s) => sum + (s.quantity || 1), 0);
                       statusBadgeClass =
@@ -1971,6 +2017,25 @@ export const MemberPlanner: React.FC = () => {
           </motion.div>
         </div>
       )}
+
+      <SmartImportModal
+        isOpen={isSmartImportOpen}
+        onClose={() => setIsSmartImportOpen(false)}
+        onImport={async (parsedData) => {
+          const payloads = parsedData.items.map(item => ({
+            package_id: null,
+            member_id: parsedData.memberId,
+            delivery_date: item.date,
+            meal_type: '1',
+            menu_item_id: item.menuId,
+            quantity: item.quantity,
+          }));
+          await bulkImportSchedules(payloads.filter(p => p.member_id && p.menu_item_id));
+          const startStr = dayjs(currentWeekStart).format("YYYY-MM-DD");
+          const endStr = dayjs(currentWeekStart).add(6, "day").format("YYYY-MM-DD");
+          await loadMemberPlanner(startStr, endStr, selectedPackageId || undefined, true);
+        }}
+      />
     </div>
   );
 };

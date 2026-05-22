@@ -154,7 +154,7 @@ const getCategoryBgLightClass = (category: string) => {
 };
 
 const getCleanTimeLabel = (rawTime: string) => {
-  if (!rawTime) return "ออเดอร์สั่งด่วน (Retail)";
+  if (!rawTime) return "ออเดอร์สมาชิกทั่วไป";
   const timeMatch = rawTime.match(/(\d{1,2})[:.](\d{2})/);
   const hour = timeMatch ? parseInt(timeMatch[1]) : -1;
   const isEvening =
@@ -688,7 +688,7 @@ export const TodayView: React.FC = () => {
     });
 
     todayTasks.forEach((task) => {
-      const timeLabel = "ออเดอร์สั่งด่วน (Retail)";
+      const timeLabel = "ออเดอร์สมาชิกทั่วไป";
       const memberName = "ลูกค้ารายย่อย";
       const menuNameRaw = task.menu_name || "";
       const cleanTaskName = menuNameRaw.replace(/\(x\d+\)/g, "").trim();

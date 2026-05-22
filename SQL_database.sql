@@ -280,7 +280,7 @@ CREATE TABLE public.erp_member_ban_logs (
 );
 CREATE TABLE public.erp_member_meal_schedules (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  package_id uuid NOT NULL,
+  package_id uuid,
   member_id uuid NOT NULL,
   delivery_date date NOT NULL,
   meal_type text NOT NULL,
