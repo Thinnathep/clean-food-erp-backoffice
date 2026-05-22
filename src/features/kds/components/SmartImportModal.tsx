@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Search, Check, AlertTriangle, FileText, Wand2 } from 'lucide-react';
 import { useMemberStore } from '../../../store/memberStore';
 import { useMenuStore } from '../../../store/menuStore';
-import { parseOrderText, type ParsedOrder, type ParsedOrderItem } from '../../../utils/orderParser';
+import { parseOrderText, type ParsedOrder } from '../../../utils/orderParser';
 import { dayjs } from '../../../lib/dateUtils';
 import { toast } from 'sonner';
 
