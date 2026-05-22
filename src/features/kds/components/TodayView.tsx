@@ -315,7 +315,7 @@ export const TodayView: React.FC = () => {
             "[B] ออเดอร์อาหาร Clean Food CR\n" +
             "--------------------------------\n" +
             `ลูกค้า | คุณ${memberName}\n` +
-            `รอบส่ง | ${time}\n` +
+            (time === "ออเดอร์สมาชิกทั่วไป" || time.includes("ลูกค้ารายย่อย") ? "" : `รอบส่ง | ${time}\n`) +
             `วันที่ | ${dayjs(selectedDate).format("DD/MM/YYYY")}\n` +
             `จำนวนกล่อง | ${item.orders.reduce((sum: number, o: any) => sum + o.qty, 0)} กล่อง\n` +
             "--------------------------------\n";
@@ -396,7 +396,7 @@ export const TodayView: React.FC = () => {
 
           let bodyText =
             `สมาชิก: คุณ${memberName}\n` +
-            `รอบส่ง: ${time}\n` +
+            (time === "ออเดอร์สมาชิกทั่วไป" || time.includes("ลูกค้ารายย่อย") ? "" : `รอบส่ง: ${time}\n`) +
             `วันที่: ${dayjs(selectedDate).format("DD/MM/YYYY")}\n` +
             "--------------------------------\n";
 
@@ -1676,10 +1676,12 @@ export const TodayView: React.FC = () => {
                             <span className="text-slate-900">ลูกค้า</span>
                             <span className="font-bold">คุณ{nutritionModal.memberName}</span>
                           </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-900">รอบส่ง</span>
-                            <span className="font-bold">{nutritionModal.time}</span>
-                          </div>
+                          {nutritionModal.time !== "ออเดอร์สมาชิกทั่วไป" && !nutritionModal.time.includes("ลูกค้ารายย่อย") && (
+                            <div className="flex justify-between">
+                              <span className="text-slate-900">รอบส่ง</span>
+                              <span className="font-bold">{nutritionModal.time}</span>
+                            </div>
+                          )}
                           <div className="flex justify-between">
                             <span className="text-slate-900">วันที่</span>
                             <span className="font-bold">{dayjs(selectedDate).format("DD/MM/YYYY")}</span>
@@ -2399,7 +2401,7 @@ export const TodayView: React.FC = () => {
                                   "text-3xl text-white font-bold",
                               )}
                             >
-                              รอบจัดส่ง: {time}
+                              {(time === "ออเดอร์สมาชิกทั่วไป" || time.includes("ลูกค้ารายย่อย")) ? time : `รอบจัดส่ง: ${time}`}
                             </h3>
                             <div className="flex items-center gap-4 mt-0.5">
                               <span
