@@ -52,7 +52,8 @@ export const useSmartProductionStore = create<SmartProductionState>((set, get) =
         
         aggregatedRows.forEach(prodItem => {
           const menuRecipes = recipes.filter(r => r.menu_item_id === prodItem.menu_item_id);
-          menuRecipes.forEach(recipe => {
+          menuRecipes.forEach(recipeObj => {
+            const recipe: any = recipeObj;
             const key = recipe.item_id || recipe.inventory_item_id;
             if (!key) return; // Skip if no valid item_id
             if (!aggIngredients[key]) {
@@ -68,7 +69,7 @@ export const useSmartProductionStore = create<SmartProductionState>((set, get) =
             const reqQty = recipe.quantity_required !== undefined ? recipe.quantity_required : recipe.quantity;
             const amount = (reqQty || 0) * prodItem.total_quantity;
             aggIngredients[key].totalQuantity += amount;
-            aggIngredients[key].menuRefs.push({ name: prodItem.menu_name, qty: prodItem.total_quantity });
+            aggIngredients[key].menuRefs.push({ menuName: prodItem.menu_name, qty: prodItem.total_quantity });
           });
         });
         

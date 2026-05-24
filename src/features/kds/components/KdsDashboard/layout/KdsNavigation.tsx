@@ -4,11 +4,9 @@ import {
   ChefHat, 
   CalendarDays, 
   Calendar, 
-  ClipboardCheck, 
   Wand2, 
   Package,
-  Flame,
-  Truck
+  Flame
 } from "lucide-react";
 import type { Tab } from "../KdsDashboardProvider";
 

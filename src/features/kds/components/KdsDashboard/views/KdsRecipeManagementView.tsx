@@ -15,12 +15,10 @@ import {
   X,
   AlertCircle,
   Info,
-  ListChecks,
   PanelLeftClose,
-  PanelLeftOpen,
   Menu,
-  ChevronDown,
-  ArrowLeft
+  ArrowLeft,
+  ListChecks
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -115,8 +113,8 @@ export const KdsRecipeManagementView: React.FC = () => {
     
     if (field === 'inventory_item_id') {
       const invItem = inventoryItems.find(i => i.id === value);
-      if (invItem && invItem.unit) {
-        newIngs[index].unit = invItem.unit;
+      if (invItem && invItem.storage_unit) {
+        newIngs[index].unit = invItem.storage_unit;
       }
     }
     
@@ -294,7 +292,7 @@ export const KdsRecipeManagementView: React.FC = () => {
         
         <div className="flex-1 overflow-y-auto px-3 pb-8 custom-scrollbar">
           <div className="space-y-1">
-            {filteredMenus.map((menu, i) => {
+            {filteredMenus.map((menu) => {
               const isSelected = selectedMenuId === menu.id;
               return (
                 <button
@@ -394,7 +392,7 @@ export const KdsRecipeManagementView: React.FC = () => {
                     {selectedMenu?.name}
                   </h2>
                   <p className="text-sm font-medium text-slate-500">
-                    รหัสเมนู: {selectedMenu?.menu_code || 'ยังไม่กำหนดรหัส'}
+                    รหัส: {(selectedMenu as any)?.menu_code || 'ไม่มีรหัส'}
                   </p>
                 </motion.div>
               </div>

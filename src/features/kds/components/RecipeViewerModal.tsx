@@ -162,7 +162,7 @@ export const RecipeViewerModal: React.FC<RecipeViewerModalProps> = ({
                     <p>ยังไม่ได้เพิ่มขั้นตอนวิธีทำ</p>
                   </div>
                 ) : (
-                  steps.map((step, idx) => (
+                  steps.map((step) => (
                     <div 
                       key={step.id} 
                       onClick={() => setCheckedSteps(prev => ({ ...prev, [step.id]: !prev[step.id] }))}

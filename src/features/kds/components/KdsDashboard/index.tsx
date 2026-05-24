@@ -20,7 +20,7 @@ const ProductionSummary = React.lazy(() => import("../ProductionSummary").then(m
 const TemplateManagement = React.lazy(() => import("../TemplateManagement").then(m => ({ default: m.TemplateManagement })));
 
 // New Smart Production Views
-const KdsChecklistView = React.lazy(() => import("./views/KdsChecklistView").then(m => ({ default: m.KdsChecklistView })));
+
 const KdsRecipeManagementView = React.lazy(() => import("./views/KdsRecipeManagementView").then(m => ({ default: m.KdsRecipeManagementView })));
 
 const KdsDashboardContent: React.FC = () => {

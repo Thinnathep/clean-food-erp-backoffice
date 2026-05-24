@@ -178,7 +178,7 @@ export const KdsChecklistView: React.FC = () => {
                      
                      {/* Items List */}
                      <div className="p-3 flex flex-col gap-1.5">
-                       {ingredientItems[cat].map((item, itemIdx) => (
+                       {ingredientItems[cat].map((item) => (
                          <div key={item.id} className="group p-4 hover:bg-indigo-50/40 rounded-2xl transition-all duration-300 flex items-center justify-between gap-4 border border-transparent hover:border-indigo-100/60 relative overflow-hidden">
                            {/* Hover gradient background effect */}
                            <div className="absolute inset-0 bg-gradient-to-r from-indigo-50/0 via-indigo-50/0 to-indigo-50/50 opacity-0 group-hover:opacity-100 transition-opacity"></div>

@@ -2,14 +2,13 @@ import React, { useState, useMemo } from 'react';
 import { 
   Plus, Search, Edit2, Trash2, X, 
   Utensils, Clock, Camera, Flame, 
-  Save, DollarSign
+  Save, DollarSign, Package, ListChecks, Calculator
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Swal from 'sweetalert2';
 import { useMenuStore } from '../../../store/menuStore';
 import type { MenuItem } from '../../../types';
 import { useInventoryStore } from '../../../store/inventoryStore';
-import type { InventoryItem, RecipeItem, RecipeStep } from '../../../types';
 
 
 interface MenuManagementProps {
