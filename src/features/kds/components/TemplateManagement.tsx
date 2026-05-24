@@ -40,7 +40,7 @@ const ICON_OPTIONS = [
 const renderIcon = (iconValue: string, size: number = 24) => {
   const found = ICON_OPTIONS.find(i => i.id === iconValue);
   if (found) {
-    return React.cloneElement(found.icon as React.ReactElement, { size });
+    return React.cloneElement(found.icon as React.ReactElement<any>, { size });
   }
   // Fallback to emoji for older data
   return <span style={{ fontSize: `${size}px`, lineHeight: 1 }}>{iconValue}</span>;
@@ -74,7 +74,7 @@ export const TemplateManagement: React.FC = () => {
   }, [selectedCategory, selectedWeek]);
 
   const fetchCategories = async () => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('erp_system_configs')
       .select('value')
       .eq('key', 'TEMPLATE_CATEGORIES')
@@ -378,7 +378,7 @@ export const TemplateManagement: React.FC = () => {
                               <button 
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setDeleteConfirm({ day: day.id, slot, id: existing.id, name: template.menu_name });
+                                  setDeleteConfirm({ day: day.id, slot, id: template.id, name: template.menu_name });
                                 }}
                                 className="delete-btn absolute -top-2 -right-2 w-7 h-7 bg-white rounded-full border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50 flex items-center justify-center transition-all z-20 shadow-sm"
                                 title="ลบเมนู"
@@ -464,7 +464,7 @@ export const TemplateManagement: React.FC = () => {
                               : "bg-transparent text-slate-500 hover:bg-slate-200 hover:text-slate-800"
                           )}
                         >
-                          {React.cloneElement(opt.icon as React.ReactElement, { size: 24 })}
+                          {React.cloneElement(opt.icon as React.ReactElement<any>, { size: 24 })}
                         </button>
                       ))}
                     </div>

@@ -413,6 +413,8 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
         if (insertError) throw insertError;
       }
 
+      let pkg: any;
+
       // 3. Recalculate and Update Package Balance
       // We fetch ALL schedules for this package to be 100% accurate
       if (selectedPackageId && !selectedPackageId.toString().startsWith('retail_')) {
@@ -426,7 +428,7 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
         const totalUsed = allSchedules
           .filter(s => !s.is_extra_order && !s.is_compensatory)
           .reduce((sum, s) => sum + (s.quantity || 1), 0);
-        const pkg = useMemberStore.getState().activePackages.find(p => p.id === selectedPackageId);
+        pkg = useMemberStore.getState().activePackages.find(p => p.id === selectedPackageId);
         
         if (pkg) {
           // ALLOW NEGATIVE: Do not use Math.max(0, ...) so that exceeded meals show correctly.
