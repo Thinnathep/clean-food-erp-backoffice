@@ -196,56 +196,57 @@ export const TemplateManagement: React.FC = () => {
   ];
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-50 overflow-hidden relative">
+    <div className="flex flex-col bg-slate-50 min-h-full relative">
       {/* Header */}
-      <div className="bg-white px-8 py-6 border-b border-slate-200/60 flex items-center justify-between z-10 relative">
-        <div className="flex items-center gap-5">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
-            <Layout size={26} strokeWidth={2.5} />
+      <div className="bg-white px-4 md:px-8 py-4 md:py-6 border-b border-slate-200/60 flex flex-col md:flex-row md:items-center justify-between gap-4 z-10 relative">
+        <div className="flex items-center gap-4 md:gap-5">
+          <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30 shrink-0">
+            <Layout size={24} className="md:w-[26px] md:h-[26px]" strokeWidth={2.5} />
           </div>
           <div>
-            <h2 className="text-2xl font-black text-slate-900 tracking-tight">จัดการแม่แบบเมนู</h2>
-            <p className="text-sm text-slate-500 font-medium mt-1">กำหนดโครงสร้างอาหารสำหรับลูกค้าในแต่ละสัปดาห์</p>
+            <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">จัดการแม่แบบเมนู</h2>
+            <p className="text-xs md:text-sm text-slate-500 font-medium mt-0.5 md:mt-1">กำหนดโครงสร้างอาหารสำหรับลูกค้าในแต่ละสัปดาห์</p>
           </div>
         </div>
       </div>
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex flex-col md:flex-row flex-1">
         {/* Category Sidebar */}
-        <div className="w-72 bg-white/60 backdrop-blur-xl border-r border-slate-200/60 p-5 space-y-3 overflow-y-auto">
-          <div className="flex items-center justify-between mb-6 px-1">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">รูปแบบ Template</h3>
+        <div className="w-full md:w-64 lg:w-72 bg-white/60 backdrop-blur-xl border-b md:border-b-0 md:border-r border-slate-200/60 p-4 md:p-5 shrink-0">
+          <div className="flex items-center justify-between mb-4 md:mb-6 px-1">
+            <h3 className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-widest">รูปแบบ Template</h3>
             <button 
               onClick={() => setIsAddModalOpen(true)}
-              className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-600 hover:bg-indigo-100 hover:text-indigo-600 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+              className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-600 hover:bg-indigo-100 hover:text-indigo-600 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
               title="เพิ่ม Template ใหม่"
             >
-              <Plus size={16} strokeWidth={3} />
+              <Plus size={14} className="md:w-4 md:h-4" strokeWidth={3} />
             </button>
           </div>
           
-          <div className="space-y-2">
+          {/* Scrollable categories on mobile (horizontal) and desktop (vertical) */}
+          <div className="flex md:flex-col gap-2 overflow-x-auto md:overflow-visible pb-2 md:pb-0 scrollbar-hide">
             {categories.map(cat => (
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.id)}
                 className={cn(
-                  "w-full flex items-center justify-between p-4 rounded-2xl transition-all duration-300 border-2 outline-none",
+                  "flex items-center justify-between p-3 md:p-4 rounded-xl md:rounded-2xl transition-all duration-300 border-2 outline-none shrink-0 md:shrink w-[160px] md:w-full",
                   selectedCategory === cat.id 
-                    ? "bg-white border-indigo-500 shadow-md shadow-indigo-500/10 text-indigo-700 font-bold scale-[1.02]" 
+                    ? "bg-white border-indigo-500 shadow-md shadow-indigo-500/10 text-indigo-700 font-bold md:scale-[1.02]" 
                     : "bg-transparent border-transparent text-slate-600 hover:bg-white/80 hover:border-slate-200/60 hover:shadow-sm"
                 )}
               >
-                <div className="flex items-center gap-4">
-                  <span className="flex items-center justify-center w-8 h-8 text-slate-500">
-                    {renderIcon(cat.icon, 22)}
+                <div className="flex items-center gap-3 md:gap-4">
+                  <span className="flex items-center justify-center w-6 h-6 md:w-8 md:h-8 text-slate-500">
+                    {renderIcon(cat.icon, 20)}
                   </span>
-                  <span className="text-sm tracking-wide">{cat.name}</span>
+                  <span className="text-xs md:text-sm tracking-wide truncate">{cat.name}</span>
                 </div>
                 {selectedCategory === cat.id && (
-                  <motion.div layoutId="activeIndicator">
-                    <ChevronRight size={18} strokeWidth={2.5} />
-                  </motion.div>
+                  <div className="hidden md:block">
+                     <ChevronRight size={18} strokeWidth={2.5} />
+                  </div>
                 )}
               </button>
             ))}
@@ -253,15 +254,15 @@ export const TemplateManagement: React.FC = () => {
         </div>
 
         {/* Template Grid */}
-        <div className="flex-1 flex flex-col overflow-hidden bg-slate-50/50">
+        <div className="flex-1 flex flex-col min-w-0 bg-slate-50/50">
           {/* Week Selector */}
-          <div className="px-8 py-5 flex items-center gap-3">
+          <div className="px-4 md:px-8 py-4 md:py-5 flex items-center gap-2 md:gap-3 overflow-x-auto scrollbar-hide">
             {[1, 2, 3, 4].map(w => (
               <button
                 key={w}
                 onClick={() => setSelectedWeek(w)}
                 className={cn(
-                  "px-6 py-2.5 rounded-full text-sm font-bold transition-all duration-300 outline-none",
+                  "px-4 md:px-6 py-2 md:py-2.5 rounded-full text-xs md:text-sm font-bold transition-all duration-300 outline-none shrink-0",
                   selectedWeek === w 
                     ? "bg-slate-900 text-white shadow-lg shadow-slate-900/20 ring-4 ring-slate-900/10" 
                     : "bg-white text-slate-500 border border-slate-200 hover:border-slate-300 hover:text-slate-800 hover:shadow-sm"
@@ -272,8 +273,8 @@ export const TemplateManagement: React.FC = () => {
             ))}
           </div>
 
-          <div className="flex-1 overflow-auto px-8 pb-12">
-            <div className="grid grid-cols-6 gap-5 min-w-[1200px]">
+          <div className="px-4 md:px-8 pb-12 overflow-x-auto custom-scrollbar">
+            <div className="grid grid-cols-6 gap-3 md:gap-5 min-w-[900px] md:min-w-[1200px]">
               {DAYS.map(day => (
                 <div key={day.id} className="space-y-4">
                   <div className={cn("text-center py-3 border rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-sm sticky top-0 z-10 backdrop-blur-md", day.color)}>

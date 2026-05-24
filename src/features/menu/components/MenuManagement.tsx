@@ -8,6 +8,9 @@ import { toast } from 'sonner';
 import Swal from 'sweetalert2';
 import { useMenuStore } from '../../../store/menuStore';
 import type { MenuItem } from '../../../types';
+import { useInventoryStore } from '../../../store/inventoryStore';
+import type { InventoryItem, RecipeItem, RecipeStep } from '../../../types';
+
 
 interface MenuManagementProps {
   type: 'member' | 'retail';
@@ -105,6 +108,14 @@ export const MenuManagement: React.FC<MenuManagementProps> = ({ type }) => {
   const [editingItem, setEditingItem] = useState<Partial<MenuItem> | null>(null);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  
+  // -- NEW STATE --
+  const [activePanelTab, setActivePanelTab] = useState<'general' | 'recipe' | 'steps' | 'overheads'>('general');
+  const { items: inventoryItems, loadItems } = useInventoryStore();
+
+  React.useEffect(() => {
+    loadItems();
+  }, [loadItems]);
 
   const categories = useMemo(() => {
     const cats = Array.from(new Set(menus.map(m => m.category)));
@@ -136,13 +147,29 @@ export const MenuManagement: React.FC<MenuManagementProps> = ({ type }) => {
       image_url: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=1000&auto=format&fit=crop',
       is_available: true,
       tags: [],
-      prep_time_minutes: 15
+      prep_time_minutes: 15,
+      recipe_items: [],
+      recipe_steps: [],
+      packaging_cost: 0,
+      labor_cost: 0,
+      transport_cost: 0,
+      overhead_cost: 0
     });
+    setActivePanelTab('general');
     setIsPanelOpen(true);
   };
 
   const handleEdit = (item: MenuItem) => {
-    setEditingItem({ ...item });
+    setEditingItem({ 
+      ...item,
+      recipe_items: item.recipe_items || [],
+      recipe_steps: item.recipe_steps || [],
+      packaging_cost: item.packaging_cost || 0,
+      labor_cost: item.labor_cost || 0,
+      transport_cost: item.transport_cost || 0,
+      overhead_cost: item.overhead_cost || 0
+    });
+    setActivePanelTab('general');
     setIsPanelOpen(true);
   };
 
@@ -152,9 +179,26 @@ export const MenuManagement: React.FC<MenuManagementProps> = ({ type }) => {
       return;
     }
 
-    const promise = editingItem.id 
-      ? updateMenu(editingItem.id, editingItem)
-      : addMenu(editingItem as Omit<MenuItem, 'id'>);
+    const { recipe_items, recipe_steps, ...menuData } = editingItem;
+
+    const promise = (async () => {
+        let targetId = editingItem.id;
+        if (!targetId) {
+            targetId = await addMenu(menuData as Omit<MenuItem, 'id'>);
+        } else {
+            await updateMenu(targetId, menuData);
+        }
+        
+        const { saveRecipeData } = useMenuStore.getState();
+        if (saveRecipeData) {
+            await saveRecipeData(
+                targetId, 
+                recipe_items || [], 
+                recipe_steps || []
+            );
+        }
+        return targetId;
+    })();
 
     toast.promise(promise, {
       loading: 'กำลังบันทึกข้อมูล...',
@@ -292,27 +336,55 @@ export const MenuManagement: React.FC<MenuManagementProps> = ({ type }) => {
       {/* Slide-over Side Panel (Editor) */}
       <div className={`fixed top-0 right-0 w-[400px] h-screen bg-white border-l border-slate-100 shadow-2xl z-[100] flex flex-col transition-transform duration-200 ease-in-out ${isPanelOpen ? 'translate-x-0' : 'translate-x-full'}`}>
         {/* Panel Header */}
-        <div className="px-8 py-6 border-b border-slate-50 flex items-center justify-between bg-white sticky top-0 z-10">
-          <div>
-            <h3 className="text-lg font-bold text-slate-900">
-              {editingItem?.id ? 'แก้ไขข้อมูลเมนู' : 'เพิ่มเมนูใหม่'}
-            </h3>
-            <p className="text-[11px] text-slate-400 uppercase tracking-widest font-bold">
-              {editingItem?.id ? 'Update menu details' : 'Configure new dish'}
-            </p>
+        <div className="px-8 py-6 border-b border-slate-50 bg-white sticky top-0 z-10 flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">
+                {editingItem?.id ? 'แก้ไขข้อมูลเมนู' : 'เพิ่มเมนูใหม่'}
+              </h3>
+              <p className="text-[11px] text-slate-400 uppercase tracking-widest font-bold">
+                {editingItem?.id ? 'Update menu details' : 'Configure new dish'}
+              </p>
+            </div>
+            <button 
+              onClick={() => setIsPanelOpen(false)}
+              className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all"
+            >
+              <X size={20} />
+            </button>
           </div>
-          <button 
-            onClick={() => setIsPanelOpen(false)}
-            className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all"
-          >
-            <X size={20} />
-          </button>
+          
+          {editingItem && (
+            <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-xl">
+              {[
+                { id: 'general', label: 'ทั่วไป (General)', icon: Edit2 },
+                { id: 'recipe', label: 'ส่วนผสม (BOM)', icon: Package },
+                { id: 'steps', label: 'วิธีทำ (Steps)', icon: ListChecks },
+                { id: 'overheads', label: 'ต้นทุนแฝง (Cost)', icon: Calculator }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActivePanelTab(tab.id as any)}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-[11px] font-bold transition-all ${
+                    activePanelTab === tab.id 
+                      ? 'bg-white text-slate-800 shadow-sm' 
+                      : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  <tab.icon size={14} />
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Panel Content */}
         <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
           {editingItem && (
             <>
+            {activePanelTab === 'general' && (
+              <div className="space-y-8">
               {/* Image Section */}
               <div className="space-y-3">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">รูปภาพเมนูอาหาร</label>
@@ -323,7 +395,7 @@ export const MenuManagement: React.FC<MenuManagementProps> = ({ type }) => {
                     </div>
                   ) : (
                     <>
-                      <img src={editingItem.image_url} className="w-full h-full object-cover" />
+                      <img src={editingItem.image_url} alt={editingItem.name || 'รูปภาพเมนูอาหาร'} className="w-full h-full object-cover" />
                       <label className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
                         <Camera className="text-white mb-2" size={28} />
                         <span className="text-white text-xs font-medium">เปลี่ยนรูปภาพ</span>
@@ -461,6 +533,234 @@ export const MenuManagement: React.FC<MenuManagementProps> = ({ type }) => {
                   </div>
                 </div>
               </div>
+
+              </div>
+            )}
+            
+            {activePanelTab === 'recipe' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900">ส่วนผสม (Ingredients & Packaging)</h4>
+                    <p className="text-[11px] text-slate-400">ระบุวัตถุดิบและบรรจุภัณฑ์ที่ใช้ในเมนูนี้</p>
+                  </div>
+                  <button 
+                    onClick={() => {
+                        const newId = Math.random().toString();
+                        setEditingItem({
+                            ...editingItem,
+                            recipe_items: [...(editingItem.recipe_items || []), { id: newId, item_id: '', quantity_required: 1, yield_percentage: 100 } as any]
+                        });
+                    }}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg text-[11px] font-bold hover:bg-emerald-100"
+                  >
+                    <Plus size={14} />
+                    เพิ่มวัตถุดิบ
+                  </button>
+                </div>
+                
+                <div className="space-y-3">
+                  {(editingItem.recipe_items || []).map((ritem, idx) => (
+                    <div key={ritem.id || idx} className="p-4 bg-slate-50 border border-slate-100 rounded-2xl flex gap-3 items-end">
+                      <div className="flex-1 space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400">วัตถุดิบ/บรรจุภัณฑ์</label>
+                        <select
+                          value={ritem.item_id}
+                          onChange={(e) => {
+                              const newItems = [...(editingItem.recipe_items || [])];
+                              newItems[idx] = { ...newItems[idx], item_id: e.target.value };
+                              setEditingItem({ ...editingItem, recipe_items: newItems });
+                          }}
+                          className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 outline-none"
+                        >
+                          <option value="">-- เลือกวัตถุดิบ --</option>
+                          {inventoryItems.map(inv => (
+                            <option key={inv.id} value={inv.id}>{inv.name} ({inv.storage_unit})</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="w-24 space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400">ปริมาณ</label>
+                        <input
+                          type="number"
+                          value={ritem.quantity_required}
+                          onChange={(e) => {
+                              const newItems = [...(editingItem.recipe_items || [])];
+                              newItems[idx] = { ...newItems[idx], quantity_required: Number(e.target.value) };
+                              setEditingItem({ ...editingItem, recipe_items: newItems });
+                          }}
+                          className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 outline-none"
+                        />
+                      </div>
+                      <button
+                        onClick={() => {
+                            const newItems = [...(editingItem.recipe_items || [])];
+                            newItems.splice(idx, 1);
+                            setEditingItem({ ...editingItem, recipe_items: newItems });
+                        }}
+                        className="w-9 h-9 flex items-center justify-center bg-white text-red-500 rounded-lg border border-slate-200 hover:bg-red-50"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                  
+                  {!(editingItem.recipe_items?.length) && (
+                    <div className="text-center py-10 text-slate-400 text-sm bg-white rounded-2xl border border-dashed border-slate-200">
+                      ยังไม่มีข้อมูลส่วนผสม
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            {activePanelTab === 'steps' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900">วิธีทำ (Instructions)</h4>
+                    <p className="text-[11px] text-slate-400">ขั้นตอนการเตรียมและประกอบอาหาร</p>
+                  </div>
+                  <button 
+                    onClick={() => {
+                        const newId = Math.random().toString();
+                        setEditingItem({
+                            ...editingItem,
+                            recipe_steps: [...(editingItem.recipe_steps || []), { id: newId, instruction: '', time_minutes: 5, step_number: (editingItem.recipe_steps?.length || 0) + 1 } as any]
+                        });
+                    }}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg text-[11px] font-bold hover:bg-emerald-100"
+                  >
+                    <Plus size={14} />
+                    เพิ่มขั้นตอน
+                  </button>
+                </div>
+                
+                <div className="space-y-4">
+                  {(editingItem.recipe_steps || []).map((step, idx) => (
+                    <div key={step.id || idx} className="p-4 bg-slate-50 border border-slate-100 rounded-2xl space-y-3 relative">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded">ขั้นตอนที่ {idx + 1}</span>
+                        <button
+                          onClick={() => {
+                              const newSteps = [...(editingItem.recipe_steps || [])];
+                              newSteps.splice(idx, 1);
+                              setEditingItem({ ...editingItem, recipe_steps: newSteps });
+                          }}
+                          className="text-red-400 hover:text-red-500"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                      <textarea
+                        value={step.instruction}
+                        onChange={(e) => {
+                            const newSteps = [...(editingItem.recipe_steps || [])];
+                            newSteps[idx] = { ...newSteps[idx], instruction: e.target.value };
+                            setEditingItem({ ...editingItem, recipe_steps: newSteps });
+                        }}
+                        placeholder="ระบุวิธีทำ..."
+                        rows={2}
+                        className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 outline-none resize-none"
+                      />
+                      <div className="flex items-center gap-2">
+                        <Clock size={14} className="text-slate-400" />
+                        <input
+                          type="number"
+                          value={step.time_minutes}
+                          onChange={(e) => {
+                              const newSteps = [...(editingItem.recipe_steps || [])];
+                              newSteps[idx] = { ...newSteps[idx], time_minutes: Number(e.target.value) };
+                              setEditingItem({ ...editingItem, recipe_steps: newSteps });
+                          }}
+                          className="w-20 px-2 py-1 text-xs rounded border border-slate-200 outline-none"
+                        />
+                        <span className="text-[10px] text-slate-500">นาที</span>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {!(editingItem.recipe_steps?.length) && (
+                    <div className="text-center py-10 text-slate-400 text-sm bg-white rounded-2xl border border-dashed border-slate-200">
+                      ยังไม่มีข้อมูลวิธีทำ
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            {activePanelTab === 'overheads' && (
+              <div className="space-y-6">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900">ต้นทุนแฝงและค่าบริการ (Overheads)</h4>
+                  <p className="text-[11px] text-slate-400">ต้นทุนอื่นๆ ที่ไม่ใช่วัตถุดิบโดยตรง</p>
+                </div>
+                
+                <div className="grid gap-4">
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold text-slate-800">ค่าบรรจุภัณฑ์พื้นฐาน</p>
+                      <p className="text-[10px] text-slate-400">เช่น กล่อง, ถุง, ส้อม</p>
+                    </div>
+                    <div className="relative w-32">
+                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                      <input 
+                        type="number"
+                        value={editingItem.packaging_cost}
+                        onChange={(e) => setEditingItem({ ...editingItem, packaging_cost: Number(e.target.value) })}
+                        className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold text-slate-800">ค่าแรงต่อกล่อง (Labor Cost)</p>
+                    </div>
+                    <div className="relative w-32">
+                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                      <input 
+                        type="number"
+                        value={editingItem.labor_cost}
+                        onChange={(e) => setEditingItem({ ...editingItem, labor_cost: Number(e.target.value) })}
+                        className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold text-slate-800">ค่าขนส่งเฉลี่ย (Transport Cost)</p>
+                    </div>
+                    <div className="relative w-32">
+                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                      <input 
+                        type="number"
+                        value={editingItem.transport_cost}
+                        onChange={(e) => setEditingItem({ ...editingItem, transport_cost: Number(e.target.value) })}
+                        className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-bold text-slate-800">ค่าใช้จ่ายเบ็ดเตล็ด (Overhead)</p>
+                    </div>
+                    <div className="relative w-32">
+                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                      <input 
+                        type="number"
+                        value={editingItem.overhead_cost}
+                        onChange={(e) => setEditingItem({ ...editingItem, overhead_cost: Number(e.target.value) })}
+                        className="w-full pl-8 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             </>
           )}
         </div>

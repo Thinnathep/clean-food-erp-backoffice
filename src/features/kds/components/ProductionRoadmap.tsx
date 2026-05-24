@@ -531,37 +531,37 @@ export const ProductionRoadmap: React.FC = () => {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex-1 flex flex-col bg-slate-50/50 overflow-hidden h-full">
+      <div className="flex flex-col bg-slate-50/50 min-h-full">
         
         {/* 1. Enhanced Header */}
-        <div className="bg-white px-6 py-5 border-b border-slate-200 flex flex-col lg:flex-row lg:items-center justify-between gap-6 shadow-sm relative z-30">
+        <div className="bg-white px-4 md:px-6 py-4 md:py-5 border-b border-slate-200 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-sm relative z-20">
           <div className="flex items-center gap-4">
-             <div className="w-12 h-12 rounded-2xl bg-slate-900 flex items-center justify-center text-white shadow-xl shadow-slate-900/10">
+             <div className="w-12 h-12 rounded-2xl bg-slate-900 flex items-center justify-center text-white shadow-xl shadow-slate-900/10 shrink-0">
                 <CalendarIcon size={24} />
              </div>
              <div>
-                <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+                <h2 className="text-xl font-bold text-slate-900 tracking-tight flex flex-wrap items-center gap-2">
                   แผนการผลิตหลัก
-                  <span className="text-[10px] font-bold bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full uppercase tracking-widest">Master Roadmap</span>
+                  <span className="text-[10px] font-bold bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full uppercase tracking-widest whitespace-nowrap">Master Roadmap</span>
                 </h2>
-                <p className="text-sm text-slate-500 font-medium mt-0.5">วางแผนเมนูมาตรฐานสำหรับครัว (ลากวางเมนูได้เลย)</p>
+                <p className="text-xs md:text-sm text-slate-500 font-medium mt-0.5">วางแผนเมนูมาตรฐานสำหรับครัว (ลากวางเมนูได้เลย)</p>
              </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 md:gap-3">
             <button 
               onClick={handleShowPrepSummary}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-medium transition-all shadow-sm border bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-100"
+              className="flex items-center gap-2 px-3 md:px-4 py-2 md:py-2.5 rounded-xl md:rounded-2xl text-xs md:text-sm font-medium transition-all shadow-sm border bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-100"
             >
               <ClipboardList size={16} />
               สรุปเตรียมของ
             </button>
 
-            <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200">
+            <div className="flex bg-slate-100 p-1 rounded-xl md:rounded-2xl border border-slate-200">
               <select 
                 value={selectedTemplateCategory}
                 onChange={(e) => setSelectedTemplateCategory(e.target.value)}
-                className="bg-transparent text-[11px] font-bold px-3 py-1 outline-none border-none text-slate-600 appearance-none cursor-pointer"
+                className="bg-transparent text-[11px] font-bold px-2 md:px-3 py-1 outline-none border-none text-slate-600 appearance-none cursor-pointer"
               >
                 <option value="normal">เมนูปกติ</option>
                 <option value="non_spicy">ไม่เผ็ด</option>
@@ -572,78 +572,80 @@ export const ProductionRoadmap: React.FC = () => {
                 onClick={handleApplyMonthlyTemplate}
                 disabled={isSaving}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-sm",
+                  "flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-lg md:rounded-xl text-xs md:text-sm font-bold transition-all shadow-sm",
                   "bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
                 )}
               >
                 <Wand2 size={16} />
-                {isSaving ? "กำลังลงเมนู..." : "ลงเมนูรอบ 4 สัปดาห์"}
+                <span className="hidden sm:inline">{isSaving ? "กำลังลง..." : "ลงรอบ 4 สัปดาห์"}</span>
+                <span className="sm:hidden">{isSaving ? "กำลังลง..." : "ลงอัตโนมัติ"}</span>
               </button>
             </div>
 
             <button 
               onClick={() => setIsLibraryOpen(!isLibraryOpen)}
               className={cn(
-                "flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-medium transition-all shadow-sm border",
+                "flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 md:py-2.5 rounded-xl md:rounded-2xl text-xs md:text-sm font-medium transition-all shadow-sm border",
                 isLibraryOpen 
                   ? "bg-slate-900 text-white border-slate-900" 
                   : "bg-white text-slate-700 border-slate-200 hover:border-emerald-500 hover:text-emerald-600"
               )}
             >
               <Sparkles size={16} />
-              {isLibraryOpen ? "ปิดรายการเมนู" : "เปิดรายการเมนู"}
+              <span className="hidden sm:inline">{isLibraryOpen ? "ปิดรายการเมนู" : "เปิดรายการเมนู"}</span>
+              <span className="sm:hidden">{isLibraryOpen ? "ปิดเมนู" : "เปิดเมนู"}</span>
             </button>
 
             <div className="h-8 w-px bg-slate-200 mx-1 hidden lg:block" />
 
-            <div className="flex bg-slate-100 p-1 rounded-2xl shadow-inner border border-slate-200">
+            <div className="flex bg-slate-100 p-1 rounded-xl md:rounded-2xl shadow-inner border border-slate-200">
               <button 
                 onClick={() => setViewMode('week')}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all",
+                  "flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-lg md:rounded-xl text-xs md:text-sm font-bold transition-all",
                   viewMode === 'week' ? "bg-white text-slate-900 shadow-md" : "text-slate-500 hover:text-slate-700"
                 )}
               >
-                <List size={16} /> สัปดาห์
+                <List size={14} /> สัปดาห์
               </button>
               <button 
                 onClick={() => setViewMode('month')}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all",
+                  "flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-lg md:rounded-xl text-xs md:text-sm font-bold transition-all",
                   viewMode === 'month' ? "bg-white text-slate-900 shadow-md" : "text-slate-500 hover:text-slate-700"
                 )}
               >
-                <LayoutGrid size={16} /> รายเดือน
+                <LayoutGrid size={14} /> รายเดือน
               </button>
             </div>
 
             <div className="h-8 w-[1px] bg-slate-200 hidden md:block" />
 
             {/* Navigation Controls */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 md:gap-2">
                <button 
                  onClick={handleToday}
-                 className="px-4 py-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-sm font-bold transition-all shadow-sm"
+                 className="px-3 md:px-4 py-1.5 md:py-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-xs md:text-sm font-bold transition-all shadow-sm"
                >
                  วันนี้
                </button>
-               <div className="flex items-center bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-                 <button onClick={handlePrev} className="p-2.5 text-slate-500 hover:bg-slate-50 border-r border-slate-100"><ChevronLeft size={18} /></button>
-                 <div className="px-5 text-sm font-bold text-slate-900 min-w-[140px] text-center">
+               <div className="flex items-center bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden text-xs md:text-sm">
+                 <button onClick={handlePrev} className="p-2 md:p-2.5 text-slate-500 hover:bg-slate-50 border-r border-slate-100"><ChevronLeft size={16} /></button>
+                 <div className="px-3 md:px-5 font-bold text-slate-900 min-w-[120px] md:min-w-[140px] text-center">
                     {viewMode === 'week' 
                       ? `สัปดาห์ที่ ${currentDate.isoWeek()}` 
                       : currentDate.format('MMMM YYYY')}
                  </div>
-                 <button onClick={handleNext} className="p-2.5 text-slate-500 hover:bg-slate-50 border-l border-slate-100"><ChevronRight size={18} /></button>
+                 <button onClick={handleNext} className="p-2 md:p-2.5 text-slate-500 hover:bg-slate-50 border-l border-slate-100"><ChevronRight size={16} /></button>
                </div>
             </div>
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col xl:flex-row overflow-hidden">
+        <div className="flex flex-col xl:flex-row">
           
           {/* 2. Main Calendar Content */}
-          <div className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 custom-scrollbar">
+          <div className="flex-1 p-3 md:p-6 lg:p-8">
              
              <AnimatePresence mode="wait">
                {viewMode === 'week' ? (

@@ -951,38 +951,42 @@ export const ProductionSummary: React.FC = () => {
       : currentMonth.locale('th').format('MMMM YYYY');
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-50 min-h-0">
+    <div className="flex flex-col bg-slate-50 min-h-full relative">
       {/* ── Header ── */}
-      <div className="bg-white border-b border-slate-100 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-        <div className="flex items-center gap-4 min-w-0">
-          <div className="w-10 h-10 bg-slate-900 text-white rounded-xl flex items-center justify-center shrink-0">
-            {activeTab === 'dashboard' ? <BarChart3 size={18} /> : activeTab === 'calendar' ? <CalendarIcon size={18} /> : <ChefHat size={18} />}
+      <div className="bg-white border-b border-slate-100 px-4 md:px-6 py-4 flex flex-col xl:flex-row xl:items-center justify-between gap-4 shadow-sm relative z-20">
+        <div className="flex items-center gap-3 md:gap-4 min-w-0">
+          <div className="w-10 h-10 md:w-12 md:h-12 bg-slate-900 text-white rounded-xl md:rounded-2xl flex items-center justify-center shrink-0 shadow-lg shadow-slate-900/10">
+            {activeTab === 'dashboard' ? <BarChart3 size={20} className="md:w-6 md:h-6" /> : activeTab === 'calendar' ? <CalendarIcon size={20} className="md:w-6 md:h-6" /> : <ChefHat size={20} className="md:w-6 md:h-6" />}
           </div>
           <div className="min-w-0">
-            <div className="flex items-center gap-2 mb-0.5">
-              <h2 className="text-base font-semibold text-slate-800 leading-tight">
+            <div className="flex items-center gap-2 mb-1 md:mb-1.5">
+              <h2 className="text-base md:text-lg font-bold text-slate-900 leading-tight">
                 {activeTab === 'dashboard' ? 'วิเคราะห์การผลิต' : activeTab === 'production' ? 'สรุปยอดผลิตรายวัน' : 'ปฏิทินแผนงาน'}
               </h2>
               {activeTab === 'dashboard' && <Sparkles size={14} className="text-emerald-500 shrink-0" />}
             </div>
-            <TabNav active={activeTab} onChange={setActiveTab} canViewDashboard={canViewDashboard} />
+            <div className="overflow-x-auto scrollbar-hide -mx-1 px-1">
+               <TabNav active={activeTab} onChange={setActiveTab} canViewDashboard={canViewDashboard} />
+            </div>
           </div>
         </div>
 
-        <DateNav
-          label={navLabel}
-          value={navValue}
-          onPrev={handlePrev}
-          onNext={handleNext}
-          onToday={activeTab === 'production' ? handleToday : undefined}
-          onPrint={activeTab === 'production' ? () => window.print() : undefined}
-          filterType={activeTab === 'production' ? filterType : undefined}
-          onFilterChange={activeTab === 'production' ? setFilterType : undefined}
-        />
+        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 md:gap-3">
+          <DateNav
+            label={navLabel}
+            value={navValue}
+            onPrev={handlePrev}
+            onNext={handleNext}
+            onToday={activeTab === 'production' ? handleToday : undefined}
+            onPrint={activeTab === 'production' ? () => window.print() : undefined}
+            filterType={activeTab === 'production' ? filterType : undefined}
+            onFilterChange={activeTab === 'production' ? setFilterType : undefined}
+          />
+        </div>
       </div>
 
       {/* ── Content ── */}
-      <div className="flex-1 overflow-y-auto p-5 lg:p-6">
+      <div className="flex-1 p-3 md:p-5 lg:p-6">
         <AnimatePresence mode="wait">
           {activeTab === 'dashboard' && (
             <motion.div key="dash" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>

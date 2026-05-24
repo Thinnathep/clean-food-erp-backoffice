@@ -21,8 +21,9 @@ interface MenuState {
   setIsMenuPanelOpen: (isOpen: boolean) => void;
 
   loadMenus: (silent?: boolean) => Promise<void>;
-  addMenu: (menuItem: Omit<MenuItem, 'id'>) => Promise<void>;
+  addMenu: (menuItem: Omit<MenuItem, 'id'>) => Promise<string>;
   updateMenu: (id: string, updates: Partial<MenuItem>) => Promise<void>;
+  saveRecipeData: (id: string, items: any[], steps: any[]) => Promise<void>;
   removeMenu: (id: string) => Promise<void>;
   uploadImage: (file: File) => Promise<string>;
 }
@@ -61,6 +62,7 @@ export const useMenuStore = create<MenuState>()(
           const newItem = await createMenuItem(menuItem);
           set(state => ({ menus: [...state.menus, newItem] }));
           toast.success('เพิ่มเมนูใหม่เรียบร้อย');
+          return newItem.id;
         } catch (error: any) {
           toast.error('เพิ่มเมนูไม่สำเร็จ: ' + error.message);
           throw error;
@@ -71,11 +73,22 @@ export const useMenuStore = create<MenuState>()(
         try {
           const updated = await updateMenuItem(id, updates);
           set(state => ({
-            menus: state.menus.map(m => m.id === id ? updated : m)
+            menus: state.menus.map(m => m.id === id ? { ...m, ...updated } : m)
           }));
           toast.success('อัปเดตเมนูเรียบร้อย');
         } catch (error: any) {
           toast.error('อัปเดตเมนูไม่สำเร็จ: ' + error.message);
+          throw error;
+        }
+      },
+
+      saveRecipeData: async (id, items, steps) => {
+        try {
+          const { saveRecipeData } = await import('../features/kds/api');
+          await saveRecipeData(id, items, steps);
+          toast.success('บันทึกข้อมูลสูตรอาหารเรียบร้อย');
+        } catch (error: any) {
+          toast.error('บันทึกสูตรอาหารไม่สำเร็จ: ' + error.message);
           throw error;
         }
       },

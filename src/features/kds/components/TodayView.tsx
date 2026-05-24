@@ -1964,13 +1964,7 @@ export const TodayView: React.FC = () => {
             >
               วันนี้
             </button>
-            <button
-              onClick={() => setIsKitchenMode(true)}
-              className="px-6 py-3 bg-slate-900 text-white rounded-2xl text-xs font-bold flex items-center justify-center gap-2 shadow-lg active:scale-95"
-            >
-              <ChefHat size={16} />
-              โหมดครัว (iPad)
-            </button>
+
             <div className="bg-white border border-slate-100 rounded-2xl p-1.5 flex items-center shadow-sm">
               <button
                 onClick={() => changeDate(-1)}

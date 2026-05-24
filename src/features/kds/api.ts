@@ -37,7 +37,7 @@ export const updateOrdersKitchenStatus = async (ids: string[], status: string): 
 export const fetchMenuItems = async (): Promise<MenuItem[]> => {
   const { data, error } = await supabase
     .from('menu_items')
-    .select('id, name, category, description, image_url, calories, protein, carbs, fat, base_price, is_available, tags, menu_group, prep_time_minutes')
+    .select('id, name, category, description, image_url, calories, protein, carbs, fat, base_price, is_available, tags, menu_group, prep_time_minutes, packaging_cost, labor_cost, transport_cost, overhead_cost, recipe_instructions, erp_recipe_steps(id, step_number, instruction, time_minutes), erp_recipes(id, item_id, quantity_required, yield_percentage)')
     .eq('is_available', true)
     .is('deleted_at', null)
     .order('category', { ascending: true })
@@ -48,9 +48,10 @@ export const fetchMenuItems = async (): Promise<MenuItem[]> => {
 };
 
 export const createMenuItem = async (menuItem: Omit<MenuItem, 'id'>): Promise<MenuItem> => {
+  const { recipe_steps, recipe_items, ...menuData } = menuItem;
   const { data, error } = await supabase
     .from('menu_items')
-    .insert([menuItem])
+    .insert([menuData])
     .select()
     .single();
 
@@ -79,15 +80,35 @@ export const uploadMenuImage = async (file: File): Promise<string> => {
 };
 
 export const updateMenuItem = async (id: string, updates: Partial<MenuItem>): Promise<MenuItem> => {
+  const { recipe_steps, recipe_items, ...menuData } = updates;
   const { data, error } = await supabase
     .from('menu_items')
-    .update(updates)
+    .update(menuData)
     .eq('id', id)
     .select()
     .single();
 
   if (error) throw new Error(error.message);
   return data as MenuItem;
+};
+
+export const saveRecipeData = async (menuItemId: string, items: any[], steps: any[]): Promise<void> => {
+  // Clear existing items and steps for this menu
+  await supabase.from('erp_recipes').delete().eq('menu_item_id', menuItemId);
+  await supabase.from('erp_recipe_steps').delete().eq('menu_item_id', menuItemId);
+
+  // Insert new ones
+  if (items.length > 0) {
+    const itemsToInsert = items.map(i => ({ ...i, menu_item_id: menuItemId }));
+    const { error: itemsError } = await supabase.from('erp_recipes').insert(itemsToInsert);
+    if (itemsError) throw new Error(itemsError.message);
+  }
+
+  if (steps.length > 0) {
+    const stepsToInsert = steps.map((s, idx) => ({ ...s, step_number: idx + 1, menu_item_id: menuItemId }));
+    const { error: stepsError } = await supabase.from('erp_recipe_steps').insert(stepsToInsert);
+    if (stepsError) throw new Error(stepsError.message);
+  }
 };
 
 export const deleteMenuItem = async (id: string): Promise<void> => {
@@ -644,4 +665,26 @@ export async function fetchMenuCycleTemplates() {
     .order('meal_slot');
   if (error) throw error;
   return data;
+}
+
+// ── KDS Daily Production (Smart Production Sheet) ──
+
+export interface KdsDailyProductionRow {
+  delivery_date: string;
+  menu_item_id: string;
+  menu_name: string;
+  category: string;
+  kitchen_status: string;
+  total_quantity: number;
+  schedule_count: number;
+  schedule_ids: string[];
+}
+
+export async function fetchKdsDailyProduction(deliveryDate: string): Promise<KdsDailyProductionRow[]> {
+  const { data, error } = await supabase
+    .from('kds_daily_production')
+    .select('*')
+    .eq('delivery_date', deliveryDate);
+  if (error) throw error;
+  return data as KdsDailyProductionRow[];
 }

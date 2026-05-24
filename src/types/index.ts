@@ -26,6 +26,10 @@ export interface MenuItem {
   base_price: number;
   target_cost?: number;
   cost_percentage?: number;
+  packaging_cost?: number;
+  labor_cost?: number;
+  transport_cost?: number;
+  overhead_cost?: number;
   description?: string | null;
   image_url: string;
   tags: string[]; 
@@ -34,6 +38,10 @@ export interface MenuItem {
   sort_order?: number;
   created_at?: string;
   deleted_at?: string | null;
+  
+  // Joined
+  recipe_steps?: RecipeStep[];
+  recipe_items?: RecipeItem[];
 }
 
 export interface Member {
@@ -228,6 +236,17 @@ export interface RecipeItem {
   storage_unit?: string;
   avg_unit_cost?: number;
   category?: string;
+}
+
+export interface RecipeStep {
+  id: string;
+  menu_item_id: string;
+  step_number: number;
+  instruction: string;
+  time_minutes: number;
+  image_url?: string;
+  created_at: string;
+  updated_at?: string;
 }
 
 export interface InventoryBatch {

@@ -25,7 +25,10 @@ import {
   History,
   Rocket,
   Coins,
-  TrendingDown
+  TrendingDown,
+  ClipboardCheck,
+  Flame,
+  Package as PackageLucide
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../store/authStore';
@@ -66,6 +69,7 @@ const navItems: NavItem[] = [
     children: [
       { label: 'จัดการหน้าหลัก', path: '/kds', icon: LayoutDashboard, end: true },
       { label: 'ใบสั่งผลิต', path: '/kds/production', icon: Factory },
+      { label: 'วัตถุดิบ (Checklist)', path: '/kds/checklist', icon: ClipboardCheck },
       { label: 'HACCP', path: '/kds/haccp', icon: ShieldCheck },
       { label: 'พยากรณ์', path: '/kds/forecast', icon: TrendingUp },
     ]
@@ -127,11 +131,12 @@ const navItems: NavItem[] = [
     ]
   },
   { 
-    label: 'ระบบจัดส่ง', 
-    icon: Truck, 
+    label: 'การจัดส่ง', 
+    icon: Truck,
     children: [
-      { label: 'แดชบอร์ดจัดส่ง', path: '/logistics', icon: LayoutDashboard, end: true },
-      { label: 'คำนวณค่าจัดส่ง', path: '/logistics/calculator', icon: Calculator },
+      { label: 'จัดถุงเตรียมส่ง (Packing)', path: '/logistics/packing', icon: PackageLucide },
+      { label: 'คำนวณค่าจัดส่ง', path: '/logistics/shipping-calculator', icon: Calculator },
+      { label: 'จัดการเส้นทาง', path: '/logistics/routes', icon: Map },
     ]
   },
 ];
@@ -263,27 +268,53 @@ export const Sidebar: React.FC<SidebarProps> = ({ isMobileOpen, setMobileOpen })
                       exit={{ height: 0, opacity: 0 }}
                       className="ml-8 mt-1 border-l border-slate-800 overflow-hidden"
                     >
-                      {item.children?.map((child, idx) => (
-                        child.isHeader ? (
-                          <div key={`header-${idx}`} className="px-4 py-2 mt-2 mb-1 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                            {child.label}
-                          </div>
-                        ) : (
+                      {item.children?.map((child, idx) => {
+                        if (child.isHeader) {
+                          return (
+                            <div key={`header-${idx}`} className="px-4 py-2 mt-2 mb-1 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                              {child.label}
+                            </div>
+                          );
+                        }
+
+                        // Custom active logic that respects query parameters
+                        const [basePath, query] = (child.path || '').split('?');
+                        let isChildActive = false;
+                        
+                        if (basePath === location.pathname) {
+                          if (query) {
+                            const searchParams = new URLSearchParams(location.search);
+                            const linkParams = new URLSearchParams(query);
+                            isChildActive = true;
+                            linkParams.forEach((val, key) => {
+                              if (searchParams.get(key) !== val) isChildActive = false;
+                            });
+                          } else {
+                            // If link has no query, but is marked as `end` (e.g. /kds) it shouldn't match if we are on /kds?tab=...
+                            if (child.end) {
+                              isChildActive = !location.search || location.search === '?';
+                            } else {
+                              isChildActive = true;
+                            }
+                          }
+                        }
+
+                        return (
                           <NavLink
                             key={child.path || idx}
                             to={child.path || ''}
                             end={child.end}
                             onClick={() => setMobileOpen(false)}
-                            className={({ isActive }) =>
+                            className={() =>
                               `flex items-center gap-2 px-4 py-2 rounded-lg transition-all font-normal text-[11px] whitespace-nowrap
-                              ${isActive ? 'text-emerald-400 bg-emerald-500/5' : 'text-slate-500 hover:text-white hover:bg-white/5'}`
+                              ${isChildActive ? 'text-emerald-400 bg-emerald-500/5' : 'text-slate-500 hover:text-white hover:bg-white/5'}`
                             }
                           >
                             {child.icon && <child.icon size={12} className="shrink-0" />}
                             {child.label}
                           </NavLink>
-                        )
-                      ))}
+                        );
+                      })}
                     </motion.div>
                   )}
                 </AnimatePresence>
