@@ -256,10 +256,14 @@ export const MemberPlanner: React.FC = () => {
 
         // Calculate metrics using package state (much faster)
         const remaining = pkg.meals_remaining ?? 0;
+        const lastOrderDate = lastOrderDates[pkg.id];
+        const hasFutureOrders = lastOrderDate ? !dayjs(lastOrderDate).isBefore(dayjs().startOf("day")) : false;
+        const isPinned = remaining > 0 || hasFutureOrders;
         const isActive = pkg.status === "active" || remaining > 0;
 
         return {
           pkg,
+          isPinned,
           isActive,
           name,
           createdAt: pkg.created_at ? dayjs(pkg.created_at).valueOf() : 0,
@@ -267,7 +271,11 @@ export const MemberPlanner: React.FC = () => {
       })
       .filter((item): item is NonNullable<typeof item> => item !== null)
       .sort((a, b) => {
-        // Active members always come first
+        // Pinned members (with remaining meals or future orders) come FIRST
+        if (a.isPinned && !b.isPinned) return -1;
+        if (!a.isPinned && b.isPinned) return 1;
+
+        // Active members come next
         if (a.isActive && !b.isActive) return -1;
         if (!a.isActive && b.isActive) return 1;
 
@@ -286,6 +294,7 @@ export const MemberPlanner: React.FC = () => {
     sidebarFilterType,
     members,
     memberSchedules,
+    lastOrderDates,
   ]);
 
   const selectedPackage = filteredPackages.find(
