@@ -33,7 +33,7 @@ export const BluetoothPrinterSection: React.FC<BluetoothPrinterSectionProps> = (
               คำแนะนำสำหรับผู้ใช้ iPhone / iPad (iOS)
             </h5>
             <p className="text-[10px] text-amber-700 font-medium leading-relaxed mt-1">
-              เบราว์เซอร์มาตรฐานของ Apple (Safari/Chrome บน iOS) จะถูกปิดกั้นสิทธิ์บลูทูธชั่วคราว คุณสามารถปลดล็อกและพิมพ์แบบไร้สายผ่านมือถือได้ง่าย ๆ ดังนี้ครับ:
+              เบราว์เซอร์มาตรฐานของ Apple (Safari/Chrome บน iOS) จะถูกปิดกั้นสิทธิ์บลูทูธชั่วคราว คุณสามารถปลดล็อกและพิมพ์แบบไร้สายผ่านมือถือได้ง่าย ๆ ดังนี้ค่ะ:
             </p>
           </div>
         </div>

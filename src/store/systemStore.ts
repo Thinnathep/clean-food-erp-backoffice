@@ -161,7 +161,7 @@ export const useSystemStore = create<SystemState>((set) => ({
     const nav = navigator as any;
     if (!nav.bluetooth) {
       console.log("❌ Web Bluetooth not supported in this browser");
-      throw new Error("เว็บบราวเซอร์ของคุณไม่รองรับ Web Bluetooth API กรุณาใช้ Chrome หรือ Edge ครับ");
+      throw new Error("เว็บบราวเซอร์ของคุณไม่รองรับ Web Bluetooth API กรุณาใช้ Chrome หรือ Edge ค่ะ");
     }
 
     set({ isConnectingBluetooth: true });
@@ -283,7 +283,7 @@ export const useSystemStore = create<SystemState>((set) => ({
       console.error("❌ การเชื่อมต่อบลูทูธล้มเหลว:", err);
       set({ isConnectingBluetooth: false });
       if (err.name === 'NotFoundError' || (err.message && err.message.includes('User cancelled'))) {
-        throw new Error("ยกเลิกการเชื่อมต่อ: คุณไม่ได้เลือกเครื่องพิมพ์บลูทูธครับ");
+        throw new Error("ยกเลิกการเชื่อมต่อ: คุณไม่ได้เลือกเครื่องพิมพ์บลูทูธค่ะ");
       }
       throw err;
     }
@@ -303,7 +303,7 @@ export const useSystemStore = create<SystemState>((set) => ({
   printToBluetooth: async (data: Uint8Array) => {
     const { bluetoothCharacteristic } = useSystemStore.getState();
     if (!bluetoothCharacteristic) {
-      throw new Error("กรุณาเชื่อมต่อเครื่องพิมพ์บลูทูธก่อนสั่งพิมพ์ครับ");
+      throw new Error("กรุณาเชื่อมต่อเครื่องพิมพ์บลูทูธก่อนสั่งพิมพ์ค่ะ");
     }
 
     // Modern BLE devices easily support 120-byte chunk sizes
@@ -409,7 +409,7 @@ export const useSystemStore = create<SystemState>((set) => ({
       const { printToBluetooth } = useSystemStore.getState();
       await printToBluetooth(finalBytes);
     } else {
-      throw new Error("กรุณาเชื่อมต่อเครื่องพิมพ์บลูทูธ หรือ USB/Serial ก่อนสั่งพิมพ์ทดสอบครับ");
+      throw new Error("กรุณาเชื่อมต่อเครื่องพิมพ์บลูทูธ หรือ USB/Serial ก่อนสั่งพิมพ์ทดสอบค่ะ");
     }
   },
 
@@ -422,7 +422,7 @@ export const useSystemStore = create<SystemState>((set) => ({
 
     const nav = navigator as any;
     if (!nav.serial) {
-      throw new Error("เว็บบราวเซอร์ของคุณไม่รองรับ Web Serial API (กรุณาใช้ Chrome หรือ Edge บนคอมพิวเตอร์ครับ)");
+      throw new Error("เว็บบราวเซอร์ของคุณไม่รองรับ Web Serial API (กรุณาใช้ Chrome หรือ Edge บนคอมพิวเตอร์ค่ะ)");
     }
 
     set({ isConnectingSerial: true });
@@ -450,7 +450,7 @@ export const useSystemStore = create<SystemState>((set) => ({
       console.error("❌ การเชื่อมต่อ Serial ล้มเหลว:", err);
       set({ isConnectingSerial: false });
       if (err.name === 'NotFoundError' || (err.message && err.message.includes('No port selected'))) {
-        throw new Error("ยกเลิกการเชื่อมต่อ: คุณไม่ได้เลือกพอร์ตเชื่อมต่อเครื่องพิมพ์ครับ");
+        throw new Error("ยกเลิกการเชื่อมต่อ: คุณไม่ได้เลือกพอร์ตเชื่อมต่อเครื่องพิมพ์ค่ะ");
       }
       throw err;
     }
@@ -473,7 +473,7 @@ export const useSystemStore = create<SystemState>((set) => ({
   printToSerial: async (data: Uint8Array) => {
     const { serialPort } = useSystemStore.getState();
     if (!serialPort) {
-      throw new Error("กรุณาเชื่อมต่อผ่าน USB/Serial ก่อนสั่งพิมพ์ครับ");
+      throw new Error("กรุณาเชื่อมต่อผ่าน USB/Serial ก่อนสั่งพิมพ์ค่ะ");
     }
 
     // Safely try to open the port if it's closed or writable is null
@@ -487,7 +487,7 @@ export const useSystemStore = create<SystemState>((set) => ({
           console.log("🔌 [printToSerial] พอร์ตกำลังทำงานอยู่");
         } else {
           console.error("❌ ไม่สามารถเปิดพอร์ตใหม่ได้:", err);
-          throw new Error("เครื่องพิมพ์ Serial ขัดข้อง: กรุณาถอดสายแล้วเชื่อมต่อใหม่อีกครั้งครับ");
+          throw new Error("เครื่องพิมพ์ Serial ขัดข้อง: กรุณาถอดสายแล้วเชื่อมต่อใหม่อีกครั้งค่ะ");
         }
       }
     }
@@ -498,7 +498,7 @@ export const useSystemStore = create<SystemState>((set) => ({
     }
 
     if (!serialPort.writable) {
-      throw new Error("ไม่สามารถเขียนข้อมูลลงพอร์ตเครื่องพิมพ์ได้ (ช่องส่งข้อมูลยังไม่พร้อม) กรุณาเชื่อมต่อสายใหม่อีกครั้งครับ");
+      throw new Error("ไม่สามารถเขียนข้อมูลลงพอร์ตเครื่องพิมพ์ได้ (ช่องส่งข้อมูลยังไม่พร้อม) กรุณาเชื่อมต่อสายใหม่อีกครั้งค่ะ");
     }
 
     const writer = serialPort.writable.getWriter();

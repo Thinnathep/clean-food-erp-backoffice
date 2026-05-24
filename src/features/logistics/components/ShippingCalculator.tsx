@@ -474,7 +474,7 @@ export const ShippingCalculator: React.FC = () => {
               <div className="flex items-start gap-2">
                 <div className="mt-1.5 w-1 h-1 rounded-full bg-amber-400 shrink-0"></div>
                 <p className="text-[11px] text-slate-500 leading-relaxed font-normal">
-                   <span className="font-medium text-amber-600">ระวังจุดคุ้มทุน:</span> หาก "รายรับสุทธิ" ติดลบ แสดงว่าคุณกำลังจ่ายเงินเพื่อทำงานให้ลูกค้าฟรีๆ และทำลายรถตัวเองไปเรื่อยๆ ครับ
+                   <span className="font-medium text-amber-600">ระวังจุดคุ้มทุน:</span> หาก "รายรับสุทธิ" ติดลบ แสดงว่าคุณกำลังจ่ายเงินเพื่อทำงานให้ลูกค้าฟรีๆ และทำลายรถตัวเองไปเรื่อยๆ ค่ะ
                 </p>
               </div>
               <div className="flex items-start gap-3 border-t border-amber-100 pt-2">

@@ -494,7 +494,7 @@ export const MemberManagement: React.FC = () => {
                             inputPlaceholder: 'เช่น ลูกค้าปรับปรุงตัวแล้ว, ตกลงกันได้แล้ว...',
                             inputValidator: (value) => {
                               if (!value) {
-                                return 'กรุณาระบุเหตุผลในการปลดแบนด้วยครับ';
+                                return 'กรุณาระบุเหตุผลในการปลดแบนด้วยค่ะ';
                               }
                             },
                             showCancelButton: true,

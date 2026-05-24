@@ -67,7 +67,17 @@ interface PlannerState {
   clearCopiedPlan: () => void;
   updateGlobalSlotNote: (date: string, meal: string, note: string) => Promise<void>;
   applyCycleTemplate: (startDate: string, endDate: string, category?: string) => Promise<void>;
-  applyTemplateToMember: (pkgId: string, memberId: string, weekStartDate: string, category: string) => Promise<void>;
+  applyTemplateToMember: (
+    pkgId: string, 
+    memberId: string, 
+    category: string, 
+    options?: {
+      startDate?: string;
+      templateWeek?: number | 'all';
+      overwriteRule?: 'skip' | 'overwrite';
+      fillUntilDepleted?: boolean;
+    }
+  ) => Promise<void>;
   getProjectedRemaining: (pkgId: string) => number;
 }
 
@@ -143,8 +153,22 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
         .filter(s => !s.is_extra_order && !s.is_compensatory)
         .reduce((sum, s) => sum + (s.quantity || 1), 0);
 
+      // Preserve unsaved temp schedules so they don't disappear when navigating weeks
+      const unsavedSchedules = get().memberSchedules.filter(s => s.id.toString().startsWith('temp_'));
+      
+      // Filter out overlapping DB records if an unsaved schedule exists for that date/meal
+      const dbData = data.filter(dbSlot => {
+        return !unsavedSchedules.some(u => 
+          u.delivery_date === dbSlot.delivery_date && 
+          u.meal_type === dbSlot.meal_type && 
+          u.package_id === dbSlot.package_id
+        );
+      });
+
+      const mergedSchedules = [...dbData, ...unsavedSchedules];
+
       set({ 
-        memberSchedules: data, 
+        memberSchedules: mergedSchedules, 
         initialWeekSubscriptionQty: subQty,
         isLoading: false, 
         selectedPackageId: packageId || null 
@@ -418,8 +442,12 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
       // This is CRITICAL to prevent duplication on subsequent saves
       await useMemberStore.getState().loadMemberData(true);
       
-      // Clear the local state that was just saved to avoid "phantom" unsaved changes
-      set({ hasUnsavedChanges: false, isSaving: false });
+      // Clear the local state that was just saved to avoid "phantom" unsaved changes and wipe temp_ IDs
+      set({ hasUnsavedChanges: false, isSaving: false, memberSchedules: [] });
+      
+      const startStr = pkg?.start_date || dayjs().subtract(1, 'month').format('YYYY-MM-DD');
+      const endStr = dayjs(startStr).add(1, 'year').format('YYYY-MM-DD');
+      await get().loadMemberPlanner(startStr, endStr, selectedPackageId, true);
       
       Swal.fire({ icon: 'success', title: 'บันทึกแผนงานเรียบร้อย', timer: 1500, toast: true, position: 'top-end', showConfirmButton: false });
     } catch (error: any) {
@@ -430,8 +458,15 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
   },
 
   discardChanges: async () => {
-    set({ hasUnsavedChanges: false });
-    // Reload would be better but requires knowing date range
+    set({ hasUnsavedChanges: false, memberSchedules: [] });
+    const selectedPackageId = get().selectedPackageId;
+    if (selectedPackageId) {
+      const pkg = useMemberStore.getState().activePackages.find(p => p.id === selectedPackageId);
+      const startStr = pkg?.start_date || dayjs().subtract(1, 'month').format('YYYY-MM-DD');
+      const endStr = dayjs(startStr).add(1, 'year').format('YYYY-MM-DD');
+      await get().loadMemberPlanner(startStr, endStr, selectedPackageId, true);
+    }
+    toast.success('ยกเลิกการเปลี่ยนแปลงเรียบร้อย');
   },
 
   copyDayPlan: (date) => {
@@ -597,7 +632,7 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
     }
   },
 
-  applyTemplateToMember: async (pkgId, memberId, weekStartDate, category) => {
+  applyTemplateToMember: async (pkgId, memberId, category, options) => {
     try {
       set({ isLoading: true });
       
@@ -615,73 +650,100 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
         throw new Error(`ไม่พบข้อมูลเมนูในระบบ Template หมวด ${category}`);
       }
 
-      // 2. Determine which week (1-4) we are in based on the date
-      // We can use a simple logic: (isoWeek % 4) or similar
-      const startDate = dayjs(weekStartDate);
-      let weekNum = (startDate.isoWeek() % 4);
-      if (weekNum === 0) weekNum = 4;
-
-      const weekTemplates = templates.filter(t => t.week_number === weekNum);
       const allMenus = useMenuStore.getState().menus;
       const newSchedules = [...get().memberSchedules];
       
       let skipped = false;
+      const startDate = options?.startDate ? dayjs(options?.startDate) : dayjs().startOf('isoWeek');
+      let currDate = startDate;
+      
+      const getRemainingQuota = (schedules: any[]) => {
+        const currentWeekSubQty = schedules
+          .filter(sch => sch.package_id === pkgId && !sch.is_extra_order && !sch.is_compensatory)
+          .reduce((sum, sch) => sum + (sch.quantity || 1), 0);
+        const delta = currentWeekSubQty - get().initialWeekSubscriptionQty;
+        const pkg = useMemberStore.getState().activePackages.find(p => p.id === pkgId);
+        return (pkg?.meals_remaining ?? 0) - delta;
+      };
 
-      // 3. Map templates to schedule slots
-      weekTemplates.forEach(t => {
-        const targetDate = startDate.add(t.day_of_week - 1, 'day').format('YYYY-MM-DD');
-        const menu = allMenus.find(m => m.name === t.menu_name);
-        
-        if (menu) {
-          // Check if slot already exists for this member/date/meal
-          const mealKey = `meal_${t.meal_slot}`;
-          const existingIdx = newSchedules.findIndex(s => 
-            s.delivery_date === targetDate && 
-            s.meal_type === mealKey && 
-            s.package_id === pkgId
-          );
+      const fillUntilDepleted = options?.fillUntilDepleted || false;
+      const maxDays = fillUntilDepleted ? 365 : 7; 
+      let daysProcessed = 0;
+      let currentTemplateWeek = options?.templateWeek === 'all' ? 1 : (options?.templateWeek || 1);
 
-          if (existingIdx === -1) {
-            const currentWeekSubQty = newSchedules
-              .filter(sch => sch.package_id === pkgId && !sch.is_extra_order && !sch.is_compensatory)
-              .reduce((sum, sch) => sum + (sch.quantity || 1), 0);
-            const delta = currentWeekSubQty - get().initialWeekSubscriptionQty;
-            const pkg = useMemberStore.getState().activePackages.find(p => p.id === pkgId);
-            const rem = (pkg?.meals_remaining ?? 0) - delta;
-            
-            if (rem <= 0) {
-              skipped = true;
-              return; // Skip this slot as quota is depleted
+      while (daysProcessed < maxDays) {
+        const remainingQuota = getRemainingQuota(newSchedules);
+        if (remainingQuota <= 0) {
+          skipped = true;
+          break; 
+        }
+
+        const dayOfWeek = currDate.day();
+        if (dayOfWeek !== 0) { 
+          const dailyTemplates = templates.filter(t => t.week_number === currentTemplateWeek && t.day_of_week === dayOfWeek);
+          
+          for (const t of dailyTemplates) {
+            if (getRemainingQuota(newSchedules) <= 0) {
+              skipped = true; break;
+            }
+
+            const menu = allMenus.find(m => m.name === t.menu_name);
+            if (menu) {
+              const targetDateStr = currDate.format('YYYY-MM-DD');
+              const mealKey = `meal_${t.meal_slot}`;
+              
+              const existingIdx = newSchedules.findIndex(s => 
+                s.delivery_date === targetDateStr && 
+                s.meal_type === mealKey && 
+                s.package_id === pkgId
+              );
+
+              // Overwrite logic
+              if (existingIdx !== -1 && options?.overwriteRule === 'skip') {
+                continue; 
+              }
+
+              const slotData = {
+                id: existingIdx !== -1 ? newSchedules[existingIdx].id : `temp_${Math.random()}`,
+                package_id: pkgId,
+                member_id: memberId,
+                delivery_date: targetDateStr,
+                meal_type: mealKey as any,
+                menu_item_id: menu.id,
+                quantity: 1,
+                box_size: 'regular',
+                delivery_time: '', 
+                kitchen_status: 'pending',
+                notes: '',
+                is_extra_order: false,
+                meal_order_type: 'subscription',
+                menu_items: menu
+              };
+
+              if (existingIdx !== -1) newSchedules[existingIdx] = slotData as any;
+              else newSchedules.push(slotData as any);
             }
           }
-
-          const slotData = {
-            id: existingIdx !== -1 ? newSchedules[existingIdx].id : `temp_${Math.random()}`,
-            package_id: pkgId,
-            member_id: memberId,
-            delivery_date: targetDate,
-            meal_type: mealKey as any,
-            menu_item_id: menu.id,
-            quantity: 1,
-            box_size: 'regular',
-            delivery_time: '', // To be filled from member profile if needed
-            kitchen_status: 'pending',
-            notes: '',
-            is_extra_order: false,
-            meal_order_type: 'subscription',
-            menu_items: menu
-          };
-
-          if (existingIdx !== -1) newSchedules[existingIdx] = slotData as any;
-          else newSchedules.push(slotData as any);
         }
-      });
+        
+        currDate = currDate.add(1, 'day');
+        daysProcessed++;
+        
+        // Next Monday: Advance week
+        if (currDate.day() === 1) {
+          if (options?.templateWeek === 'all' || fillUntilDepleted) {
+            currentTemplateWeek = (currentTemplateWeek % 4) + 1;
+          } else {
+            if (!fillUntilDepleted) break; // Finished 1 week
+          }
+        }
+      }
 
       set({ memberSchedules: newSchedules, hasUnsavedChanges: true, isLoading: false });
       if (skipped) {
-        toast.warning(`ปรับปรุงเมนูจาก Template ${category} เรียบร้อย (ข้ามบางมื้อเนื่องจากโควต้าหมด)`);
+        toast.warning(`ดึงเมนูแม่แบบเรียบร้อย (หยุดดึงเนื่องจากโควต้าหมด)`);
       } else {
-        toast.success(`ปรับปรุงเมนูจาก Template ${category} เรียบร้อย (กดบันทึกเพื่อยืนยัน)`);
+        toast.success(`ดึงเมนูแม่แบบเรียบร้อย (กดบันทึกเพื่อยืนยัน)`);
       }
     } catch (error: any) {
       set({ isLoading: false });

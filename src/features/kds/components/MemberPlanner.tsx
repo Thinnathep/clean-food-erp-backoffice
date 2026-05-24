@@ -17,6 +17,8 @@ import {
   MapPin,
   Pin,
   Wand2,
+  Info,
+  Sparkles,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import dayjs from "dayjs";
@@ -30,6 +32,7 @@ import { getWeekDays, formatDisplayDate } from "../../../lib/dateUtils";
 import { fetchMemberSchedules, bulkImportSchedules } from "../../../features/kds/api";
 import type { MemberMealSchedule, PintoPackage } from "../../../types";
 import { SmartImportModal } from "./SmartImportModal";
+import { AdvancedTemplateModal } from "./AdvancedTemplateModal";
 
 export const MemberPlanner: React.FC = () => {
   // Authentication & Role
@@ -43,6 +46,7 @@ export const MemberPlanner: React.FC = () => {
       .toDate(),
   );
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [templateCategories, setTemplateCategories] = useState<any[]>([]);
 
   // Modal State: Meal Editing
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -77,6 +81,7 @@ export const MemberPlanner: React.FC = () => {
   // Modal State: New Package
   const [isAddPackageModalOpen, setIsAddPackageModalOpen] = useState(false);
   const [isSmartImportOpen, setIsSmartImportOpen] = useState(false);
+  const [isAdvancedTemplateModalOpen, setIsAdvancedTemplateModalOpen] = useState(false);
   const [newPackage, setNewPackage] = useState({
     member_id: "",
     package_name: "",
@@ -120,6 +125,19 @@ export const MemberPlanner: React.FC = () => {
     isLoading,
     initialWeekSubscriptionQty,
   } = usePlannerStore();
+
+  // Fetch template categories
+  useEffect(() => {
+    let isMounted = true;
+    const fetchTemplateCats = async () => {
+      const { data } = await supabase.from('erp_system_configs').select('value').eq('key', 'TEMPLATE_CATEGORIES').single();
+      if (data && data.value && isMounted) {
+        setTemplateCategories(data.value as any[]);
+      }
+    };
+    fetchTemplateCats();
+    return () => { isMounted = false; };
+  }, []);
 
   // Fetch retail schedules for the current week to show badges for unselected retail members
   useEffect(() => {
@@ -170,39 +188,19 @@ export const MemberPlanner: React.FC = () => {
   const handleNextWeek = () =>
     setCurrentWeekStart(dayjs(currentWeekStart).add(1, "week").toDate());
 
-  const handleApplyTemplateToMember = async (category: string) => {
-    if (!category || !selectedPackageId) return;
+  const handleApplyTemplateToMember = async (config: {
+    category: string;
+    startDate: string;
+    templateWeek: number | "all";
+    overwriteRule: "skip" | "overwrite";
+    fillUntilDepleted: boolean;
+  }) => {
+    if (!config.category || !selectedPackageId) return;
 
-    const catName =
-      category === "normal"
-        ? "เมนูปกติ"
-        : category === "non_spicy"
-          ? "ไม่เผ็ด"
-          : category === "no_rice"
-            ? "ไม่เอาข้าว"
-            : category === "protein_plus"
-              ? "เน้นโปรตีน"
-              : "เมนูอื่นๆ";
-
-    const result = await Swal.fire({
-      title: `ยืนยันลงเมนูจากแม่แบบ (${catName})?`,
-      text: `ระบบจะลงเมนูตามแม่แบบหมวด ${catName} ในช่วงสัปดาห์นี้ให้ลูกค้า (ข้อมูลเดิมในสัปดาห์นี้จะถูกเขียนทับ)`,
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonColor: "#4f46e5",
-      cancelButtonColor: "#94a3b8",
-      confirmButtonText: "ตกลง, ลงเมนูเลย",
-      cancelButtonText: "ยกเลิก",
-      reverseButtons: true,
-    });
-
-    if (result.isConfirmed) {
-      const pkg = activePackages.find((p) => p.id === selectedPackageId);
-      if (pkg) {
-        const startStr = dayjs(currentWeekStart).format("YYYY-MM-DD");
-        const { applyTemplateToMember } = usePlannerStore.getState();
-        await applyTemplateToMember(pkg.id, pkg.member_id, startStr, category);
-      }
+    const pkg = activePackages.find((p) => p.id === selectedPackageId);
+    if (pkg) {
+      const { applyTemplateToMember } = usePlannerStore.getState();
+      await applyTemplateToMember(pkg.id, pkg.member_id, config.category, config);
     }
   };
 
@@ -301,13 +299,25 @@ export const MemberPlanner: React.FC = () => {
     (p) => p.id === selectedPackageId,
   );
 
+  // Fetch Schedules: Global View
   useEffect(() => {
-    if (currentWeekStart && selectedPackageId) {
+    if (!selectedPackageId && currentWeekStart) {
       const startStr = dayjs(currentWeekStart).format("YYYY-MM-DD");
       const endStr = dayjs(currentWeekStart).add(6, "day").format("YYYY-MM-DD");
+      loadMemberPlanner(startStr, endStr, undefined);
+    }
+  }, [currentWeekStart, selectedPackageId]);
+
+  // Fetch Schedules: Package View (Load everything at once for instant week navigation)
+  useEffect(() => {
+    if (selectedPackageId) {
+      const pkg = activePackages.find(p => p.id === selectedPackageId);
+      // Fetch a wide range (e.g. 1 year) so we don't need to load when changing weeks
+      const startStr = pkg?.start_date || dayjs().subtract(1, 'month').format('YYYY-MM-DD');
+      const endStr = dayjs(startStr).add(1, 'year').format('YYYY-MM-DD');
       loadMemberPlanner(startStr, endStr, selectedPackageId);
     }
-  }, [currentWeekStart, selectedPackageId, loadMemberPlanner]);
+  }, [selectedPackageId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -667,15 +677,44 @@ export const MemberPlanner: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col bg-[#F8FAFC] overflow-hidden relative">
-      <div className={`px-4 md:px-6 py-4 border-b border-slate-200 bg-white flex-col lg:flex-row justify-between items-start lg:items-center gap-4 z-10 shadow-sm ${selectedPackage ? 'hidden md:flex' : 'flex'}`}>
-        <div>
-          <h2 className="text-lg font-normal text-slate-900 tracking-tight flex items-center gap-2">
-            <User className="text-emerald-500" /> แผนอาหารรายบุคคล (Member
-            Custom Plan)
-          </h2>
-          <p className="text-xs font-normal text-slate-500 mt-1">
-            จัดเมนู สูงสุด 20 มื้อต่อวัน ระบุรอบส่งและโน้ตพิเศษ
-          </p>
+      {/* ยังไม่ไม่ได้ใช้งาน มันกินพื้นที่มากเกินไป คิดว่าจะทำเป็น popup แทนในอนาคต */}
+      <div className={`px-4 md:px-6 py-3 border-b border-slate-200 bg-white flex-col md:flex-row justify-between items-start md:items-center gap-4 relative z-50 shadow-sm shrink-0 ${selectedPackage ? 'hidden md:flex' : 'flex'}`}>
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white shadow-md shadow-emerald-500/20 shrink-0">
+            <User size={20} strokeWidth={2.5} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-black text-slate-900 tracking-tight leading-none">
+                แผนลูกค้า
+              </h2>
+              <div className="group relative flex items-center">
+                <button className="text-slate-400 hover:text-emerald-500 transition-colors p-1.5 rounded-full hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20">
+                  <Info size={18} strokeWidth={2.5} />
+                </button>
+                
+                {/* Redesigned Tooltip / Popover */}
+                <div className="absolute left-full top-0 ml-3 w-72 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-[9999] pointer-events-none origin-top-left scale-95 group-hover:scale-100">
+                  <div className="bg-white/90 backdrop-blur-xl border border-slate-200/60 p-5 rounded-2xl shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] relative overflow-hidden">
+                    {/* Decorative accent */}
+                    <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-emerald-400 to-teal-500"></div>
+                    
+                    <h4 className="text-slate-800 font-bold text-sm tracking-tight mb-2 flex items-center gap-2">
+                      <Sparkles size={14} className="text-emerald-500" />
+                      ระบบจัดการแผนลูกค้า
+                    </h4>
+                    <p className="text-slate-500 text-[11px] leading-relaxed">
+                      จัดเมนูได้สูงสุด <strong className="text-slate-700 font-semibold">20 มื้อต่อวัน</strong> 
+                      ระบุรอบส่ง โน้ตพิเศษเฉพาะมื้อ และมีระบบ <strong className="text-emerald-600 font-semibold">ดึงเมนูอัตโนมัติ</strong> จากแม่แบบเพื่อความรวดเร็ว
+                    </p>
+                    
+                    {/* Tooltip arrow */}
+                    <div className="absolute top-3 -left-1.5 w-3 h-3 bg-white/90 backdrop-blur-xl border-l border-b border-slate-200/60 rotate-45 rounded-sm"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="flex items-center gap-3 w-full lg:w-auto">
@@ -1095,18 +1134,14 @@ export const MemberPlanner: React.FC = () => {
                   วันนี้
                 </button>
 
-                <div className="flex bg-slate-50 rounded-xl border border-slate-300 shrink-0">
-                  <select title="Select option"
-                    className="bg-transparent text-xs font-normal px-3 py-2 outline-none text-slate-900 cursor-pointer"
-                    value=""
-                    onChange={(e) => handleApplyTemplateToMember(e.target.value)}
+                <div className="flex shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setIsAdvancedTemplateModalOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-xl text-xs font-semibold transition-all hover:bg-indigo-100 active:scale-95 shadow-sm"
                   >
-                    <option value="">ดึงเมนูอัตโนมัติ...</option>
-                    <option value="normal">ชุดเมนูปกติ</option>
-                    <option value="non_spicy">ชุดไม่เผ็ด</option>
-                    <option value="no_rice">ชุดไม่เอาข้าว</option>
-                    <option value="protein_plus">ชุดเน้นโปรตีน</option>
-                  </select>
+                    <Wand2 size={14} /> ดึงเมนูจากแม่แบบ...
+                  </button>
                 </div>
 
                 <div className="flex items-center bg-white border border-slate-200 rounded-lg p-0.5 shadow-sm shrink-0">
@@ -2045,6 +2080,16 @@ export const MemberPlanner: React.FC = () => {
           await loadMemberPlanner(startStr, endStr, selectedPackageId || undefined, true);
         }}
       />
+
+      {isAdvancedTemplateModalOpen && selectedPackage && (
+        <AdvancedTemplateModal
+          isOpen={isAdvancedTemplateModalOpen}
+          onClose={() => setIsAdvancedTemplateModalOpen(false)}
+          onApply={handleApplyTemplateToMember}
+          templateCategories={templateCategories}
+          currentWeekStart={currentWeekStart}
+        />
+      )}
     </div>
   );
 };

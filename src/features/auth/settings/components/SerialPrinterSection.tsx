@@ -33,12 +33,12 @@ export const SerialPrinterSection: React.FC<SerialPrinterSectionProps> = ({
               ไม่รองรับการเชื่อมต่อสายบนอุปกรณ์นี้
             </h5>
             <p className="text-[10px] text-slate-500 font-medium leading-relaxed mt-1">
-              เบราว์เซอร์บนระบบปฏิบัติการ iOS (iPhone / iPad) หรือเบราว์เซอร์มือถือทั่วไป จะไม่รองรับการเชื่อมต่อสายตรง USB/COM ครับ
+              เบราว์เซอร์บนระบบปฏิบัติการ iOS (iPhone / iPad) หรือเบราว์เซอร์มือถือทั่วไป จะไม่รองรับการเชื่อมต่อสายตรง USB/COM ค่ะ
             </p>
           </div>
         </div>
         <div className="pt-2 border-t border-slate-200/60 text-[10px] text-slate-600 font-bold leading-relaxed">
-          💡 <span className="text-indigo-600">ข้อแนะนำ:</span> กรุณาเข้าใช้งานผ่านคอมพิวเตอร์ (Windows / Mac / Chromebook) ด้วยเบราว์เซอร์ <span className="text-slate-800 font-black">Google Chrome</span> หรือ <span className="text-slate-800 font-black">Microsoft Edge</span> เพื่อใช้ตัวเลือกต่อสายตรงนี้ครับ!
+          💡 <span className="text-indigo-600">ข้อแนะนำ:</span> กรุณาเข้าใช้งานผ่านคอมพิวเตอร์ (Windows / Mac / Chromebook) ด้วยเบราว์เซอร์ <span className="text-slate-800 font-black">Google Chrome</span> หรือ <span className="text-slate-800 font-black">Microsoft Edge</span> เพื่อใช้ตัวเลือกต่อสายตรงนี้ค่ะ!
         </div>
       </div>
     );

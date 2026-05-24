@@ -509,7 +509,7 @@ export const FinanceSettings: React.FC<Props> = ({ configs, onRefresh, isDarkMod
            <p className={`text-sm font-bold uppercase ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`}>คำแนะนำในการตั้งค่า</p>
            <p className={`text-xs mt-1 leading-relaxed ${isDarkMode ? 'text-blue-400/80' : 'text-blue-500'}`}>
               การแก้ไขสูตรจะมีผลกับการบันทึกรายรับใหม่หลังจากนี้เท่านั้น ข้อมูลที่เคยบันทึกไปแล้วจะยังคงใช้สัดส่วนเดิม 
-              สัดส่วนรวม (M+L+O+P) **ต้องเท่ากับ 100% เสมอ** เพื่อความถูกต้องของบัญชีครับ
+              สัดส่วนรวม (M+L+O+P) **ต้องเท่ากับ 100% เสมอ** เพื่อความถูกต้องของบัญชีค่ะ
            </p>
         </div>
      </div>

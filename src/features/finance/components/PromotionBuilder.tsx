@@ -229,7 +229,7 @@ export const PromotionBuilder: React.FC<Props> = ({ isDarkMode = false }) => {
         days_count: promoDays,
         promotion_type: meals > 1 ? 'PINTO' : 'RETAIL',
         is_active: true,
-        sales_script: `แพ็กเกจ ${promoName} (${promoCode}) ราคาเพียง ฿${price.toLocaleString()} ได้ทั้งหมด ${meals} มื้อ (เฉลี่ยมื้อละ ฿${calculations.revenuePerMeal}) คุ้มค่าที่สุดสำหรับดูแลสุขภาพต่อเนื่อง ${promoDays} วันครับ`,
+        sales_script: `แพ็กเกจ ${promoName} (${promoCode}) ราคาเพียง ฿${price.toLocaleString()} ได้ทั้งหมด ${meals} มื้อ (เฉลี่ยมื้อละ ฿${calculations.revenuePerMeal}) คุ้มค่าที่สุดสำหรับดูแลสุขภาพต่อเนื่อง ${promoDays} วันค่ะ`,
         split_config_id: splitDataId,
         discount_type: 'FIXED',
         discount_value: 0

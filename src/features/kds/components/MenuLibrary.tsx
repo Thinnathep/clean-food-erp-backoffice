@@ -180,7 +180,7 @@ const MenuFormModal = memo(({
   const handleAddRecipe = async () => {
     try {
       if (!newRecipe.item_id) {
-        Swal.fire('แจ้งเตือน', 'กรุณาเลือกวัตถุดิบก่อนครับ', 'warning');
+        Swal.fire('แจ้งเตือน', 'กรุณาเลือกวัตถุดิบก่อนค่ะ', 'warning');
         return;
       }
       if (newRecipe.qty <= 0) {
