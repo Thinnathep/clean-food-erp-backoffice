@@ -135,7 +135,7 @@ const navItems: NavItem[] = [
     icon: Truck,
     children: [
       { label: 'จัดถุงเตรียมส่ง (Packing)', path: '/logistics/packing', icon: PackageLucide },
-      { label: 'คำนวณค่าจัดส่ง', path: '/logistics/shipping-calculator', icon: Calculator },
+      { label: 'คำนวณค่าจัดส่ง', path: '/logistics/calculator', icon: Calculator },
       { label: 'จัดการเส้นทาง', path: '/logistics/routes', icon: Map },
     ]
   },

@@ -14,6 +14,7 @@ import { FinanceDashboard } from './features/finance/components/FinanceDashboard
 import { MenuManagement } from './features/menu/components/MenuManagement';
 import { LogisticsDashboard } from './features/logistics/components/LogisticsDashboard';
 import { ShippingCalculator } from './features/logistics/components/ShippingCalculator';
+import { RouteManagement } from './features/logistics/components/RouteManagement';
 import { PromotionManagement } from './features/members/components/PromotionManagement';
 import { SettingsPage } from './features/auth/SettingsPage';
 import { ProcurementDashboard } from './features/procurement/components/ProcurementDashboard';
@@ -117,6 +118,7 @@ function App() {
         <Route path="/logistics" element={<ProtectedRoute><MainLayout><LogisticsDashboard /></MainLayout></ProtectedRoute>} />
         <Route path="/logistics/packing" element={<ProtectedRoute><MainLayout><KdsPackagingView /></MainLayout></ProtectedRoute>} />
         <Route path="/logistics/calculator" element={<ProtectedRoute><MainLayout><ShippingCalculator /></MainLayout></ProtectedRoute>} />
+        <Route path="/logistics/routes" element={<ProtectedRoute><MainLayout><RouteManagement /></MainLayout></ProtectedRoute>} />
         <Route path="/promotions" element={<ProtectedRoute><MainLayout><PromotionManagement /></MainLayout></ProtectedRoute>} />
         <Route path="/procurement" element={<ProtectedRoute><MainLayout><ProcurementDashboard /></MainLayout></ProtectedRoute>} />
         <Route path="/procurement/receiving" element={<ProtectedRoute><MainLayout><ProcurementDashboard initialTab="gr" /></MainLayout></ProtectedRoute>} />
