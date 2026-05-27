@@ -28,7 +28,8 @@ import {
   TrendingDown,
   ClipboardCheck,
   Package as PackageLucide,
-  Map
+  Map,
+  MapPin
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../../store/authStore';
@@ -72,6 +73,7 @@ const navItems: NavItem[] = [
       { label: 'วัตถุดิบ (Checklist)', path: '/kds/checklist', icon: ClipboardCheck },
       { label: 'HACCP', path: '/kds/haccp', icon: ShieldCheck },
       { label: 'พยากรณ์', path: '/kds/forecast', icon: TrendingUp },
+      { label: 'จุดส่งและออเดอร์กลุ่ม', path: '/logistics/drop-points', icon: MapPin },
     ]
   },
   { 
@@ -79,7 +81,7 @@ const navItems: NavItem[] = [
     icon: Users, 
     children: [
       { label: 'จัดการสมาชิก', path: '/members', icon: Users },
-      { label: 'โปรโมชั่น', path: '/promotions', icon: Ticket },
+      { label: 'เพิ่มสมาชิกโปรโมชั่น', path: '/promotions', icon: Ticket },
     ]
   },
   { 

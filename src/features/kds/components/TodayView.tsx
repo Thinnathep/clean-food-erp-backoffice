@@ -315,6 +315,7 @@ export const TodayView: React.FC = () => {
             "[B] ออเดอร์อาหาร Clean Food CR\n" +
             "--------------------------------\n" +
             `ลูกค้า | คุณ${memberName}\n` +
+            (item.dropPointName ? `จุดจัดส่ง | ${item.dropPointName}\n` : "") +
             (time === "ออเดอร์สมาชิกทั่วไป" || time.includes("ลูกค้ารายย่อย") ? "" : `รอบส่ง | ${time}\n`) +
             `วันที่ | ${dayjs(selectedDate).format("DD/MM/YYYY")}\n` +
             `จำนวนกล่อง | ${item.orders.reduce((sum: number, o: any) => sum + o.qty, 0)} กล่อง\n` +
@@ -396,6 +397,7 @@ export const TodayView: React.FC = () => {
 
           let bodyText =
             `สมาชิก: คุณ${memberName}\n` +
+            (item.dropPointName ? `จุดจัดส่ง: ${item.dropPointName}\n` : "") +
             (time === "ออเดอร์สมาชิกทั่วไป" || time.includes("ลูกค้ารายย่อย") ? "" : `รอบส่ง: ${time}\n`) +
             `วันที่: ${dayjs(selectedDate).format("DD/MM/YYYY")}\n` +
             "--------------------------------\n";
@@ -513,6 +515,11 @@ export const TodayView: React.FC = () => {
   }, [selectedDate, viewMode]);
 
   const todayProduction = useMemo(() => {
+    const getDropPointName = (dp: any) => {
+      if (!dp) return null;
+      return (Array.isArray(dp) ? dp[0]?.name : dp?.name) || null;
+    };
+
     const todaySchedules = memberSchedules.filter((s) => {
       const member = Array.isArray(s.members) ? s.members[0] : s.members;
       if (member?.is_banned) return false;
@@ -616,8 +623,12 @@ export const TodayView: React.FC = () => {
           totalF: 0,
           hasNotes: false,
           hasExtraOrder: false,
+          dropPointName: getDropPointName(schedule.pinto_packages?.drop_point),
           orders: [],
         };
+      } else if (!grouped[timeLabel].members[groupKey].dropPointName && schedule.pinto_packages?.drop_point) {
+        const dpName = getDropPointName(schedule.pinto_packages.drop_point);
+        if (dpName) grouped[timeLabel].members[groupKey].dropPointName = dpName;
       }
 
       if (schedule.notes) {
@@ -728,8 +739,12 @@ export const TodayView: React.FC = () => {
           totalF: 0,
           hasNotes: false,
           isRetail: true,
+          dropPointName: getDropPointName(task.drop_point),
           orders: [],
         };
+      } else if (!grouped[targetLabel].members[groupKey].dropPointName && task.drop_point) {
+        const dpName = getDropPointName(task.drop_point);
+        if (dpName) grouped[targetLabel].members[groupKey].dropPointName = dpName;
       }
 
       grouped[targetLabel].totalRoundQty += qty;
@@ -1676,6 +1691,12 @@ export const TodayView: React.FC = () => {
                             <span className="text-slate-900">ลูกค้า</span>
                             <span className="font-bold">คุณ{nutritionModal.memberName}</span>
                           </div>
+                          {nutritionModal.item.dropPointName && (
+                            <div className="flex justify-between text-indigo-700 font-bold">
+                              <span className="text-indigo-600">จุดจัดส่ง</span>
+                              <span>📍 {nutritionModal.item.dropPointName}</span>
+                            </div>
+                          )}
                           {nutritionModal.time !== "ออเดอร์สมาชิกทั่วไป" && !nutritionModal.time.includes("ลูกค้ารายย่อย") && (
                             <div className="flex justify-between">
                               <span className="text-slate-900">รอบส่ง</span>
@@ -2551,6 +2572,18 @@ export const TodayView: React.FC = () => {
                                     >
                                       {memberName}
                                     </h4>
+                                    {item.dropPointName && (
+                                      <div className="mt-1">
+                                        <span
+                                          className={cn(
+                                            "inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-50 text-indigo-600 border border-indigo-100/50 uppercase tracking-wider",
+                                            isKitchenMode && "text-lg px-4 py-1.5 bg-indigo-900 text-indigo-200 border-none mt-2"
+                                          )}
+                                        >
+                                          📍 {item.dropPointName}
+                                        </span>
+                                      </div>
+                                    )}
                                   </div>
                                   <div
                                     onClick={(e) =>

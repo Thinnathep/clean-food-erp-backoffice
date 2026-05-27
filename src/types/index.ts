@@ -8,6 +8,7 @@ export interface Order {
   kitchen_status: string;
   delivery_status: string;
   menu_item_id?: string;
+  drop_point?: { name: string } | { name: string }[] | null;
 }
 
 // --- Company Master Data ---
@@ -115,6 +116,7 @@ export interface PintoPackage {
   
   // Joined
   members?: Member;
+  drop_point?: { name: string } | { name: string }[] | null;
 }
 
 // --- Kitchen Planner Data ---

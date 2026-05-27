@@ -14,9 +14,9 @@ interface Props {
 }
 
 const PINTO_PRESETS = [
-  { label: '7 วัน (15 มื้อ)', price: 899, meals: 15, days: 7 },
-  { label: '14 วัน (30 มื้อ)', price: 1799, meals: 30, days: 14 },
-  { label: '30 วัน (62 มื้อ)', price: 3799, meals: 62, days: 30 },
+  { label: '7 วัน (15 มื้อ)', price: 999, meals: 15, days: 7 },
+  { label: '14 วัน (30 มื้อ)', price: 1899, meals: 30, days: 14 },
+  { label: '30 วัน (62 มื้อ)', price: 3999, meals: 62, days: 30 },
 ];
 
 const MUSCLE_PRESETS = [

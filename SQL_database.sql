@@ -327,6 +327,18 @@ CREATE TABLE public.erp_order_feedback (
   CONSTRAINT fk_feedback_rider FOREIGN KEY (rider_id) REFERENCES public.erp_staff(id),
   CONSTRAINT fk_feedback_order FOREIGN KEY (order_id) REFERENCES public.orders(order_id)
 );
+CREATE TABLE public.erp_recipe_steps (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  menu_item_id uuid,
+  step_number integer NOT NULL,
+  instruction text NOT NULL,
+  time_minutes integer DEFAULT 0,
+  image_url text,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
+  updated_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT erp_recipe_steps_pkey PRIMARY KEY (id),
+  CONSTRAINT erp_recipe_steps_menu_item_id_fkey FOREIGN KEY (menu_item_id) REFERENCES public.menu_items(id)
+);
 CREATE TABLE public.erp_recipes (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   menu_name text NOT NULL,
@@ -469,6 +481,17 @@ CREATE TABLE public.erp_unit_conversions (
   CONSTRAINT erp_unit_conversions_pkey PRIMARY KEY (id),
   CONSTRAINT fk_conversion_item FOREIGN KEY (item_id) REFERENCES public.erp_inventory_items(id)
 );
+CREATE TABLE public.erp_units (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name character varying NOT NULL UNIQUE,
+  abbreviation character varying,
+  category character varying,
+  is_base_unit boolean DEFAULT false,
+  conversion_factor numeric DEFAULT 1,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT erp_units_pkey PRIMARY KEY (id)
+);
 CREATE TABLE public.erp_vehicle_logs (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   rider_id uuid NOT NULL,
@@ -511,6 +534,7 @@ CREATE TABLE public.member_addresses (
   lng numeric,
   delivery_notes text,
   is_default boolean DEFAULT false,
+  drop_point_id uuid,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   deleted_at timestamp with time zone,
@@ -603,6 +627,11 @@ CASE
     ELSE (0)::numeric
 END,
   menu_group text DEFAULT 'standard'::text,
+  packaging_cost numeric DEFAULT 0,
+  labor_cost numeric DEFAULT 0,
+  transport_cost numeric DEFAULT 0,
+  overhead_cost numeric DEFAULT 0,
+  recipe_instructions jsonb DEFAULT '[]'::jsonb,
   CONSTRAINT menu_items_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.notifications_log (
@@ -628,6 +657,8 @@ CREATE TABLE public.order_items (
   qty integer NOT NULL DEFAULT 1,
   unit_price numeric NOT NULL DEFAULT 0.00,
   item_type text,
+  is_free_addon boolean DEFAULT false,
+  addon_source text,
   CONSTRAINT order_items_pkey PRIMARY KEY (id),
   CONSTRAINT fk_order_items_menu FOREIGN KEY (menu_item_id) REFERENCES public.menu_items(id),
   CONSTRAINT fk_order_items_order FOREIGN KEY (order_id) REFERENCES public.orders(order_id)
@@ -680,6 +711,8 @@ CREATE TABLE public.orders (
   display_order_id character varying,
   customer_id uuid,
   notes text,
+  drop_point_id uuid,
+  group_order_id uuid,
   CONSTRAINT orders_pkey PRIMARY KEY (order_id),
   CONSTRAINT orders_member_id_fkey FOREIGN KEY (member_id) REFERENCES public.members(id),
   CONSTRAINT orders_menu_item_id_fkey FOREIGN KEY (menu_item_id) REFERENCES public.menu_items(id),
@@ -804,6 +837,9 @@ CREATE TABLE public.pinto_packages (
   cancelled_reason text,
   source text DEFAULT 'organic'::text,
   internal_notes text,
+  buddy_group_id uuid,
+  bonus_meals integer DEFAULT 0,
+  drop_point_id uuid,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT pinto_packages_pkey PRIMARY KEY (id),
   CONSTRAINT pinto_packages_member_id_fkey FOREIGN KEY (member_id) REFERENCES public.members(id),
@@ -840,7 +876,9 @@ CREATE TABLE public.promotions (
   days_count integer DEFAULT 0,
   sales_script text,
   promotion_type text DEFAULT 'PINTO'::text,
-  conditions text,
+  conditions jsonb,
+  reward_type text DEFAULT 'DISCOUNT'::text,
+  reward_config jsonb DEFAULT '{}'::jsonb,
   split_config_id uuid,
   CONSTRAINT promotions_pkey PRIMARY KEY (id),
   CONSTRAINT promotions_split_config_id_fkey FOREIGN KEY (split_config_id) REFERENCES public.erp_split_configs(id)
@@ -862,4 +900,98 @@ CREATE TABLE public.weekly_plans (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT weekly_plans_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.erp_drop_points (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001',
+  name text NOT NULL,
+  short_code text,
+  address_line text,
+  lat numeric,
+  lng numeric,
+  radius_km numeric DEFAULT 0.5,
+  contact_name text,
+  contact_phone text,
+  delivery_instructions text,
+  avg_orders_per_day numeric DEFAULT 0,
+  is_active boolean DEFAULT true,
+  notes text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT erp_drop_points_pkey PRIMARY KEY (id),
+  CONSTRAINT erp_dp_tenant_fkey FOREIGN KEY (tenant_id) REFERENCES public.erp_tenants(id),
+  CONSTRAINT erp_dp_unique_code UNIQUE (tenant_id, short_code)
+);
+CREATE TABLE public.erp_group_orders (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001',
+  group_code text,
+  drop_point_id uuid NOT NULL,
+  promotion_id uuid,
+  order_date date NOT NULL DEFAULT CURRENT_DATE,
+  total_boxes integer NOT NULL DEFAULT 0,
+  min_boxes_required integer DEFAULT 3,
+  is_qualified boolean DEFAULT false,
+  free_addon_type text,
+  free_addon_value_per_box numeric DEFAULT 20.00,
+  total_addon_cost numeric DEFAULT 0.00,
+  status text DEFAULT 'pending'::text,
+  created_by uuid,
+  notes text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT erp_group_orders_pkey PRIMARY KEY (id),
+  CONSTRAINT erp_go_tenant_fkey FOREIGN KEY (tenant_id) REFERENCES public.erp_tenants(id),
+  CONSTRAINT erp_go_drop_point_fkey FOREIGN KEY (drop_point_id) REFERENCES public.erp_drop_points(id),
+  CONSTRAINT erp_go_promotion_fkey FOREIGN KEY (promotion_id) REFERENCES public.promotions(id),
+  CONSTRAINT erp_go_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.erp_staff(id),
+  CONSTRAINT erp_go_unique_code UNIQUE (tenant_id, group_code)
+);
+CREATE TABLE public.erp_buddy_groups (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001',
+  group_name text,
+  group_code text,
+  drop_point_id uuid,
+  promotion_id uuid,
+  min_members integer DEFAULT 2,
+  current_members integer DEFAULT 0,
+  bonus_meals_per_person integer DEFAULT 2,
+  is_qualified boolean DEFAULT false,
+  status text DEFAULT 'forming'::text,
+  created_by uuid,
+  notes text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT erp_buddy_groups_pkey PRIMARY KEY (id),
+  CONSTRAINT erp_bg_tenant_fkey FOREIGN KEY (tenant_id) REFERENCES public.erp_tenants(id),
+  CONSTRAINT erp_bg_drop_point_fkey FOREIGN KEY (drop_point_id) REFERENCES public.erp_drop_points(id),
+  CONSTRAINT erp_bg_promotion_fkey FOREIGN KEY (promotion_id) REFERENCES public.promotions(id),
+  CONSTRAINT erp_bg_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.erp_staff(id),
+  CONSTRAINT erp_bg_unique_code UNIQUE (tenant_id, group_code)
+);
+CREATE TABLE public.erp_promotion_usage (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  tenant_id uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000001',
+  promotion_id uuid NOT NULL,
+  member_id uuid NOT NULL,
+  order_id text,
+  package_id uuid,
+  group_order_id uuid,
+  buddy_group_id uuid,
+  reward_type text NOT NULL,
+  reward_value numeric DEFAULT 0,
+  reward_description text,
+  is_redeemed boolean DEFAULT true,
+  redeemed_at timestamp with time zone DEFAULT now(),
+  notes text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT erp_pu_pkey PRIMARY KEY (id),
+  CONSTRAINT erp_pu_tenant_fkey FOREIGN KEY (tenant_id) REFERENCES public.erp_tenants(id),
+  CONSTRAINT erp_pu_promotion_fkey FOREIGN KEY (promotion_id) REFERENCES public.promotions(id),
+  CONSTRAINT erp_pu_member_fkey FOREIGN KEY (member_id) REFERENCES public.members(id),
+  CONSTRAINT erp_pu_order_fkey FOREIGN KEY (order_id) REFERENCES public.orders(order_id),
+  CONSTRAINT erp_pu_package_fkey FOREIGN KEY (package_id) REFERENCES public.pinto_packages(id),
+  CONSTRAINT erp_pu_group_fkey FOREIGN KEY (group_order_id) REFERENCES public.erp_group_orders(id),
+  CONSTRAINT erp_pu_buddy_fkey FOREIGN KEY (buddy_group_id) REFERENCES public.erp_buddy_groups(id)
 );

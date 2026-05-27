@@ -6,7 +6,7 @@ import type { KdsTask, MenuItem, PintoPackage, GlobalPlanSlot, MemberMealSchedul
 export const fetchActiveKdsTasks = async (): Promise<KdsTask[]> => {
   const { data, error } = await supabase
     .from('orders')
-    .select('id, order_id, menu_name, created_at, kitchen_status, delivery_status, menu_item_id')
+    .select('id, order_id, menu_name, created_at, kitchen_status, delivery_status, menu_item_id, drop_point:erp_drop_points(name)')
     .eq('kitchen_status', 'ยืนยันแล้ว')
     .neq('delivery_status', 'ส่งเรียบร้อย')
     .order('created_at', { ascending: true });
@@ -244,7 +244,7 @@ export const fetchMemberSchedules = async (startDate: string, endDate: string, p
     .select(`
       id, package_id, member_id, delivery_date, meal_type, menu_item_id, quantity, box_size, delivery_time, kitchen_status, notes, is_extra_order, meal_order_type, is_compensatory,
       menu_items (id, name, category, protein, calories, carbs, fat, image_url, tags),
-      pinto_packages (id, package_name, meals_remaining),
+      pinto_packages (id, package_name, meals_remaining, drop_point:erp_drop_points(name)),
       members!erp_member_meal_schedules_member_id_fkey (id, full_name, phone, delivery_time, member_type, is_banned)
     `)
     .gte('delivery_date', startDate)

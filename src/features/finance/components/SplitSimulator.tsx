@@ -14,9 +14,9 @@ interface Props {
 
 // Pinto package presets
 const PINTO_PRESETS = [
-  { label: '📦 7 วัน (15 มื้อ)', price: 899, meals: 15 },
-  { label: '📦 14 วัน (30 มื้อ)', price: 1799, meals: 30 },
-  { label: '📦 1 เดือน (62 มื้อ)', price: 3799, meals: 62 },
+  { label: '📦 7 วัน (15 มื้อ)', price: 999, meals: 15 },
+  { label: '📦 14 วัน (30 มื้อ)', price: 1899, meals: 30 },
+  { label: '📦 1 เดือน (62 มื้อ)', price: 3999, meals: 62 },
 ];
 
 // Muscle package presets
@@ -27,7 +27,7 @@ const MUSCLE_PRESETS = [
 ];
 
 export const SplitSimulator: React.FC<Props> = ({ isDarkMode = false }) => {
-  const [amount, setAmount] = useState(899);
+  const [amount, setAmount] = useState(999);
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [materialPct, setMaterialPct] = useState(35);
   const [laborPct, setLaborPct] = useState(15);

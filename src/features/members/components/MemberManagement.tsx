@@ -11,6 +11,7 @@ import dayjs from 'dayjs';
 import { formatDisplayDate } from '../../../lib/dateUtils';
 import type { Member } from '../../../types';
 import Swal from 'sweetalert2';
+import { supabase } from '../../../config/supabase';
 
 export const MemberManagement: React.FC = () => {
   const { 
@@ -24,6 +25,32 @@ export const MemberManagement: React.FC = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+
+  const [promotions, setPromotions] = useState<any[]>([]);
+  const [promoSearchQuery, setPromoSearchQuery] = useState('');
+  const [isPromoDropdownOpen, setIsPromoDropdownOpen] = useState(false);
+
+  // Sorting helper
+  const getSortedPromotions = (list: any[]) => {
+    return [...list].sort((a, b) => {
+      const getPriority = (promo: any) => {
+        const type = (promo.promotion_type || 'PINTO').toUpperCase();
+        if (type === 'PINTO') {
+          if (promo.code?.startsWith('PINTO')) return 1;
+          return 2;
+        }
+        if (type === 'MUSCLE') return 3;
+        if (type === 'RETAIL') return 4;
+        return 5;
+      };
+      
+      const pA = getPriority(a);
+      const pB = getPriority(b);
+      
+      if (pA !== pB) return pA - pB;
+      return Number(a.price || 0) - Number(b.price || 0);
+    });
+  };
   
   // Modals
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -103,6 +130,14 @@ export const MemberManagement: React.FC = () => {
   useEffect(() => {
     loadMemberData();
     loadMenus();
+    
+    // Fetch promotions dynamically
+    supabase.from('promotions')
+      .select('*')
+      .eq('is_active', true)
+      .then(({ data }) => {
+        if (data) setPromotions(data);
+      });
   }, [loadMemberData, loadMenus]);
 
   const filteredMembers = useMemo(() => {
@@ -935,63 +970,73 @@ export const MemberManagement: React.FC = () => {
                <div className="p-8 space-y-6">
                   <div>
                     <label className="block text-[10px] font-normal text-slate-400 uppercase tracking-widest mb-2">เลือกโปรโมชั่นหลัก</label>
-                    <select 
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (val === '7days') {
-                          setNewPackage({
-                            ...newPackage,
-                            package_name: '- ผูกปิ่นโต 7 วัน (14 มื้อ) (×1) = ฿899',
-                            meals_total: 15,
-                            end_date: dayjs(newPackage.start_date).add(7, 'day').format('YYYY-MM-DD')
-                          });
-                        } else if (val === '14days') {
-                          setNewPackage({
-                            ...newPackage,
-                            package_name: '- ผูกปิ่นโต 14 วัน (28 มื้อ) (×1) = ฿1,799',
-                            meals_total: 30,
-                            end_date: dayjs(newPackage.start_date).add(14, 'day').format('YYYY-MM-DD')
-                          });
-                        } else if (val === '30days') {
-                          setNewPackage({
-                            ...newPackage,
-                            package_name: '- ผูกปิ่นโต 1 เดือน (60 มื้อ) (×1) = ฿3,799',
-                            meals_total: 62,
-                            end_date: dayjs(newPackage.start_date).add(30, 'day').format('YYYY-MM-DD')
-                          });
-                        } else if (val === 'muscle14days') {
-                          setNewPackage({
-                            ...newPackage,
-                            package_name: '- โปรโมชั่น เพิ่มกล้าม 14 วัน (60+2 มื้อ) = ฿7,399',
-                            meals_total: 62,
-                            end_date: dayjs(newPackage.start_date).add(14, 'day').format('YYYY-MM-DD')
-                          });
-                        } else if (val === 'muscle30days') {
-                          setNewPackage({
-                            ...newPackage,
-                            package_name: '- โปรโมชั่น เพิ่มกล้าม 1 เดือน (120+4 มื้อ) = ฿14,490',
-                            meals_total: 124,
-                            end_date: dayjs(newPackage.start_date).add(30, 'day').format('YYYY-MM-DD')
-                          });
-                        } else if (val === 'muscle30days_norice') {
-                          setNewPackage({
-                            ...newPackage,
-                            package_name: '- โปรโมชั่น เพิ่มกล้าม 1 เดือน กับข้าวอย่างเดียว (120+4 มื้อ) = ฿12,499',
-                            meals_total: 124,
-                            end_date: dayjs(newPackage.start_date).add(30, 'day').format('YYYY-MM-DD')
-                          });
-                        }
-                      }}
-                      className="w-full p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-sm font-normal text-emerald-800 focus:border-emerald-500 outline-none"
-                    >
-                      <option value="">-- เลือกรูปแบบโปรโมชั่น --</option>
-                      <option value="7days">ผูกปิ่นโต 7 วัน (14+1 มื้อ)</option>
-                      <option value="14days">ผูกปิ่นโต 14 วัน (28+2 มื้อ)</option>
-                      <option value="30days">ผูกปิ่นโต 1 เดือน (60+2 มื้อ)</option>
-                      <option value="muscle14days">โปรโมชั่น เพิ่มกล้าม 14 วัน (60+2 มื้อ) ฿7,399</option>
-                      <option value="muscle30days">โปรโมชั่น เพิ่มกล้าม 1 เดือน (120+4 มื้อ) ฿14,490</option>
-                      <option value="muscle30days_norice">โปรโมชั่น เพิ่มกล้าม 1 เดือน (กับข้าวอย่างเดียว 120+4 มื้อ) ฿12,499</option>
-                    </select>
+                    <div className="relative select-none z-[9999] w-full">
+                       <div 
+                         onClick={() => setIsPromoDropdownOpen(!isPromoDropdownOpen)}
+                         className="w-full p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-sm font-bold text-emerald-800 focus:border-emerald-500 outline-none flex items-center justify-between cursor-pointer hover:border-emerald-400 transition-all"
+                       >
+                         <span>
+                           {newPackage.package_name 
+                             ? newPackage.package_name.replace('- ', '')
+                             : '-- เลือกรูปแบบโปรโมชั่น --'}
+                         </span>
+                         <span className="text-emerald-500 text-xs">▼</span>
+                       </div>
+                       
+                       {isPromoDropdownOpen && (
+                         <div className="absolute left-0 top-full mt-2 w-full bg-white border border-slate-200 rounded-2xl shadow-xl p-3 space-y-2">
+                           <input 
+                             type="text" 
+                             placeholder="พิมพ์ค้นหาโปรโมชั่น..."
+                             value={promoSearchQuery}
+                             onChange={(e) => setPromoSearchQuery(e.target.value)}
+                             onClick={(e) => e.stopPropagation()}
+                             className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-normal focus:border-emerald-500 outline-none transition-all text-slate-700 font-normal"
+                           />
+                           <div className="max-h-60 overflow-y-auto space-y-1 pr-1">
+                             <div 
+                               onClick={() => {
+                                 setNewPackage({
+                                   ...newPackage,
+                                   package_name: '',
+                                   meals_total: 0
+                                 });
+                                 setIsPromoDropdownOpen(false);
+                                 setPromoSearchQuery('');
+                               }}
+                               className="px-3 py-2 text-xs text-slate-500 hover:bg-slate-50 rounded-lg cursor-pointer transition-all"
+                             >
+                               -- ยกเลิกการเลือก --
+                             </div>
+                             {getSortedPromotions(promotions)
+                               .filter(p => p.name.toLowerCase().includes(promoSearchQuery.toLowerCase()) || p.code.toLowerCase().includes(promoSearchQuery.toLowerCase()))
+                               .map(p => (
+                                 <div 
+                                   key={p.id}
+                                   onClick={() => {
+                                     setNewPackage({
+                                       ...newPackage,
+                                       package_name: `- ${p.name} = ฿${p.price}`,
+                                       meals_total: p.meals_count,
+                                       end_date: dayjs(newPackage.start_date).add(p.days_count, 'day').format('YYYY-MM-DD')
+                                     });
+                                     setIsPromoDropdownOpen(false);
+                                     setPromoSearchQuery('');
+                                   }}
+                                   className={`px-3 py-2 text-xs font-bold rounded-lg cursor-pointer transition-all flex justify-between items-center ${
+                                     newPackage.package_name.includes(p.name) 
+                                       ? 'bg-emerald-50 text-emerald-600' 
+                                       : 'text-slate-700 hover:bg-slate-50'
+                                   }`}
+                                 >
+                                   <span className="truncate mr-2">{p.name}</span>
+                                   <span className="text-emerald-600 shrink-0">฿{Number(p.price).toLocaleString()}</span>
+                                 </div>
+                               ))}
+                           </div>
+                         </div>
+                       )}
+                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">

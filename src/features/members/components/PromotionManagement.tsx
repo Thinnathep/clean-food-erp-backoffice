@@ -4,24 +4,18 @@ import {
   Sparkles,
   Users,
   Check,
-  MapPin, 
-  Calendar as CalendarIcon, 
   Clock, 
   MessageSquare, 
   Copy, 
-  ChevronRight, 
   UserPlus,
   Rocket,
   Plus,
   Loader2,
   Trash2,
-  Phone,
-  CreditCard,
   Package,
   X,
   Info,
-  AlertTriangle,
-  Home
+  Calculator
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import dayjs from 'dayjs';
@@ -29,12 +23,13 @@ import { supabase } from '../../../config/supabase';
 import { toast } from 'sonner';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { OrderCalculator } from '../../calculator/components/OrderCalculator';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-type TabType = 'sales' | 'catalog';
+type TabType = 'sales' | 'catalog' | 'calculator';
 
 interface SalesTemplate {
   id: string;
@@ -85,19 +80,6 @@ export const PromotionManagement: React.FC = () => {
   const [selectedPromo, setSelectedPromo] = useState<any | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // New Promotion Form State
-  const [newPromo, setNewPromo] = useState({
-    name: '',
-    code: '',
-    promotion_type: 'PINTO',
-    price: 0,
-    meals_count: 0,
-    days_count: 14,
-    description: '',
-    sales_script: '',
-    conditions: ''
-  });
-
   // Form State for Sales Tab
   const [customerInfo, setCustomerInfo] = useState({
     name: '',
@@ -115,9 +97,115 @@ export const PromotionManagement: React.FC = () => {
     googleMapsUrl: '',
     distanceKm: '' as string | number,
     locationType: 'inside', // inside or outside
-    deliveryFee: '' as string | number
+    deliveryFee: '' as string | number,
+    packagePrice: '' as string | number
   });
 
+  const [matchedMember, setMatchedMember] = useState<any | null>(null);
+  const [isSearchingPhone, setIsSearchingPhone] = useState(false);
+  const [isManualDeliveryFee, setIsManualDeliveryFee] = useState(false);
+
+  // Search & sorting states
+  const [promoSearchQuery, setPromoSearchQuery] = useState('');
+  const [isPromoDropdownOpen, setIsPromoDropdownOpen] = useState(false);
+  const [catalogSearchQuery, setCatalogSearchQuery] = useState('');
+
+  // Check if member already exists on phone input change
+  useEffect(() => {
+    const cleanPhone = customerInfo.phone.replace(/[^0-9]/g, '');
+    if (cleanPhone.length >= 9) {
+      setIsSearchingPhone(true);
+      const checkExistingMember = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('members')
+            .select('*')
+            .eq('phone', customerInfo.phone)
+            .maybeSingle();
+          
+          if (data && !error) {
+            setMatchedMember(data);
+          } else {
+            setMatchedMember(null);
+          }
+        } catch (err) {
+          setMatchedMember(null);
+        } finally {
+          setIsSearchingPhone(false);
+        }
+      };
+      
+      const timer = setTimeout(checkExistingMember, 500);
+      return () => clearTimeout(timer);
+    } else {
+      setMatchedMember(null);
+      setIsSearchingPhone(false);
+    }
+  }, [customerInfo.phone]);
+
+  const handleLoadMatchedMember = () => {
+    if (matchedMember) {
+      setCustomerInfo(prev => ({
+        ...prev,
+        name: matchedMember.full_name || prev.name,
+        nickname: matchedMember.nickname || prev.nickname,
+        lineId: matchedMember.line_id || prev.lineId,
+        address: matchedMember.address || prev.address,
+        healthGoal: matchedMember.health_goal || prev.healthGoal,
+        allergyNotes: matchedMember.allergy_notes || prev.allergyNotes,
+        memberType: matchedMember.member_type || prev.memberType,
+        deliverySlot: matchedMember.delivery_time || prev.deliverySlot
+      }));
+      toast.success('โหลดข้อมูลลูกค้าเดิมเรียบร้อยแล้ว');
+    }
+  };
+
+  const applyDaysPreset = (preset: 'mon-sat' | 'everyday' | 'mon-fri') => {
+    let days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    if (preset === 'everyday') {
+      days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    } else if (preset === 'mon-fri') {
+      days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+    }
+    setCustomerInfo(prev => ({ ...prev, deliveryDays: days }));
+  };
+
+  // Sorting helper
+  const getSortedPromotions = (list: any[]) => {
+    return [...list].sort((a, b) => {
+      const getPriority = (promo: any) => {
+        const type = (promo.promotion_type || 'PINTO').toUpperCase();
+        if (type === 'PINTO') {
+          if (promo.code?.startsWith('PINTO')) return 1;
+          return 2;
+        }
+        if (type === 'MUSCLE') return 3;
+        if (type === 'RETAIL') return 4;
+        return 5;
+      };
+      
+      const pA = getPriority(a);
+      const pB = getPriority(b);
+      
+      if (pA !== pB) return pA - pB;
+      return Number(a.price || 0) - Number(b.price || 0);
+    });
+  };
+
+  // New Promotion Form State
+  const [newPromo, setNewPromo] = useState({
+    name: '',
+    code: '',
+    promotion_type: 'PINTO',
+    price: 0,
+    meals_count: 0,
+    days_count: 14,
+    description: '',
+    sales_script: '',
+    conditions: ''
+  });
+
+  // Form State for Sales Tab
   const [logisticsConfig, setLogisticsConfig] = useState({
     BASE_FARE: 25,
     BASE_INCLUDED_DISTANCE: 3,
@@ -166,6 +254,7 @@ export const PromotionManagement: React.FC = () => {
 
   // Auto-calculate delivery fee for all types
   useEffect(() => {
+    if (isManualDeliveryFee) return;
     const dist = Number(customerInfo.distanceKm || 0);
     const promo = promotions.find(p => p.id === customerInfo.selectedPromoId);
     
@@ -175,19 +264,20 @@ export const PromotionManagement: React.FC = () => {
       rounds = promo ? promo.days_count : 14;
     }
     
-    if (dist <= logisticsConfig.PROMO_FREE_DIST) {
+    let baseExtra = customerInfo.locationType === 'outside' ? 20 : 0;
+
+    if (dist <= logisticsConfig.PROMO_FREE_DIST && customerInfo.locationType === 'inside') {
       setCustomerInfo(prev => ({ ...prev, deliveryFee: 0 }));
     } else {
-      const excessDist = dist - logisticsConfig.PROMO_FREE_DIST;
-      // Normal logic applied to the excess distance
-      let feePerRound = logisticsConfig.BASE_FARE;
+      const excessDist = Math.max(0, dist - logisticsConfig.PROMO_FREE_DIST);
+      let feePerRound = logisticsConfig.BASE_FARE + baseExtra;
       if (excessDist > logisticsConfig.BASE_INCLUDED_DISTANCE) {
         const ex = excessDist - logisticsConfig.BASE_INCLUDED_DISTANCE;
         feePerRound += ex * logisticsConfig.FEE_PER_KM_NORMAL;
       }
       setCustomerInfo(prev => ({ ...prev, deliveryFee: Math.ceil(feePerRound * rounds) }));
     }
-  }, [customerInfo.distanceKm, customerInfo.memberType, customerInfo.selectedPromoId, logisticsConfig, promotions]);
+  }, [customerInfo.distanceKm, customerInfo.memberType, customerInfo.selectedPromoId, logisticsConfig, promotions, customerInfo.locationType, isManualDeliveryFee]);
 
   const handleSaveCustomer = async () => {
     if (!customerInfo.name || !customerInfo.phone) {
@@ -236,30 +326,30 @@ export const PromotionManagement: React.FC = () => {
         memberId = newMember.id;
       }
 
-      // 2. If a promotion is selected, create a pinto_package
-      if (customerInfo.selectedPromoId) {
-        const promo = promotions.find(p => p.id === customerInfo.selectedPromoId);
-        if (promo) {
-          const { error: pkgError } = await supabase.from('pinto_packages').insert({
-            member_id: memberId,
-            package_name: promo.name,
-            meals_total: promo.meals_count,
-            meals_remaining: promo.meals_count,
-            days_total: promo.days_count,
-            days_remaining: promo.days_count,
-            price_paid: promo.price + Number(customerInfo.deliveryFee || 0),
-            promotion_id: promo.id,
-            start_date: customerInfo.startDate,
-            delivery_slot: customerInfo.deliverySlot,
-            status: 'active',
-            phone: customerInfo.phone,
-            internal_notes: `วันส่ง: ${customerInfo.deliveryDays.join(', ')} | ระยะทาง: ${customerInfo.distanceKm || 0} กม. | พื้นที่: ${customerInfo.locationType === 'inside' ? 'ในเมือง' : 'นอกเมือง'} | Maps: ${customerInfo.googleMapsUrl}`
-          });
-          if (pkgError) throw pkgError;
-        }
-      }
+      // 2. Create a pinto_package (or general order)
+      const promo = customerInfo.selectedPromoId ? promotions.find(p => p.id === customerInfo.selectedPromoId) : null;
+      const packageName = promo ? promo.name : (customerInfo.memberType === 'retail' ? 'ออเดอร์รายย่อย' : 'ออเดอร์ทั่วไป (Custom)');
+      const mealsCount = promo ? promo.meals_count : (customerInfo.memberType === 'retail' ? 1 : 0);
+      const daysCount = promo ? promo.days_count : (customerInfo.memberType === 'retail' ? 1 : 14);
+      
+      const { error: pkgError } = await supabase.from('pinto_packages').insert({
+        member_id: memberId,
+        package_name: packageName,
+        meals_total: mealsCount,
+        meals_remaining: mealsCount,
+        days_total: daysCount,
+        days_remaining: daysCount,
+        price_paid: Number(customerInfo.packagePrice || 0) + Number(customerInfo.deliveryFee || 0),
+        promotion_id: promo?.id || null,
+        start_date: customerInfo.startDate,
+        delivery_slot: customerInfo.deliverySlot,
+        status: 'active',
+        phone: customerInfo.phone,
+        internal_notes: `วันส่ง: ${customerInfo.deliveryDays.join(', ')} | ระยะทาง: ${customerInfo.distanceKm || 0} กม. | พื้นที่: ${customerInfo.locationType === 'inside' ? 'ในเมือง' : 'นอกเมือง'} | Maps: ${customerInfo.googleMapsUrl}`
+      });
+      if (pkgError) throw pkgError;
 
-      toast.success('บันทึกข้อมูลลูกค้าและสมัครแพ็กเกจเรียบร้อยแล้ว');
+      toast.success('บันทึกข้อมูลลูกค้าและสร้างออเดอร์เรียบร้อยแล้ว');
       // Reset form
       setCustomerInfo({
         name: '', nickname: '', phone: '', lineId: '', address: '',
@@ -269,8 +359,10 @@ export const PromotionManagement: React.FC = () => {
         healthGoal: 'ไม่ระบุ', allergyNotes: '',
         memberType: 'pinto',
         deliveryDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
-        googleMapsUrl: '', distanceKm: '', locationType: 'inside', deliveryFee: ''
+        googleMapsUrl: '', distanceKm: '', locationType: 'inside', deliveryFee: '',
+        packagePrice: ''
       });
+      setIsManualDeliveryFee(false);
     } catch (err: any) {
       toast.error('ล้มเหลว: ' + err.message);
     } finally {
@@ -280,7 +372,7 @@ export const PromotionManagement: React.FC = () => {
 
   const generateOrderSummary = () => {
     const promo = promotions.find(p => p.id === customerInfo.selectedPromoId);
-    const totalPrice = (promo?.price || 0) + Number(customerInfo.deliveryFee || 0);
+    const totalPrice = Number(customerInfo.packagePrice || 0) + Number(customerInfo.deliveryFee || 0);
     const startDateFormatted = dayjs(customerInfo.startDate).locale('th').format('ddddที่ D MMM');
     
     return `รับออเดอร์โปรโมชั่น ${promo?.name || 'ผูกปิ่นโต'} รวมยอดทั้งหมด: ${totalPrice.toLocaleString()} บาท 
@@ -412,6 +504,15 @@ ${customerInfo.googleMapsUrl ? `📍 พิกัด: ${customerInfo.googleMapsU
             >
               <Tag size={18} /> แคตตาล็อกโปรฯ
             </button>
+            <button 
+              onClick={() => setActiveTab('calculator')}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all",
+                activeTab === 'calculator' ? "bg-white text-slate-900 shadow-md ring-1 ring-black/5" : "text-slate-500 hover:text-slate-700"
+              )}
+            >
+              <Calculator size={18} /> คำนวณออเดอร์
+            </button>
           </div>
         </div>
       </div>
@@ -425,397 +526,531 @@ ${customerInfo.googleMapsUrl ? `📍 พิกัด: ${customerInfo.googleMapsU
               initial="hidden"
               animate="visible"
               exit="hidden"
-              className="grid grid-cols-1 xl:grid-cols-12 gap-8"
+              className="grid grid-cols-1 xl:grid-cols-12 gap-5"
             >
-              {/* Left Column: Customer Planner Form */}
-              <div className="xl:col-span-7 space-y-6">
-                <div className="bg-white rounded-[2rem] border border-slate-200 p-8 shadow-xl shadow-slate-200/40 relative overflow-hidden">
-                   <div className="relative z-10">
-                      <div className="flex items-center justify-between mb-8">
-                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                               <Users size={20} />
-                            </div>
-                            <h3 className="text-xl font-bold text-slate-900">Customer Planner & Intake</h3>
-                         </div>
-                         <div className="flex flex-col items-end">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Selected Promotion</span>
-                            <select 
-                               className="bg-slate-50 border-none text-sm font-bold text-emerald-600 outline-none cursor-pointer"
-                               value={customerInfo.selectedPromoId}
-                               onChange={(e) => setCustomerInfo({...customerInfo, selectedPromoId: e.target.value})}
+              {/* Left Column: High-Density Customer Intake Form */}
+              <div className="xl:col-span-8 space-y-4">
+                <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm relative overflow-hidden">
+                  <div className="relative z-10 space-y-4">
+                    {/* Top Header & Searchable Dropdown */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                          <Users size={16} />
+                        </div>
+                        <h3 className="text-sm font-bold text-slate-800">ลงทะเบียนสมาชิกใหม่ & สมัครคอร์ส</h3>
+                      </div>
+                      <div className="flex flex-col sm:items-end w-full sm:w-auto relative">
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">เลือกโปรโมชั่นที่เสนอ</span>
+                        <div className="relative select-none w-full sm:w-64">
+                          <div 
+                            onClick={() => setIsPromoDropdownOpen(!isPromoDropdownOpen)}
+                            className="bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-emerald-600 flex items-center justify-between cursor-pointer hover:border-emerald-400 transition-all"
+                          >
+                            <span className="truncate">
+                              {customerInfo.selectedPromoId 
+                                ? promotions.find(p => p.id === customerInfo.selectedPromoId)?.name + ` (฿${Number(promotions.find(p => p.id === customerInfo.selectedPromoId)?.price || 0).toLocaleString()})`
+                                : 'เลือกโปรโมชั่นที่ต้องการ...'}
+                            </span>
+                            <span className="ml-2 text-emerald-500 text-[8px]">▼</span>
+                          </div>
+                          
+                          {isPromoDropdownOpen && (
+                            <>
+                              <div className="fixed inset-0 z-40" onClick={() => setIsPromoDropdownOpen(false)} />
+                              <div className="absolute right-0 top-full mt-1 w-80 bg-white border border-slate-200 rounded-xl shadow-xl p-2 space-y-2 z-50">
+                                <input 
+                                  type="text" 
+                                  placeholder="พิมพ์ค้นหาโปรโมชั่น..."
+                                  value={promoSearchQuery}
+                                  onChange={(e) => setPromoSearchQuery(e.target.value)}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-normal focus:border-emerald-500 outline-none transition-all text-slate-700"
+                                />
+                                <div className="max-h-52 overflow-y-auto space-y-0.5 pr-1 custom-scrollbar">
+                                  <div 
+                                    onClick={() => {
+                                      setCustomerInfo({...customerInfo, selectedPromoId: '', packagePrice: ''});
+                                      setIsManualDeliveryFee(false);
+                                      setIsPromoDropdownOpen(false);
+                                      setPromoSearchQuery('');
+                                    }}
+                                    className="px-2 py-1 text-xs text-slate-500 hover:bg-slate-50 rounded cursor-pointer transition-all"
+                                  >
+                                    -- ไม่ระบุโปรโมชั่น --
+                                  </div>
+                                  {getSortedPromotions(promotions)
+                                    .filter(p => p.name.toLowerCase().includes(promoSearchQuery.toLowerCase()) || p.code.toLowerCase().includes(promoSearchQuery.toLowerCase()))
+                                    .map(p => (
+                                      <div 
+                                        key={p.id}
+                                        onClick={() => {
+                                          const code = (p.code || '').toUpperCase();
+                                          const promoType = (p.promotion_type || 'PINTO').toUpperCase();
+                                          let type: 'pinto' | 'promo' | 'retail' = 'pinto';
+                                          if (code.startsWith('MUSCLE') || p.name.includes('เพิ่มกล้าม')) {
+                                            type = 'promo';
+                                          } else if (promoType === 'RETAIL' || code.includes('WEEKEND') || code.includes('GROUP') || code.includes('RETAIL')) {
+                                            type = 'retail';
+                                          } else {
+                                            type = 'pinto';
+                                          }
+                                          
+                                          setCustomerInfo({
+                                            ...customerInfo, 
+                                            selectedPromoId: p.id,
+                                            memberType: type,
+                                            packagePrice: p.price
+                                          });
+                                          setIsManualDeliveryFee(false);
+                                          setIsPromoDropdownOpen(false);
+                                          setPromoSearchQuery('');
+                                        }}
+                                        className={`px-2 py-1.5 text-xs font-bold rounded cursor-pointer transition-all flex justify-between items-center ${
+                                          customerInfo.selectedPromoId === p.id 
+                                            ? 'bg-emerald-50 text-emerald-600' 
+                                            : 'text-slate-700 hover:bg-slate-50'
+                                        }`}
+                                      >
+                                        <span className="truncate mr-2 font-normal text-slate-700">{p.name}</span>
+                                        <span className="text-emerald-600 shrink-0 font-bold">฿{Number(p.price).toLocaleString()}</span>
+                                      </div>
+                                    ))}
+                                </div>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* High-Density Fields Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      {/* Row 1 */}
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">เบอร์โทรศัพท์ <span className="text-red-500">*</span></label>
+                        <div className="relative">
+                          <input 
+                            type="text" 
+                            placeholder="08X-XXX-XXXX"
+                            value={customerInfo.phone} 
+                            onChange={(e) => setCustomerInfo({...customerInfo, phone: e.target.value})}
+                            className={cn(
+                              "w-full px-3 py-1.5 bg-slate-50 border rounded-lg text-xs outline-none transition-all",
+                              matchedMember ? "border-amber-300 bg-amber-50 text-amber-900 pr-24 font-bold" : "border-slate-200 text-slate-800 focus:border-emerald-500 focus:bg-white"
+                            )}
+                          />
+                          {isSearchingPhone && (
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]">กำลังค้นหา...</span>
+                          )}
+                          {matchedMember && !isSearchingPhone && (
+                            <button
+                              type="button"
+                              onClick={handleLoadMatchedMember}
+                              className="absolute right-1 top-1/2 -translate-y-1/2 bg-amber-500 hover:bg-amber-600 text-white text-[9px] font-bold px-2 py-1 rounded-md transition-all"
                             >
-                               <option value="">เลือกโปรโมชั่นที่เสนอ...</option>
-                               {promotions.map(p => (
-                                 <option key={p.id} value={p.id}>{p.name} (฿{p.price})</option>
-                               ))}
-                            </select>
-                         </div>
+                              โหลดข้อมูลเก่า
+                            </button>
+                          )}
+                        </div>
+                        {matchedMember && (
+                          <span className="text-[10px] text-amber-600 font-bold mt-1 block">
+                            พบประวัติของ คุณ{matchedMember.full_name || matchedMember.nickname}
+                          </span>
+                        )}
                       </div>
 
-                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                          <div className="space-y-2">
-                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                                <UserPlus size={14} /> ชื่อ-นามสกุล
-                             </label>
-                             <input 
-                                type="text" 
-                                placeholder="เช่น คุณณัฐพล (ณัฐ)"
-                                value={customerInfo.name}
-                                onChange={(e) => setCustomerInfo({...customerInfo, name: e.target.value})}
-                                className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all font-medium"
-                             />
-                          </div>
-                          <div className="space-y-2">
-                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                                <Phone size={14} /> เบอร์โทรศัพท์
-                             </label>
-                             <input 
-                                type="text" 
-                                placeholder="09X-XXX-XXXX"
-                                value={customerInfo.phone}
-                                onChange={(e) => setCustomerInfo({...customerInfo, phone: e.target.value})}
-                                className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all font-medium"
-                             />
-                          </div>
-                       </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">ชื่อ-นามสกุล <span className="text-red-500">*</span></label>
+                        <input 
+                          type="text" 
+                          placeholder="คุณณัฐพล"
+                          value={customerInfo.name} 
+                          onChange={(e) => setCustomerInfo({...customerInfo, name: e.target.value})}
+                          className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:border-emerald-500 focus:bg-white outline-none transition-all font-medium"
+                        />
+                      </div>
 
-                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                          <div className="space-y-2">
-                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                                <MessageSquare size={14} /> LINE ID
-                             </label>
-                             <input 
-                                type="text" 
-                                placeholder="ไอดีไลน์ลูกค้า"
-                                value={customerInfo.lineId}
-                                onChange={(e) => setCustomerInfo({...customerInfo, lineId: e.target.value})}
-                                className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all font-medium"
-                             />
-                          </div>
-                          <div className="space-y-2">
-                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                                <Tag size={14} /> ประเภทลูกค้า
-                             </label>
-                             <div className="flex bg-slate-100 p-1 rounded-xl">
-                                <button 
-                                  onClick={() => setCustomerInfo({...customerInfo, memberType: 'pinto'})}
-                                  className={cn(
-                                    "flex-1 py-2 text-[10px] font-bold rounded-lg transition-all",
-                                    customerInfo.memberType === 'pinto' ? "bg-white shadow-sm text-indigo-600" : "text-slate-500"
-                                  )}
-                                >
-                                  สมาชิกปิ่นโต
-                                </button>
-                                <button 
-                                  onClick={() => setCustomerInfo({...customerInfo, memberType: 'promo'})}
-                                  className={cn(
-                                    "flex-1 py-2 text-[10px] font-bold rounded-lg transition-all",
-                                    customerInfo.memberType === 'promo' ? "bg-white shadow-sm text-blue-600" : "text-slate-500"
-                                  )}
-                                >
-                                  สมาชิกโปรฯ
-                                </button>
-                                <button 
-                                  onClick={() => setCustomerInfo({...customerInfo, memberType: 'retail'})}
-                                  className={cn(
-                                    "flex-1 py-2 text-[10px] font-bold rounded-lg transition-all",
-                                    customerInfo.memberType === 'retail' ? "bg-white shadow-sm text-emerald-600" : "text-slate-500"
-                                  )}
-                                >
-                                  ลูกค้ารายย่อย
-                                </button>
-                             </div>
-                          </div>
-                       </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">ชื่อเล่น</label>
+                        <input 
+                          type="text" 
+                          placeholder="ณัฐ"
+                          value={customerInfo.nickname} 
+                          onChange={(e) => setCustomerInfo({...customerInfo, nickname: e.target.value})}
+                          className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:border-emerald-500 focus:bg-white outline-none transition-all font-medium"
+                        />
+                      </div>
 
-                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                          <div className="space-y-2">
-                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                                <MapPin size={14} /> ลิ้งค์ Google Maps
-                             </label>
-                             <input 
-                                type="text" 
-                                placeholder="วางลิ้งค์พิกัดลูกค้า..."
-                                value={customerInfo.googleMapsUrl}
-                                onChange={(e) => setCustomerInfo({...customerInfo, googleMapsUrl: e.target.value})}
-                                className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all font-medium"
-                             />
-                          </div>
-                          <div className="grid grid-cols-2 gap-3">
-                             <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                                   <Rocket size={14} /> ระยะทาง (กม.)
-                                </label>
-                                <input 
-                                   type="number" 
-                                   placeholder="5.5"
-                                   value={customerInfo.distanceKm}
-                                   onChange={(e) => setCustomerInfo({...customerInfo, distanceKm: e.target.value})}
-                                   className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all font-bold"
-                                />
-                             </div>
-                             <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                                   <Home size={14} /> เขตพื้นที่
-                                </label>
-                                <select 
-                                  value={customerInfo.locationType}
-                                  onChange={(e) => setCustomerInfo({...customerInfo, locationType: e.target.value})}
-                                  className="w-full px-3 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all font-bold appearance-none"
-                                >
-                                  <option value="inside">ในตัวเมือง</option>
-                                  <option value="outside">นอกเขตเมือง</option>
-                                </select>
-                             </div>
-                          </div>
-                       </div>
+                      {/* Row 2 */}
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">LINE ID</label>
+                        <input 
+                          type="text" 
+                          placeholder="ไอดีไลน์"
+                          value={customerInfo.lineId} 
+                          onChange={(e) => setCustomerInfo({...customerInfo, lineId: e.target.value})}
+                          className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:border-emerald-500 focus:bg-white outline-none transition-all font-medium"
+                        />
+                      </div>
 
-                       <div className="space-y-2 mb-8">
-                          <label className="text-xs font-bold text-indigo-600 uppercase tracking-wider flex items-center gap-2">
-                             <CreditCard size={14} /> ค่าจัดส่งรวม (บาท)
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">วันที่เริ่มจัดส่ง</label>
+                        <input 
+                          type="date" 
+                          value={customerInfo.startDate} 
+                          onChange={(e) => setCustomerInfo({...customerInfo, startDate: e.target.value})}
+                          className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:border-emerald-500 focus:bg-white outline-none transition-all font-bold"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">รอบเวลาจัดส่ง</label>
+                        <select 
+                          value={customerInfo.deliverySlot} 
+                          onChange={(e) => setCustomerInfo({...customerInfo, deliverySlot: e.target.value})}
+                          className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:border-emerald-500 focus:bg-white outline-none transition-all font-bold"
+                        >
+                          <option value="11:00 - 13:00">11:00 - 13:00 (รอบเช้า)</option>
+                          <option value="15:00 - 17:00">15:00 - 17:00 (รอบเย็น)</option>
+                        </select>
+                      </div>
+
+                      {/* Row 3 */}
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Google Maps URL</label>
+                        <input 
+                          type="text" 
+                          placeholder="วางลิ้งค์พิกัด..."
+                          value={customerInfo.googleMapsUrl} 
+                          onChange={(e) => setCustomerInfo({...customerInfo, googleMapsUrl: e.target.value})}
+                          className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:border-emerald-500 focus:bg-white outline-none transition-all truncate font-medium"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">ระยะทาง (กม.)</label>
+                          <input 
+                            type="number" 
+                            placeholder="5.5"
+                            value={customerInfo.distanceKm} 
+                            onChange={(e) => setCustomerInfo({...customerInfo, distanceKm: e.target.value})}
+                            className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:border-emerald-500 focus:bg-white outline-none transition-all font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">เขตพื้นที่</label>
+                          <select 
+                            value={customerInfo.locationType} 
+                            onChange={(e) => setCustomerInfo({...customerInfo, locationType: e.target.value})}
+                            className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:border-emerald-500 focus:bg-white outline-none transition-all font-bold"
+                          >
+                            <option value="inside">ในเขตเมือง</option>
+                            <option value="outside">นอกเขตเมือง</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">ราคาแพ็กเกจ (บาท)</label>
+                          <input 
+                            type="number" 
+                            placeholder="0"
+                            value={customerInfo.packagePrice} 
+                            onChange={(e) => setCustomerInfo({...customerInfo, packagePrice: e.target.value})}
+                            className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:border-emerald-500 focus:bg-white outline-none transition-all font-bold"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-indigo-600 uppercase mb-1 flex items-center justify-between">
+                            <span>ค่าจัดส่ง (บาท)</span>
+                            {isManualDeliveryFee && (
+                              <button type="button" onClick={() => setIsManualDeliveryFee(false)} className="text-[9px] bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-1.5 py-0.5 rounded transition-all">ออโต้</button>
+                            )}
                           </label>
                           <input 
-                             type="number" 
-                             placeholder="เช่น 150"
-                             value={customerInfo.deliveryFee}
-                             onChange={(e) => setCustomerInfo({...customerInfo, deliveryFee: e.target.value})}
-                             className="w-full px-5 py-3.5 bg-indigo-50 border border-indigo-200 rounded-2xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all font-black text-lg text-indigo-700"
+                            type="number" 
+                            placeholder="0"
+                            value={customerInfo.deliveryFee} 
+                            onChange={(e) => {
+                              setIsManualDeliveryFee(true);
+                              setCustomerInfo({...customerInfo, deliveryFee: e.target.value});
+                            }}
+                            className="w-full px-3 py-1.5 bg-indigo-50 border border-indigo-200 rounded-lg text-xs text-indigo-700 focus:border-indigo-500 outline-none transition-all font-black text-sm"
                           />
-                       </div>
+                        </div>
+                      </div>
 
-                       <div className="space-y-2 mb-8">
-                          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                             <MapPin size={14} /> ที่อยู่จัดส่ง
-                          </label>
-                          <textarea 
-                             placeholder="บ้านเลขที่, ถนน, หมู่บ้าน, จุดสังเกต..."
-                             value={customerInfo.address}
-                             onChange={(e) => setCustomerInfo({...customerInfo, address: e.target.value})}
-                             className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all font-medium min-h-[80px] resize-none"
-                          />
-                       </div>
-                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                          <div className="space-y-2">
-                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                                <Sparkles size={14} /> เป้าหมายสุขภาพ
-                             </label>
-                             <select 
-                               value={customerInfo.healthGoal}
-                               onChange={(e) => setCustomerInfo({...customerInfo, healthGoal: e.target.value})}
-                               className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all font-medium appearance-none"
-                             >
-                               <option value="ไม่ระบุ">ไม่ระบุ</option>
-                               <option value="ลดน้ำหนัก">ลดน้ำหนัก</option>
-                               <option value="สร้างกล้ามเนื้อ">สร้างกล้ามเนื้อ</option>
-                               <option value="ดูแลสุขภาพ">ดูแลสุขภาพ</option>
-                               <option value="คุมโรค">คุมโรค (เบาหวาน/ความดัน)</option>
-                             </select>
-                          </div>
-                          <div className="space-y-2">
-                             <label className="text-xs font-bold text-red-400 uppercase tracking-wider flex items-center gap-2">
-                                <AlertTriangle size={14} /> สิ่งที่แพ้ / ไม่ทาน
-                             </label>
-                             <input 
-                                type="text" 
-                                placeholder="เช่น ไม่ทานเผ็ด, แพ้ถั่ว"
-                                value={customerInfo.allergyNotes}
-                                onChange={(e) => setCustomerInfo({...customerInfo, allergyNotes: e.target.value})}
-                                className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-red-500/10 focus:border-red-200 outline-none transition-all font-medium"
-                             />
-                          </div>
-                       </div>
+                      {/* Row 4 */}
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">ประเภทลูกค้า</label>
+                        <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+                          <button 
+                            type="button"
+                            onClick={() => setCustomerInfo({...customerInfo, memberType: 'pinto'})}
+                            className={cn(
+                              "flex-1 py-1 text-[9px] font-bold rounded transition-all",
+                              customerInfo.memberType === 'pinto' ? "bg-white shadow-sm text-indigo-600" : "text-slate-500"
+                            )}
+                          >
+                            ปิ่นโต
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => setCustomerInfo({...customerInfo, memberType: 'promo'})}
+                            className={cn(
+                              "flex-1 py-1 text-[9px] font-bold rounded transition-all",
+                              customerInfo.memberType === 'promo' ? "bg-white shadow-sm text-blue-600" : "text-slate-500"
+                            )}
+                          >
+                            โปรฯ
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => setCustomerInfo({...customerInfo, memberType: 'retail'})}
+                            className={cn(
+                              "flex-1 py-1 text-[9px] font-bold rounded transition-all",
+                              customerInfo.memberType === 'retail' ? "bg-white shadow-sm text-emerald-600" : "text-slate-500"
+                            )}
+                          >
+                            รายย่อย
+                          </button>
+                        </div>
+                      </div>
 
-                       <div className="space-y-4 mb-8 pt-4 border-t border-slate-100">
-                          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                             <CalendarIcon size={14} /> วันที่ต้องการรับอาหาร (วันส่ง)
-                          </label>
-                          <div className="flex flex-wrap gap-2">
-                             {DAYS.map(day => (
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">เป้าหมายสุขภาพ</label>
+                        <select 
+                          value={customerInfo.healthGoal} 
+                          onChange={(e) => setCustomerInfo({...customerInfo, healthGoal: e.target.value})}
+                          className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:border-emerald-500 focus:bg-white outline-none transition-all font-medium"
+                        >
+                          <option value="ไม่ระบุ">ไม่ระบุ</option>
+                          <option value="ลดน้ำหนัก">ลดน้ำหนัก</option>
+                          <option value="สร้างกล้ามเนื้อ">สร้างกล้ามเนื้อ</option>
+                          <option value="ดูแลสุขภาพ">ดูแลสุขภาพ</option>
+                          <option value="คุมโรค">คุมโรค (เบาหวาน/ความดัน)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-red-500 uppercase mb-1">สิ่งที่แพ้ / ไม่ทาน</label>
+                        <input 
+                          type="text" 
+                          placeholder="เช่น ไม่ทานเผ็ด, แพ้ถั่ว"
+                          value={customerInfo.allergyNotes} 
+                          onChange={(e) => setCustomerInfo({...customerInfo, allergyNotes: e.target.value})}
+                          className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:border-red-400 focus:bg-white outline-none transition-all font-medium"
+                        />
+                      </div>
+
+                      {/* Row 5: Days checklist (Hidden for Retail) */}
+                      {customerInfo.memberType !== 'retail' && (
+                        <div className="md:col-span-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-t border-slate-100 pt-2 pb-1">
+                            <div className="flex items-center gap-2">
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase">วันส่งประจำ</label>
+                              <span className="text-[9px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+                                {customerInfo.deliveryDays.length} วัน/สัปดาห์
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span className="text-[9px] text-slate-400">ปุ่มลัด:</span>
+                              <button 
+                                type="button"
+                                onClick={() => applyDaysPreset('mon-sat')}
+                                className="px-2 py-0.5 text-[9px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded border border-slate-200 transition-all"
+                              >
+                                จ-ส (ปกติ)
+                              </button>
+                              <button 
+                                type="button"
+                                onClick={() => applyDaysPreset('mon-fri')}
+                                className="px-2 py-0.5 text-[9px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded border border-slate-200 transition-all"
+                              >
+                                จ-ศ
+                              </button>
+                              <button 
+                                type="button"
+                                onClick={() => applyDaysPreset('everyday')}
+                                className="px-2 py-0.5 text-[9px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded border border-slate-200 transition-all"
+                              >
+                                ทุกวัน
+                              </button>
+                            </div>
+                          </div>
+                          <div className="flex gap-1">
+                            {DAYS.map(day => {
+                              const isSelected = customerInfo.deliveryDays.includes(day.id);
+                              return (
                                 <button
                                   key={day.id}
+                                  type="button"
                                   onClick={() => toggleDay(day.id)}
                                   className={cn(
-                                    "w-10 h-10 rounded-xl font-bold text-sm transition-all border-2",
-                                    customerInfo.deliveryDays.includes(day.id)
-                                      ? "bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-500/20"
-                                      : "bg-white border-slate-100 text-slate-400 hover:border-slate-200"
+                                    "w-8 h-8 rounded-lg font-bold text-xs transition-all border flex items-center justify-center",
+                                    isSelected 
+                                      ? "bg-emerald-500 border-emerald-500 text-white shadow-sm"
+                                      : "bg-white border-slate-200 text-slate-400 hover:border-slate-300"
                                   )}
                                 >
-                                   {day.label}
+                                  {day.label}
                                 </button>
-                             ))}
-                             <div className="ml-2 flex items-center">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase bg-slate-100 px-2 py-1 rounded-md">
-                                   {customerInfo.deliveryDays.length} วัน/สัปดาห์
-                                </span>
-                             </div>
+                              );
+                            })}
                           </div>
-                       </div>
+                        </div>
+                      )}
 
-                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-                          <div className="space-y-2">
-                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                                <CalendarIcon size={14} /> วันที่เริ่มจัดส่ง
-                             </label>
-                             <input 
-                                type="date" 
-                                value={customerInfo.startDate}
-                                onChange={(e) => setCustomerInfo({...customerInfo, startDate: e.target.value})}
-                                className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all font-bold"
-                             />
-                          </div>
-                          <div className="space-y-2">
-                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-                                <Clock size={14} /> รอบเวลาจัดส่ง
-                             </label>
-                             <select 
-                               value={customerInfo.deliverySlot}
-                               onChange={(e) => setCustomerInfo({...customerInfo, deliverySlot: e.target.value})}
-                               className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all font-bold appearance-none"
-                             >
-                               <option value="11:00 - 13:00">11:00 - 13:00 (รอบเช้า)</option>
-                               <option value="15:00 - 17:00">15:00 - 17:00 (รอบเย็น)</option>
-                             </select>
-                          </div>
-                       </div>
+                      {/* Row 6: Detailed Address */}
+                      <div className="md:col-span-3">
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">ที่อยู่จัดส่งโดยละเอียด</label>
+                        <textarea 
+                          placeholder="บ้านเลขที่, ถนน, หมู่บ้าน, จุดสังเกต..."
+                          rows={2}
+                          value={customerInfo.address} 
+                          onChange={(e) => setCustomerInfo({...customerInfo, address: e.target.value})}
+                          className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:border-emerald-500 focus:bg-white outline-none transition-all resize-none font-medium"
+                        />
+                      </div>
+                    </div>
 
-                       <div className="flex gap-4">
-                          <button 
-                            onClick={handleSaveCustomer}
-                            disabled={isSubmitting}
-                            className="flex-1 py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-[2rem] font-black text-lg shadow-xl shadow-emerald-500/20 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
-                          >
-                             {isSubmitting ? <Loader2 size={24} className="animate-spin" /> : <UserPlus size={24} />} 
-                             บันทึกข้อมูลลูกค้าและสมัครแพ็กเกจ
-                          </button>
-                       </div>
-                   </div>
-                   {/* Decoration */}
-                   <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+                    {/* Action buttons */}
+                    <div className="flex gap-3 border-t border-slate-100 pt-3">
+                      <button 
+                        type="button"
+                        onClick={() => setCustomerInfo({
+                          name: '', nickname: '', phone: '', lineId: '', address: '',
+                          startDate: dayjs().add(1, 'day').format('YYYY-MM-DD'),
+                          deliverySlot: '11:00 - 13:00', selectedPromoId: '',
+                          healthGoal: 'ไม่ระบุ', allergyNotes: '', memberType: 'pinto',
+                          deliveryDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+                          googleMapsUrl: '', distanceKm: '', locationType: 'inside', deliveryFee: '',
+                          packagePrice: ''
+                        })}
+                        className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-lg text-xs font-bold transition-all"
+                      >
+                        ล้างฟอร์ม
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={handleSaveCustomer}
+                        disabled={isSubmitting}
+                        className="flex-1 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-bold text-xs shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                      >
+                        {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />} 
+                        {customerInfo.memberType === 'retail' ? 'บันทึกออเดอร์รายย่อย' : 'บันทึกและสมัครแพ็กเกจ'}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-               {/* Right Column: Sales Toolkit (Sticky) */}
-               <div className="xl:col-span-5 space-y-6">
-                 <div className="sticky top-[140px] space-y-6">
-                    {/* Real-time Order Summary Preview */}
-                    <div className="bg-white rounded-[2.5rem] p-8 shadow-2xl border-4 border-emerald-500/20 relative overflow-hidden">
-                       <div className="relative z-10">
-                          <div className="flex items-center justify-between mb-6">
-                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-500/20">
-                                   <Check size={20} />
-                                </div>
-                                <h3 className="text-xl font-bold text-slate-900">Order Summary</h3>
-                             </div>
-                             <button 
-                               onClick={() => handleCopyText('summary', generateOrderSummary())}
-                               className="px-6 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-black shadow-lg hover:scale-105 transition-all flex items-center gap-2"
-                             >
-                                <Copy size={14} /> COPY ORDER
-                             </button>
+              {/* Right Column: Sales Toolkit (Order Summary + Scripts) */}
+              <div className="xl:col-span-4 space-y-4">
+                <div className="sticky top-[100px] space-y-4">
+                  {/* Order Summary Card */}
+                  <div className="bg-white rounded-2xl p-5 border-2 border-emerald-500/20 shadow-sm relative overflow-hidden">
+                    <div className="relative z-10 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                            <Check size={16} />
                           </div>
+                          <h4 className="text-xs font-bold text-slate-900">สรุปรายละเอียดออเดอร์</h4>
+                        </div>
+                        <button 
+                          onClick={() => handleCopyText('summary', generateOrderSummary())}
+                          className="px-3 py-1 bg-slate-900 text-white rounded-lg text-[10px] font-bold hover:bg-slate-800 transition-all flex items-center gap-1 shadow-sm"
+                        >
+                          <Copy size={10} /> COPY TEXT
+                        </button>
+                      </div>
 
-                          <div className="bg-slate-50 rounded-3xl p-6 border border-slate-100 font-mono text-[11px] leading-relaxed text-slate-700 whitespace-pre-wrap select-all">
-                             {generateOrderSummary()}
-                          </div>
-                          
-                          <div className="mt-6 flex items-center justify-between p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
-                             <div>
-                                <p className="text-[10px] font-bold text-emerald-600 uppercase">ยอดโอนสุทธิ</p>
-                                <p className="text-2xl font-black text-emerald-700">
-                                   ฿{((promotions.find(p => p.id === customerInfo.selectedPromoId)?.price || 0) + Number(customerInfo.deliveryFee || 0)).toLocaleString()}
-                                </p>
-                             </div>
-                             <div className="text-right">
-                                <p className="text-[10px] font-bold text-slate-400 uppercase">รวมค่าส่งแล้ว</p>
-                                <p className="text-xs font-bold text-slate-600">
-                                   +{Number(customerInfo.deliveryFee || 0).toLocaleString()} บาท
-                                </p>
-                             </div>
-                          </div>
-                       </div>
-                       <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl" />
+                      <div className="bg-slate-50 rounded-lg p-3 border border-slate-100 font-mono text-[10px] leading-relaxed text-slate-700 max-h-48 overflow-y-auto whitespace-pre-wrap select-all custom-scrollbar">
+                        {generateOrderSummary()}
+                      </div>
+                      
+                      <div className="flex items-center justify-between p-3 bg-emerald-50 rounded-lg border border-emerald-100">
+                        <div>
+                          <p className="text-[9px] font-bold text-emerald-600 uppercase">ยอดโอนสุทธิ</p>
+                          <p className="text-lg font-black text-emerald-700">
+                            ฿{(Number(customerInfo.packagePrice || 0) + Number(customerInfo.deliveryFee || 0)).toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[9px] font-bold text-slate-400 uppercase">รวมค่าส่งแล้ว</p>
+                          <p className="text-[10px] font-bold text-slate-600">
+                            +{Number(customerInfo.deliveryFee || 0).toLocaleString()} บาท
+                          </p>
+                        </div>
+                      </div>
                     </div>
+                  </div>
 
-                    <div className="bg-slate-900 rounded-[2rem] p-8 shadow-2xl shadow-slate-900/20 text-white relative overflow-hidden">
-                      <div className="relative z-10">
-                        <div className="flex items-center gap-3 mb-6">
-                          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                              <Sparkles size={20} />
+                  {/* Ready-to-use Templates / Sales Script */}
+                  <div className="bg-slate-900 rounded-2xl p-5 shadow-sm text-white relative overflow-hidden">
+                    <div className="relative z-10 space-y-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-white/10 text-emerald-400 flex items-center justify-center">
+                          <Sparkles size={16} />
+                        </div>
+                        <h4 className="text-xs font-bold">เทมเพลตและบทพูดแนะนำการขาย</h4>
+                      </div>
+
+                      <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1 custom-scrollbar">
+                        {/* Dynamic Scripts */}
+                        {customerInfo.selectedPromoId && promotions.find(p => p.id === customerInfo.selectedPromoId)?.sales_script && (
+                          <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[8px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-400/20 px-1.5 py-0.5 rounded">
+                                บทพูดโปรนี้
+                              </span>
+                              <button 
+                                onClick={() => handleCopyText('dynamic', promotions.find(p => p.id === customerInfo.selectedPromoId)?.sales_script)}
+                                className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500 text-white hover:bg-emerald-600 transition-all"
+                              >
+                                <Copy size={8} /> Copy
+                              </button>
+                            </div>
+                            <p className="text-[10px] text-emerald-100 italic leading-relaxed">
+                              "{promotions.find(p => p.id === customerInfo.selectedPromoId)?.sales_script}"
+                            </p>
                           </div>
-                          <h3 className="text-xl font-bold">Ready-to-use Templates</h3>
-                        </div>
+                        )}
 
-                        <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
-                           {/* Dynamic Templates from Selected Promo */}
-                           {customerInfo.selectedPromoId && promotions.find(p => p.id === customerInfo.selectedPromoId)?.sales_script && (
-                             <div className="group p-5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl">
-                                <div className="flex items-center justify-between mb-3">
-                                   <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-400/20 px-2 py-0.5 rounded-md">
-                                      Custom Sales Script
-                                   </span>
-                                   <button 
-                                     onClick={() => handleCopyText('dynamic', promotions.find(p => p.id === customerInfo.selectedPromoId)?.sales_script)}
-                                     className={cn(
-                                       "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-emerald-500 text-white"
-                                     )}
-                                   >
-                                      <Copy size={14} /> Copy Script
-                                   </button>
-                                </div>
-                                <p className="text-sm font-bold text-white mb-2">บทพูดเสนอขายเฉพาะโปรฯ นี้</p>
-                                <p className="text-xs text-emerald-100 leading-relaxed italic">
-                                  "{promotions.find(p => p.id === customerInfo.selectedPromoId)?.sales_script}"
-                                </p>
-                             </div>
-                           )}
-
-                           {DEFAULT_TEMPLATES.map((tmpl) => (
-                             <div key={tmpl.id} className="group p-5 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all">
-                                <div className="flex items-center justify-between mb-3">
-                                   <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-md">
-                                      {tmpl.category}
-                                   </span>
-                                   <button 
-                                     onClick={() => handleCopyText(tmpl.id, tmpl.content)}
-                                     className={cn(
-                                       "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
-                                       copiedId === tmpl.id 
-                                         ? "bg-emerald-500 text-white" 
-                                         : "bg-white/10 text-white hover:bg-emerald-500"
-                                     )}
-                                   >
-                                      {copiedId === tmpl.id ? <Check size={14} /> : <Copy size={14} />}
-                                      {copiedId === tmpl.id ? 'Copied!' : 'Copy Text'}
-                                   </button>
-                                </div>
-                                <p className="text-sm font-bold text-white mb-2">{tmpl.label}</p>
-                                <p className="text-xs text-slate-400 leading-relaxed italic">"{tmpl.content}"</p>
-                             </div>
-                           ))}
-                        </div>
+                        {DEFAULT_TEMPLATES.map((tmpl) => (
+                          <div key={tmpl.id} className="p-3 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-all space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[8px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded">
+                                {tmpl.category}
+                              </span>
+                              <button 
+                                onClick={() => handleCopyText(tmpl.id, tmpl.content)}
+                                className={cn(
+                                  "flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold transition-all",
+                                  copiedId === tmpl.id 
+                                    ? "bg-emerald-500 text-white" 
+                                    : "bg-white/10 text-white hover:bg-emerald-500"
+                                )}
+                              >
+                                {copiedId === tmpl.id ? <Check size={10} /> : <Copy size={10} />}
+                                {copiedId === tmpl.id ? 'Copied' : 'Copy'}
+                              </button>
+                            </div>
+                            <p className="text-[10px] font-bold text-white">{tmpl.label}</p>
+                            <p className="text-[10px] text-slate-400 leading-relaxed italic">"{tmpl.content}"</p>
+                          </div>
+                        ))}
                       </div>
-                   </div>
-
-                   <div className="bg-indigo-600 rounded-[2rem] p-6 shadow-xl shadow-indigo-600/20 text-white flex items-center gap-5">
-                      <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center text-white shrink-0">
-                         <CreditCard size={28} />
-                      </div>
-                      <div className="flex-1">
-                         <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-100">Quick Tool</p>
-                         <h4 className="text-lg font-bold">บันทึกการชำระเงิน</h4>
-                         <p className="text-xs text-indigo-100 opacity-80">อัปโหลดสลิปและยืนยันยอด</p>
-                      </div>
-                      <button className="w-10 h-10 rounded-full bg-white text-indigo-600 flex items-center justify-center hover:scale-110 transition-all">
-                         <ChevronRight size={20} />
-                      </button>
-                   </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </motion.div>
-          ) : (
+          ) : activeTab === 'catalog' ? (
             <motion.div 
               key="catalog-tab"
               variants={containerVariants}
@@ -824,7 +1059,7 @@ ${customerInfo.googleMapsUrl ? `📍 พิกัด: ${customerInfo.googleMapsU
               exit="hidden"
               className="space-y-8"
             >
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                  <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center">
                        <Tag size={20} />
@@ -834,12 +1069,21 @@ ${customerInfo.googleMapsUrl ? `📍 พิกัด: ${customerInfo.googleMapsU
                        <p className="text-xs text-slate-500">จัดการข้อมูลแพ็กเกจและโปรโมชั่นในฐานข้อมูล</p>
                     </div>
                  </div>
-                 <button 
-                    onClick={() => setIsModalOpen(true)}
-                    className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-2xl text-sm font-bold shadow-xl shadow-slate-900/10 hover:bg-slate-800 transition-all"
-                 >
-                    <Plus size={18} /> เพิ่มโปรโมชั่นใหม่
-                 </button>
+                 <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                    <input 
+                       type="text" 
+                       placeholder="พิมพ์ค้นหาโปรโมชั่นในคลัง..."
+                       value={catalogSearchQuery}
+                       onChange={(e) => setCatalogSearchQuery(e.target.value)}
+                       className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs outline-none w-64 focus:border-emerald-500"
+                    />
+                    <button 
+                       onClick={() => setIsModalOpen(true)}
+                       className="flex items-center gap-2 px-6 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold shadow-xl shadow-slate-900/10 hover:bg-slate-800 transition-all"
+                    >
+                       <Plus size={16} /> เพิ่มโปรโมชั่นใหม่
+                    </button>
+                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -848,8 +1092,10 @@ ${customerInfo.googleMapsUrl ? `📍 พิกัด: ${customerInfo.googleMapsU
                     <div key={i} className="bg-white rounded-3xl border border-slate-200 h-64 animate-pulse" />
                   ))
                 ) : promotions.length > 0 ? (
-                  promotions.map((promo) => {
-                    return (
+                  getSortedPromotions(promotions)
+                    .filter(p => p.name.toLowerCase().includes(catalogSearchQuery.toLowerCase()) || p.code.toLowerCase().includes(catalogSearchQuery.toLowerCase()))
+                    .map((promo) => {
+                      return (
                       <div key={promo.id} className="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-lg shadow-slate-200/40 hover:shadow-2xl hover:border-emerald-500/30 transition-all group flex flex-col">
                         <div className="p-6 bg-slate-900 text-white flex flex-col gap-1 relative overflow-hidden">
                            <div className="relative z-10">
@@ -927,7 +1173,18 @@ ${customerInfo.googleMapsUrl ? `📍 พิกัด: ${customerInfo.googleMapsU
                 )}
               </div>
             </motion.div>
-          )}
+          ) : activeTab === 'calculator' ? (
+            <motion.div 
+              key="calculator-tab"
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+              exit="hidden"
+              className="w-full"
+            >
+              <OrderCalculator />
+            </motion.div>
+          ) : null}
         </AnimatePresence>
 
         {/* Create Promotion Modal */}

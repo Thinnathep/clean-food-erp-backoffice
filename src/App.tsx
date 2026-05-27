@@ -15,6 +15,7 @@ import { MenuManagement } from './features/menu/components/MenuManagement';
 import { LogisticsDashboard } from './features/logistics/components/LogisticsDashboard';
 import { ShippingCalculator } from './features/logistics/components/ShippingCalculator';
 import { RouteManagement } from './features/logistics/components/RouteManagement';
+import { DropPointManagement } from './features/logistics/components/DropPointManagement';
 import { PromotionManagement } from './features/members/components/PromotionManagement';
 import { SettingsPage } from './features/auth/SettingsPage';
 import { ProcurementDashboard } from './features/procurement/components/ProcurementDashboard';
@@ -23,6 +24,7 @@ import { FoodSafetyLog } from './features/kds/components/FoodSafetyLog';
 import { DemandForecastView } from './features/kds/components/DemandForecastView';
 import { KdsChecklistView } from './features/kds/components/KdsDashboard/views/KdsChecklistView';
 import { KdsPackagingView } from './features/kds/components/KdsDashboard/views/KdsPackagingView';
+import { OrderCalculator } from './features/calculator/components/OrderCalculator';
 
 // Re-saved to ensure all imports are matched correctly
 
@@ -119,6 +121,12 @@ function App() {
         <Route path="/logistics/packing" element={<ProtectedRoute><MainLayout><KdsPackagingView /></MainLayout></ProtectedRoute>} />
         <Route path="/logistics/calculator" element={<ProtectedRoute><MainLayout><ShippingCalculator /></MainLayout></ProtectedRoute>} />
         <Route path="/logistics/routes" element={<ProtectedRoute><MainLayout><RouteManagement /></MainLayout></ProtectedRoute>} />
+        <Route path="/logistics/drop-points" element={<ProtectedRoute><MainLayout><DropPointManagement /></MainLayout></ProtectedRoute>} />
+        <Route path="/inventory/recipes" element={<ProtectedRoute><MainLayout><div className="p-8 text-slate-500">Recipe/BOM Management - Coming Soon</div></MainLayout></ProtectedRoute>} />
+        
+        {/* Calculator */}
+        <Route path="/calculator" element={<ProtectedRoute><MainLayout><OrderCalculator /></MainLayout></ProtectedRoute>} />
+        
         <Route path="/promotions" element={<ProtectedRoute><MainLayout><PromotionManagement /></MainLayout></ProtectedRoute>} />
         <Route path="/procurement" element={<ProtectedRoute><MainLayout><ProcurementDashboard /></MainLayout></ProtectedRoute>} />
         <Route path="/procurement/receiving" element={<ProtectedRoute><MainLayout><ProcurementDashboard initialTab="gr" /></MainLayout></ProtectedRoute>} />
