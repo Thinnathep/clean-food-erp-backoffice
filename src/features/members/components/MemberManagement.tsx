@@ -5,6 +5,7 @@ import {
   X, Save, Clock, Package, 
   CheckCircle2, AlertCircle, Trash2, ShieldAlert
 } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useMemberStore } from '../../../store/memberStore';
 import { useMenuStore } from '../../../store/menuStore';
 import dayjs from 'dayjs';
@@ -392,42 +393,61 @@ export const MemberManagement: React.FC = () => {
       </div>
 
       {/* 2. Detail View Area */}
-      <div className={`${!selectedMemberId ? 'hidden md:flex' : 'flex'} flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-[#F8FAFC]`}>
+      <div className={`${!selectedMemberId ? 'hidden md:flex' : 'flex'} flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-slate-50 relative`}>
+        {/* Subtle noise texture */}
+        <div className="absolute inset-0 opacity-[0.02] pointer-events-none mix-blend-multiply" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=%220 0 200 200%22 xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cfilter id=%22noiseFilter%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.65%22 numOctaves=%223%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22100%25%22 height=%22100%25%22 filter=%22url(%23noiseFilter)%22/%3E%3C/svg%3E")' }}></div>
+
         {selectedMember ? (
-          <div className="flex-1 overflow-y-auto p-6 md:p-10 space-y-8 animate-fade-in relative">
-            
+          <motion.div 
+            key={selectedMember.id}
+            initial="hidden"
+            animate="show"
+            variants={{
+              hidden: { opacity: 0 },
+              show: {
+                opacity: 1,
+                transition: { staggerChildren: 0.1 }
+              }
+            }}
+            className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 lg:space-y-8 relative z-10 custom-scrollbar"
+          >
             {/* Mobile Header with Back Button */}
-            <div className="md:hidden flex items-center justify-between mb-4">
+            <div className="md:hidden flex items-center justify-between mb-2">
                <button 
                  onClick={() => setSelectedMemberId(null)}
                  className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-500 shadow-sm"
                >
                   <ChevronLeft size={20} />
                </button>
-               <p className="text-sm font-normal text-slate-400">ข้อมูลสมาชิก</p>
-               <div className="w-10 h-10"></div> {/* Spacer */}
+               <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">ข้อมูลสมาชิก</p>
+               <div className="w-10 h-10"></div>
             </div>
 
-            {/* Profile Header Card */}
-            <div className="bg-white rounded-[32px] border border-slate-200 shadow-xl shadow-slate-200/40 p-8 md:p-10 flex flex-col md:flex-row gap-8 items-start md:items-center relative overflow-hidden">
-               <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full -mr-32 -mt-32 blur-3xl"></div>
-               <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/5 rounded-full -ml-32 -mb-32 blur-3xl"></div>
+            {/* Profile Header Card - Bold & Dramatic */}
+            <motion.div 
+              variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } } }}
+              className="bg-white rounded-[2rem] border border-slate-200 shadow-xl shadow-slate-200/50 p-6 md:p-10 flex flex-col lg:flex-row gap-8 items-start lg:items-center relative overflow-hidden group"
+            >
+               {/* Decorative blurs */}
+               <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-400/10 rounded-full -mr-32 -mt-32 blur-[80px] pointer-events-none group-hover:bg-emerald-400/20 transition-all duration-1000"></div>
+               <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-blue-500/5 rounded-full -ml-20 -mb-20 blur-[80px] pointer-events-none"></div>
                
-               <div className="w-24 h-24 md:w-32 md:h-32 bg-emerald-100 rounded-[32px] flex items-center justify-center text-emerald-600 flex-shrink-0 shadow-inner">
-                  <User size={48} />
+               <div className="w-24 h-24 md:w-36 md:h-36 bg-gradient-to-br from-emerald-100 to-emerald-50 rounded-[2rem] flex items-center justify-center text-emerald-600 flex-shrink-0 shadow-inner border border-emerald-100/50 relative">
+                  <div className="absolute inset-0 bg-white/20 backdrop-blur-sm rounded-[2rem]"></div>
+                  <User size={56} className="relative z-10" strokeWidth={1.5} />
                </div>
                
-               <div className="flex-1 min-w-0 space-y-3">
-                  <div className="flex items-center flex-wrap gap-4">
-                    <h1 className="text-3xl font-normal text-slate-900 tracking-tight">{selectedMember.full_name}</h1>
+               <div className="flex-1 min-w-0 space-y-4 z-10">
+                  <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4">
+                    <h1 className="text-4xl md:text-5xl font-bold text-slate-900 tracking-tight">{selectedMember.full_name}</h1>
                      {selectedMember.is_banned ? (
-                       <span className="px-4 py-1.5 bg-red-100 text-red-700 text-xs font-bold uppercase tracking-widest rounded-full border border-red-200 flex items-center gap-2 animate-pulse">
+                       <span className="px-4 py-1.5 bg-red-500 text-white text-xs font-bold uppercase tracking-widest rounded-full shadow-lg shadow-red-500/20 flex items-center gap-2 w-max animate-pulse">
                          <ShieldAlert size={14} /> BANNED / BLACKLIST
                        </span>
                      ) : (
-                       <div className="flex items-center gap-2">
-                         <span className="px-4 py-1.5 bg-emerald-100 text-emerald-700 text-xs font-normal uppercase tracking-widest rounded-full border border-emerald-200">
-                           Active Member
+                       <div className="flex items-center gap-3">
+                         <span className="px-4 py-1.5 bg-emerald-500 text-white text-xs font-bold uppercase tracking-widest rounded-full shadow-lg shadow-emerald-500/20 flex items-center gap-1.5 w-max">
+                           <CheckCircle2 size={14} /> ACTIVE
                          </span>
                          <button 
                            onClick={async () => {
@@ -437,9 +457,7 @@ export const MemberManagement: React.FC = () => {
                                inputLabel: 'ระบุเหตุผลในการระงับ (Blacklist)',
                                inputPlaceholder: 'เช่น ลูกค้าสร้างความวุ่นวาย...',
                                inputValidator: (value) => {
-                                 if (!value) {
-                                   return 'กรุณาระบุเหตุผลในการระงับ';
-                                 }
+                                 if (!value) return 'กรุณาระบุเหตุผลในการระงับ';
                                },
                                showCancelButton: true,
                                confirmButtonText: 'ยืนยันการระงับ',
@@ -448,229 +466,243 @@ export const MemberManagement: React.FC = () => {
                              });
                              if (reason) await banMember(selectedMember.id, reason);
                            }}
-                           className="text-red-500 hover:text-red-700 text-xs font-normal flex items-center gap-1 ml-2 transition-all"
+                           className="text-red-500 hover:text-red-700 text-xs font-semibold flex items-center gap-1 transition-all px-3 py-1.5 rounded-full hover:bg-red-50"
                          >
-                           <ShieldAlert size={14} /> (ระงับ)
+                           <ShieldAlert size={14} /> แบน (Ban)
                          </button>
                        </div>
                      )}
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4 pt-2">
-                    {/* แถวที่ 1 */}
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-blue-50 rounded-xl flex items-center justify-center text-blue-500 flex-shrink-0"><Phone size={16}/></div>
-                      <p className="text-sm font-normal text-slate-700">{selectedMember.phone}</p>
+                  <div className="flex flex-wrap items-center gap-y-3 gap-x-6 pt-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500"><Phone size={14}/></div>
+                      <p className="text-sm font-medium text-slate-700">{selectedMember.phone}</p>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-purple-50 rounded-xl flex items-center justify-center text-purple-500 flex-shrink-0"><Clock size={16}/></div>
-                      <p className="text-sm font-normal text-slate-700">{selectedMember.delivery_time || 'ไม่ระบุรอบส่ง'}</p>
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500"><Clock size={14}/></div>
+                      <p className="text-sm font-medium text-slate-700">{selectedMember.delivery_time || 'ไม่ระบุรอบส่ง'}</p>
                     </div>
-                    
-                    {/* แถวที่ 2 */}
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-500 flex-shrink-0"><MapPin size={16}/></div>
-                      <p className="text-sm font-normal text-slate-700 truncate max-w-[250px]">{selectedMember.address || 'ไม่ระบุที่อยู่'}</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-orange-50 rounded-xl flex items-center justify-center text-orange-500 flex-shrink-0">
-                        <span className="font-normal text-xs">L</span>
-                      </div>
-                      <p className="text-sm font-normal text-slate-700 break-all">{selectedMember.line_id || 'ไม่มี LINE'}</p>
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-[#00B900]/10 flex items-center justify-center text-[#00B900] font-bold text-xs">L</div>
+                      <p className="text-sm font-medium text-slate-700">{selectedMember.line_id || 'ไม่มี LINE'}</p>
                     </div>
                   </div>
                </div>
                
-               <div className="flex flex-col gap-3 w-full md:w-auto">
+               <div className="flex flex-col sm:flex-row lg:flex-col gap-3 w-full lg:w-auto z-10 shrink-0">
                   <button 
                     onClick={() => { setEditMember({...selectedMember}); setIsEditModalOpen(true); }}
-                    className="w-full md:w-auto px-6 py-3 bg-slate-900 text-white rounded-2xl text-sm font-normal shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
+                    className="w-full sm:w-auto px-6 py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-sm font-semibold shadow-xl shadow-slate-900/20 hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-2"
                   >
                     <Edit3 size={18} /> แก้ไขข้อมูลโปรไฟล์
                   </button>
                   
-                  {!selectedMember.is_banned ? (
-                    <button 
-                      onClick={async () => {
-                        const { value: reason } = await Swal.fire({
-                          title: 'ระงับสมาชิก',
-                          input: 'textarea',
-                          inputLabel: 'ระบุเหตุผลในการระงับ (Blacklist)',
-                          inputPlaceholder: 'เช่น ลูกค้าสร้างความวุ่นวาย, เรียกร้องเกินจริง...',
-                          showCancelButton: true,
-                          confirmButtonText: 'ยืนยันการระงับ',
-                          cancelButtonText: 'ยกเลิก',
-                          confirmButtonColor: '#ef4444',
-                        });
-
-                        if (reason) {
-                          await banMember(selectedMember.id, reason);
-                        }
-                      }}
-                      className="w-full md:w-auto px-6 py-3 bg-white text-red-600 border-2 border-red-100 rounded-2xl text-sm font-bold hover:bg-red-600 hover:text-white hover:border-red-600 transition-all shadow-sm flex items-center justify-center gap-2 group"
-                    >
-                      <ShieldAlert size={18} className="group-hover:animate-bounce" /> ระงับสมาชิก (Ban)
-                    </button>
-                  ) : (
-                    <div className="w-full md:w-auto px-6 py-3 bg-red-50 text-red-700 rounded-2xl text-sm font-normal flex flex-col gap-3 border border-red-200">
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-2 font-bold text-red-600">
-                          <ShieldAlert size={18} /> ถูกระงับการใช้งาน
-                        </div>
-                        <div className="text-xs opacity-70">เหตุผล: {selectedMember.ban_reason}</div>
-                      </div>
-                      
+                  {selectedMember.is_banned && (
                       <button 
                         onClick={async () => {
                           const { value: reason } = await Swal.fire({
                             title: 'ยกเลิกการระงับสมาชิก',
                             input: 'textarea',
                             inputLabel: 'ระบุเหตุผลในการปลดแบน',
-                            inputPlaceholder: 'เช่น ลูกค้าปรับปรุงตัวแล้ว, ตกลงกันได้แล้ว...',
+                            inputPlaceholder: 'เช่น ตกลงกันได้แล้ว...',
                             inputValidator: (value) => {
-                              if (!value) {
-                                return 'กรุณาระบุเหตุผลในการปลดแบนด้วยค่ะ';
-                              }
+                              if (!value) return 'กรุณาระบุเหตุผลในการปลดแบนด้วยค่ะ';
                             },
                             showCancelButton: true,
                             confirmButtonText: 'ยืนยันการปลดแบน',
                             confirmButtonColor: '#10b981',
                           });
-
-                          if (reason) {
-                            await unbanMember(selectedMember.id, reason);
-                          }
+                          if (reason) await unbanMember(selectedMember.id, reason);
                         }}
-                        className="w-full py-2 bg-white border border-emerald-200 text-emerald-600 rounded-xl text-xs font-bold hover:bg-emerald-600 hover:text-white transition-all flex items-center justify-center gap-2"
+                        className="w-full sm:w-auto py-3.5 bg-white border-2 border-emerald-500 text-emerald-600 rounded-xl text-sm font-bold hover:bg-emerald-50 transition-all flex items-center justify-center gap-2 shadow-sm"
                       >
-                        <CheckCircle2 size={14} /> ปลดแบนสมาชิก
+                        <CheckCircle2 size={18} /> ปลดแบนสมาชิก
                       </button>
-                    </div>
                   )}
-                </div>
-            </div>
+               </div>
+            </motion.div>
 
-            {/* Content Tabs/Sections */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Bento Box Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
                
-               {/* Left: Health & Preferences */}
-               <div className="lg:col-span-1 space-y-6">
-                  <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-6">
-                     <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-                        <h3 className="text-sm font-normal uppercase tracking-widest text-slate-400">ข้อมูลส่วนตัว & สุขภาพ</h3>
-                        <button 
-                          onClick={() => { setEditMember({...selectedMember}); setIsEditModalOpen(true); }}
-                          className="text-emerald-500 hover:text-emerald-600 transition-colors"
-                        >
-                          <Edit3 size={16} />
-                        </button>
+               {/* Left Column: Details (Col span 4) */}
+               <motion.div 
+                 variants={{ hidden: { opacity: 0, x: -20 }, show: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 300, damping: 24 } } }}
+                 className="lg:col-span-4 space-y-6 lg:space-y-8"
+               >
+                  {/* Health Card */}
+                  <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 lg:p-8 relative overflow-hidden group">
+                     <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-500"></div>
+                     <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                           ข้อมูลส่วนตัว & สุขภาพ
+                        </h3>
                      </div>
                      
-                     <div className="space-y-4">
-                        <div className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100">
-                           <p className="text-[10px] font-normal text-emerald-600 uppercase mb-1">เป้าหมายสุขภาพ</p>
-                           <p className="text-sm font-normal text-slate-800">{selectedMember.health_goal || 'ไม่ระบุ'}</p>
+                     <div className="space-y-6">
+                        <div>
+                           <p className="text-[10px] font-bold text-emerald-600 uppercase mb-2 tracking-wider">เป้าหมายสุขภาพ</p>
+                           <p className="text-base font-semibold text-slate-800">{selectedMember.health_goal || 'ไม่ระบุ'}</p>
                         </div>
                         
-                        <div className="bg-red-50 p-4 rounded-2xl border border-red-100">
-                           <p className="text-[10px] font-normal text-red-600 uppercase mb-1 flex items-center gap-1">
-                              <AlertCircle size={10} /> ข้อมูลการแพ้
+                        <div className="h-px w-full bg-slate-100"></div>
+                        
+                        <div>
+                           <p className="text-[10px] font-bold text-red-500 uppercase mb-2 tracking-wider flex items-center gap-1">
+                              <AlertCircle size={12} /> ข้อมูลการแพ้
                            </p>
-                           <p className="text-sm font-normal text-red-800">{selectedMember.allergy_notes || 'ไม่มีประวัติการแพ้'}</p>
+                           <p className={`text-base font-semibold ${selectedMember.allergy_notes ? 'text-red-600' : 'text-slate-500'}`}>
+                              {selectedMember.allergy_notes || 'ไม่มีประวัติการแพ้'}
+                           </p>
                         </div>
 
-                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                           <p className="text-[10px] font-normal text-slate-400 uppercase mb-1">ที่อยู่จัดส่ง</p>
-                           <p className="text-sm font-normal text-slate-700 leading-relaxed">{selectedMember.address || 'ไม่ระบุที่อยู่'}</p>
-                        </div>
-                     </div>
-                  </div>
-
-                  <div className="bg-slate-900 rounded-3xl p-6 text-white space-y-4 shadow-xl">
-                     <h3 className="text-xs font-normal uppercase tracking-widest text-slate-400">สถิติลูกค้า</h3>
-                     <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
-                           <p className="text-[10px] font-normal text-slate-400 mb-1">สั่งรวมทั้งหมด</p>
-                           <p className="text-2xl font-normal">{selectedMember.total_orders || 0} ครั้ง</p>
-                        </div>
-                        <div className="bg-white/5 p-4 rounded-2xl border border-white/10">
-                           <p className="text-[10px] font-normal text-slate-400 mb-1">ความภักดี</p>
-                           <p className="text-2xl font-normal text-emerald-400">95%</p>
+                        <div className="h-px w-full bg-slate-100"></div>
+                        
+                        <div>
+                           <p className="text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-wider flex items-center gap-1">
+                              <MapPin size={12} /> ที่อยู่จัดส่ง
+                           </p>
+                           <p className="text-sm font-medium text-slate-700 leading-relaxed">{selectedMember.address || 'ไม่ระบุที่อยู่'}</p>
                         </div>
                      </div>
                   </div>
-               </div>
 
-               {/* Right: Active Pinto Packages */}
-               <div className="lg:col-span-2 space-y-6">
-                  <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 flex flex-col min-h-[400px]">
-                     <div className="flex items-center justify-between mb-8 border-b border-slate-100 pb-4">
-                        <h3 className="text-sm font-normal uppercase tracking-widest text-slate-400">แพ็กเกจปิ่นโตปัจจุบัน</h3>
-                        <button 
-                          onClick={() => setIsAddPackageModalOpen(true)}
-                          className="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-xs font-normal hover:bg-emerald-500 hover:text-white transition-all flex items-center gap-2 border border-emerald-200"
-                        >
-                          <Plus size={16} /> เปิดแพ็กเกจใหม่
-                        </button>
+                  {/* Stats Card */}
+                  <div className="bg-slate-900 rounded-3xl p-6 lg:p-8 text-white relative overflow-hidden shadow-xl shadow-slate-900/20">
+                     <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/5 rounded-full blur-2xl"></div>
+                     <h3 className="text-[11px] font-bold uppercase tracking-widest text-slate-400 mb-6 relative z-10">สถิติลูกค้า</h3>
+                     
+                     <div className="grid grid-cols-2 gap-4 relative z-10">
+                        <div className="flex flex-col">
+                           <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">สั่งรวมทั้งหมด</p>
+                           <p className="text-4xl font-light tracking-tighter text-white">{selectedMember.total_orders || 0} <span className="text-base font-normal text-slate-500 tracking-normal">ครั้ง</span></p>
+                        </div>
+                        <div className="flex flex-col">
+                           <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">ความภักดี</p>
+                           <p className="text-4xl font-light tracking-tighter text-emerald-400">95%</p>
+                        </div>
                      </div>
+                  </div>
+               </motion.div>
 
-                     <div className="space-y-4 flex-1">
-                        {memberPackages.length === 0 ? (
-                          <div className="h-full flex flex-col items-center justify-center py-10 opacity-30">
-                             <Package size={64} className="mb-4" />
-                             <p className="font-normal">ยังไม่มีแพ็กเกจที่กำลังใช้งาน</p>
-                          </div>
-                        ) : (
-                          memberPackages.map(pkg => (
-                            <div key={pkg.id} className="group relative bg-white border border-slate-200 rounded-3xl p-6 hover:border-emerald-500 transition-all shadow-sm hover:shadow-md">
-                               <div className="flex flex-col md:flex-row justify-between gap-6">
-                                  <div className="space-y-2">
-                                     <h4 className="text-lg font-normal text-slate-900">{pkg.package_name}</h4>
-                                     <div className="flex items-center gap-4 text-xs font-normal text-slate-400">
-                                        <span className="flex items-center gap-1"><Calendar size={12}/> {formatDisplayDate(pkg.start_date)} - {formatDisplayDate(pkg.end_date)}</span>
-                                        <span className="flex items-center gap-1"><Clock size={12}/> {pkg.delivery_slot}</span>
-                                     </div>
+               {/* Right Column: Packages (Col span 8) */}
+               <motion.div 
+                 variants={{ hidden: { opacity: 0, x: 20 }, show: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 300, damping: 24 } } }}
+                 className="lg:col-span-8 bg-white rounded-3xl border border-slate-200 shadow-sm flex flex-col overflow-hidden"
+               >
+                  <div className="p-6 lg:p-8 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50/50">
+                     <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center">
+                           <Package size={24} />
+                        </div>
+                        <div>
+                           <h3 className="text-xl font-bold text-slate-900 tracking-tight">แพ็กเกจปิ่นโตปัจจุบัน</h3>
+                           <p className="text-sm font-medium text-slate-500">จัดการแพ็กเกจและสิทธิ์การทานอาหาร</p>
+                        </div>
+                     </div>
+                     <button 
+                       onClick={() => setIsAddPackageModalOpen(true)}
+                       className="w-full sm:w-auto px-5 py-3 bg-emerald-50 text-emerald-700 rounded-xl text-sm font-bold hover:bg-emerald-500 hover:text-white transition-all shadow-sm hover:shadow-emerald-500/20 flex items-center justify-center gap-2 border border-emerald-200 hover:border-emerald-500 group"
+                     >
+                       <Plus size={18} className="transition-transform group-hover:rotate-90" /> เปิดแพ็กเกจใหม่
+                     </button>
+                  </div>
+
+                  <div className="p-6 lg:p-8 flex-1 space-y-5">
+                     {memberPackages.length === 0 ? (
+                       <div className="h-full min-h-[250px] flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-[2rem] bg-slate-50">
+                          <Package size={48} className="mb-4 text-slate-300" strokeWidth={1} />
+                          <p className="text-slate-500 font-medium text-sm">ยังไม่มีแพ็กเกจที่กำลังใช้งาน</p>
+                          <button 
+                            onClick={() => setIsAddPackageModalOpen(true)}
+                            className="mt-4 text-emerald-600 font-bold text-sm hover:underline"
+                          >
+                            เปิดแพ็กเกจแรกเลย
+                          </button>
+                       </div>
+                     ) : (
+                       memberPackages.map(pkg => (
+                         <div 
+                           key={pkg.id} 
+                           className="group relative bg-white border-2 border-slate-100 hover:border-emerald-500 rounded-[1.5rem] p-6 transition-all duration-300 shadow-sm hover:shadow-xl hover:shadow-emerald-500/10 hover:-translate-y-1"
+                         >
+                            <div className="flex flex-col md:flex-row justify-between gap-6 md:items-center">
+                               <div className="space-y-3 flex-1">
+                                  <div className="flex items-center gap-3">
+                                     <h4 className="text-xl font-bold text-slate-900 tracking-tight">{pkg.package_name}</h4>
+                                     {pkg.status === 'active' && (
+                                       <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] animate-pulse"></span>
+                                     )}
                                   </div>
-                                  <div className="flex items-center gap-4">
-                                     <div className="text-right">
-                                        <p className="text-2xl font-normal text-slate-900">{pkg.meals_remaining} <span className="text-xs text-slate-400">/ {pkg.meals_total} มื้อ</span></p>
-                                        <div className="w-32 h-2 bg-slate-100 rounded-full mt-2 overflow-hidden">
-                                           <div 
-                                              className="h-full bg-emerald-500 rounded-full" 
-                                              style={{ width: `${(pkg.meals_remaining / pkg.meals_total) * 100}%` }}
-                                           ></div>
-                                        </div>
-                                     </div>
-                                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-normal ${
-                                        pkg.status === 'active' ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'
-                                     }`}>
-                                        {pkg.status === 'active' ? <CheckCircle2 size={24}/> : <Clock size={24}/>}
-                                     </div>
-                                     <button 
-                                        onClick={() => cancelPackage(pkg.id)}
-                                        className="w-10 h-10 flex items-center justify-center rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-all border border-red-100"
-                                        title="ยกเลิกแพ็กเกจ"
-                                     >
-                                        <Trash2 size={18} />
-                                     </button>
+                                  <div className="flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-500">
+                                     <span className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100"><Calendar size={14}/> {formatDisplayDate(pkg.start_date)} - {formatDisplayDate(pkg.end_date)}</span>
+                                     <span className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100"><Clock size={14}/> รอบส่ง: {pkg.delivery_slot}</span>
                                   </div>
                                </div>
+                               
+                               <div className="flex items-center gap-6">
+                                  <div className="flex flex-col items-end">
+                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">คงเหลือ</p>
+                                     <div className="flex items-baseline gap-1">
+                                        <span className="text-3xl font-bold tracking-tighter text-slate-900">{pkg.meals_remaining}</span>
+                                        <span className="text-sm font-medium text-slate-400">/ {pkg.meals_total} มื้อ</span>
+                                     </div>
+                                     <div className="w-32 h-2 bg-slate-100 rounded-full mt-2.5 overflow-hidden shadow-inner">
+                                        <div 
+                                           className={`h-full rounded-full transition-all duration-1000 ${pkg.meals_remaining < 3 ? 'bg-red-500' : 'bg-gradient-to-r from-emerald-400 to-emerald-500'}`}
+                                           style={{ width: `${Math.max(0, Math.min(100, (pkg.meals_remaining / pkg.meals_total) * 100))}%` }}
+                                        ></div>
+                                     </div>
+                                  </div>
+                                  
+                                  <div className="w-px h-16 bg-slate-100 hidden sm:block"></div>
+                                  
+                                  <button 
+                                     onClick={async () => {
+                                        const result = await Swal.fire({
+                                           title: 'ยกเลิกแพ็กเกจ?',
+                                           text: 'คุณแน่ใจหรือไม่ว่าต้องการยกเลิกแพ็กเกจนี้? ข้อมูลโควต้าจะถูกลบและไม่สามารถกู้คืนได้',
+                                           icon: 'warning',
+                                           showCancelButton: true,
+                                           confirmButtonColor: '#ef4444',
+                                           cancelButtonColor: '#94a3b8',
+                                           confirmButtonText: 'ใช่, ยกเลิกแพ็กเกจ',
+                                           cancelButtonText: 'กลับไป'
+                                        });
+                                        if (result.isConfirmed) {
+                                           cancelPackage(pkg.id);
+                                        }
+                                     }}
+                                     className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white border-2 border-red-100 text-red-500 hover:bg-red-500 hover:text-white hover:border-red-500 hover:shadow-lg hover:shadow-red-500/20 transition-all active:scale-95"
+                                     title="ยกเลิกแพ็กเกจ"
+                                  >
+                                     <Trash2 size={20} strokeWidth={2.5} />
+                                  </button>
+                               </div>
                             </div>
-                          ))
-                        )}
-                     </div>
+                         </div>
+                       ))
+                     )}
                   </div>
-               </div>
-
+               </motion.div>
             </div>
-          </div>
+          </motion.div>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center opacity-30">
-             <div className="w-32 h-32 bg-slate-200 rounded-full flex items-center justify-center mb-6">
-                <Users size={64} className="text-slate-400" />
-             </div>
-             <h2 className="text-3xl font-normal text-slate-800 tracking-tight">ระบบจัดการสมาชิก & ปิ่นโต</h2>
-             <p className="text-lg font-normal text-slate-500 mt-2">โปรดเลือกสมาชิกจากรายการด้านซ้ายเพื่อดูข้อมูล</p>
+          <div className="flex-1 flex flex-col items-center justify-center relative overflow-hidden">
+             <div className="absolute inset-0 bg-gradient-to-br from-slate-50 to-emerald-50/40"></div>
+             <motion.div 
+               initial={{ opacity: 0, scale: 0.95 }} 
+               animate={{ opacity: 1, scale: 1 }} 
+               className="relative z-10 flex flex-col items-center text-center max-w-md p-6"
+             >
+                <div className="w-32 h-32 bg-white rounded-full flex items-center justify-center mb-8 shadow-xl shadow-emerald-500/10 border border-emerald-100 relative">
+                   <div className="absolute inset-0 bg-emerald-400/20 rounded-full blur-2xl"></div>
+                   <Users size={48} className="text-emerald-500 relative z-10" strokeWidth={1.5} />
+                </div>
+                <h2 className="text-3xl font-bold text-slate-900 tracking-tight mb-3">ระบบจัดการสมาชิก & ปิ่นโต</h2>
+                <p className="text-base font-medium text-slate-500 leading-relaxed">เลือกสมาชิกจากรายชื่อด้านซ้ายเพื่อดูข้อมูล แก้ไขโปรไฟล์ หรือจัดการแพ็กเกจ</p>
+             </motion.div>
           </div>
         )}
       </div>

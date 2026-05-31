@@ -320,6 +320,9 @@ export const MemberPlanner: React.FC = () => {
   }, [selectedPackageId]);
 
   useEffect(() => {
+    // Only refetch from DB when there are no unsaved changes (e.g. after save completes or initial load)
+    if (hasUnsavedChanges) return;
+
     let isMounted = true;
     const fetchLastDates = async () => {
       if (activePackages.length === 0) return;
@@ -355,7 +358,7 @@ export const MemberPlanner: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [activePackages.length]); // Only refetch when the number of packages changes
+  }, [activePackages, hasUnsavedChanges]); // Refetch when packages change or when save completes
 
   // Auto-deselect if member gets banned
   useEffect(() => {
