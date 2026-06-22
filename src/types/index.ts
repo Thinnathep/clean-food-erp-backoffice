@@ -114,9 +114,13 @@ export interface PintoPackage {
   created_at?: string;
   updated_at?: string;
   
+  buddy_group_id?: string;
+  bonus_meals?: number;
+  
   // Joined
   members?: Member;
   drop_point?: { name: string } | { name: string }[] | null;
+  buddy_group?: { id: string; group_name: string; group_code: string; };
 }
 
 // --- Kitchen Planner Data ---

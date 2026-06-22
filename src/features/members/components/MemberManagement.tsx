@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   Users, Search, Plus, User, Phone, MapPin, 
   Calendar, ChevronRight, ChevronLeft, Edit3, 
@@ -16,7 +16,7 @@ import { supabase } from '../../../config/supabase';
 
 export const MemberManagement: React.FC = () => {
   const { 
-    members, activePackages, isLoading: isLoadingMember, 
+    members, activePackages, buddyGroups, isLoading: isLoadingMember, 
     loadMemberData, addMember, updateProfile, 
     addPackage, cancelPackage,
     createQuickRetailOrder, banMember, unbanMember
@@ -30,6 +30,7 @@ export const MemberManagement: React.FC = () => {
   const [promotions, setPromotions] = useState<any[]>([]);
   const [promoSearchQuery, setPromoSearchQuery] = useState('');
   const [isPromoDropdownOpen, setIsPromoDropdownOpen] = useState(false);
+  const [selectedPromotion, setSelectedPromotion] = useState<any>(null);
 
   // Sorting helper
   const getSortedPromotions = (list: any[]) => {
@@ -58,6 +59,8 @@ export const MemberManagement: React.FC = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAddPackageModalOpen, setIsAddPackageModalOpen] = useState(false);
   const [isQuickOrderModalOpen, setIsQuickOrderModalOpen] = useState(false);
+  const [isBuddyDropdownOpen, setIsBuddyDropdownOpen] = useState(false);
+  const [buddySearchQuery, setBuddySearchQuery] = useState('');
   const [typeFilter] = useState<'all' | 'member' | 'retail'>('all');
 
   // Forms
@@ -125,7 +128,8 @@ export const MemberManagement: React.FC = () => {
     meals_total: 14,
     start_date: dayjs().format('YYYY-MM-DD'),
     end_date: dayjs().add(14, 'day').format('YYYY-MM-DD'),
-    delivery_slot: '11:00 - 13:00'
+    delivery_slot: '11:00 - 13:00',
+    buddy_member_id: ''
   });
 
   useEffect(() => {
@@ -159,6 +163,30 @@ export const MemberManagement: React.FC = () => {
   const memberPackages = useMemo(() => {
     return activePackages.filter(p => p.member_id === selectedMemberId);
   }, [activePackages, selectedMemberId]);
+
+  const getBuddyName = useCallback((buddyGroupId: string | undefined | null, currentMemberId: string) => {
+    if (!buddyGroupId) return null;
+    const buddyPackage = activePackages.find(p => p.buddy_group_id === buddyGroupId && p.member_id !== currentMemberId);
+    if (!buddyPackage) return null;
+    const buddyMember = members.find(m => m.id === buddyPackage.member_id);
+    return buddyMember?.full_name || null;
+  }, [activePackages, members]);
+
+  const eligibleBuddyMembers = useMemo(() => {
+    return members.filter(m => {
+      if (m.id === selectedMemberId) return false;
+      
+      // Buddy must have an active package that matches the selected package name
+      // and must not already be in a buddy group
+      const hasMatchingPackage = activePackages.some(p => 
+        p.member_id === m.id && 
+        p.package_name === newPackage.package_name &&
+        !p.buddy_group_id
+      );
+      
+      return hasMatchingPackage;
+    });
+  }, [members, selectedMemberId, activePackages, newPackage.package_name]);
 
   const handleAddMember = async () => {
     if (!newMember.full_name || !newMember.phone) {
@@ -275,7 +303,9 @@ export const MemberManagement: React.FC = () => {
         days_remaining: dayjs(newPackage.end_date).diff(dayjs(newPackage.start_date), 'day'),
         start_date: newPackage.start_date,
         end_date: newPackage.end_date,
-        status: 'active'
+        status: 'active',
+        delivery_slot: newPackage.delivery_slot,
+        buddy_member_id: newPackage.buddy_member_id || undefined
       });
       
       setIsAddPackageModalOpen(false);
@@ -629,10 +659,20 @@ export const MemberManagement: React.FC = () => {
                          >
                             <div className="flex flex-col md:flex-row justify-between gap-6 md:items-center">
                                <div className="space-y-3 flex-1">
-                                  <div className="flex items-center gap-3">
-                                     <h4 className="text-xl font-bold text-slate-900 tracking-tight">{pkg.package_name}</h4>
-                                     {pkg.status === 'active' && (
-                                       <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] animate-pulse"></span>
+                                  <div className="flex flex-col gap-2 items-start">
+                                     <div className="flex items-center gap-3">
+                                        <h4 className="text-xl font-bold text-slate-900 tracking-tight">{pkg.package_name}</h4>
+                                        {pkg.status === 'active' && (
+                                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] animate-pulse"></span>
+                                        )}
+                                     </div>
+                                     {pkg.buddy_group_id && getBuddyName(pkg.buddy_group_id, pkg.member_id) && (
+                                       <div className="inline-flex items-center gap-1.5 bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-100/50 px-2.5 py-1 rounded-full shadow-[0_2px_10px_-3px_rgba(244,114,182,0.2)] mb-1">
+                                          <span className="text-pink-500 text-sm">👯</span>
+                                          <span className="text-[11px] font-bold text-pink-600 tracking-wide">
+                                            คู่หูกับคุณ {getBuddyName(pkg.buddy_group_id, pkg.member_id)}
+                                          </span>
+                                       </div>
                                      )}
                                   </div>
                                   <div className="flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-500">
@@ -646,7 +686,14 @@ export const MemberManagement: React.FC = () => {
                                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">คงเหลือ</p>
                                      <div className="flex items-baseline gap-1">
                                         <span className="text-3xl font-bold tracking-tighter text-slate-900">{pkg.meals_remaining}</span>
-                                        <span className="text-sm font-medium text-slate-400">/ {pkg.meals_total} มื้อ</span>
+                                        <span className="text-sm font-medium text-slate-400 flex items-center gap-1">
+                                          / {pkg.meals_total} มื้อ
+                                          {(pkg.bonus_meals && pkg.bonus_meals > 0) ? (
+                                            <span className="inline-flex items-center justify-center bg-pink-100 text-pink-600 text-[10px] font-bold px-1.5 py-0.5 rounded-md ml-1" title="มื้อโบนัสคู่หู">
+                                              +{pkg.bonus_meals}
+                                            </span>
+                                          ) : null}
+                                        </span>
                                      </div>
                                      <div className="w-32 h-2 bg-slate-100 rounded-full mt-2.5 overflow-hidden shadow-inner">
                                         <div 
@@ -1027,15 +1074,18 @@ export const MemberManagement: React.FC = () => {
                            />
                            <div className="max-h-60 overflow-y-auto space-y-1 pr-1">
                              <div 
-                               onClick={() => {
-                                 setNewPackage({
-                                   ...newPackage,
-                                   package_name: '',
-                                   meals_total: 0
-                                 });
-                                 setIsPromoDropdownOpen(false);
-                                 setPromoSearchQuery('');
-                               }}
+                                onClick={() => {
+                                  setNewPackage({
+                                    ...newPackage,
+                                    package_name: '',
+                                    meals_total: 0,
+                                    buddy_member_id: ''
+                                  });
+                                  setSelectedPromotion(null);
+                                  setIsBuddyDropdownOpen(false);
+                                  setIsPromoDropdownOpen(false);
+                                  setPromoSearchQuery('');
+                                }}
                                className="px-3 py-2 text-xs text-slate-500 hover:bg-slate-50 rounded-lg cursor-pointer transition-all"
                              >
                                -- ยกเลิกการเลือก --
@@ -1045,16 +1095,20 @@ export const MemberManagement: React.FC = () => {
                                .map(p => (
                                  <div 
                                    key={p.id}
-                                   onClick={() => {
-                                     setNewPackage({
-                                       ...newPackage,
-                                       package_name: `- ${p.name} = ฿${p.price}`,
-                                       meals_total: p.meals_count,
-                                       end_date: dayjs(newPackage.start_date).add(p.days_count, 'day').format('YYYY-MM-DD')
-                                     });
-                                     setIsPromoDropdownOpen(false);
-                                     setPromoSearchQuery('');
-                                   }}
+                                    onClick={() => {
+                                      const isBuddyPromo = p.name?.includes('คู่หู');
+                                      setNewPackage({
+                                        ...newPackage,
+                                        package_name: `- ${p.name} = ฿${p.price}`,
+                                        meals_total: p.meals_count,
+                                        end_date: dayjs(newPackage.start_date).add(p.days_count, 'day').format('YYYY-MM-DD'),
+                                        buddy_member_id: isBuddyPromo ? newPackage.buddy_member_id : ''
+                                      });
+                                      setSelectedPromotion(p);
+                                      if (!isBuddyPromo) setIsBuddyDropdownOpen(false);
+                                      setIsPromoDropdownOpen(false);
+                                      setPromoSearchQuery('');
+                                    }}
                                    className={`px-3 py-2 text-xs font-bold rounded-lg cursor-pointer transition-all flex justify-between items-center ${
                                      newPackage.package_name.includes(p.name) 
                                        ? 'bg-emerald-50 text-emerald-600' 
@@ -1112,6 +1166,78 @@ export const MemberManagement: React.FC = () => {
                       />
                     </div>
                   </div>
+
+                  {selectedPromotion?.name?.includes('คู่หู') && (
+                    <div>
+                      <label className="block text-[10px] font-normal text-pink-500 uppercase tracking-widest mb-2">จับคู่รับโบนัส +2 มื้อ (Buddy Promotion)</label>
+                      <div className="relative select-none z-[9999] w-full">
+                        <div 
+                          onClick={() => setIsBuddyDropdownOpen(!isBuddyDropdownOpen)}
+                          className="w-full p-4 bg-pink-50/50 border border-pink-200 rounded-2xl text-sm font-bold text-pink-800 focus:border-pink-500 outline-none flex items-center justify-between cursor-pointer hover:border-pink-400 transition-all"
+                        >
+                          <span>
+                            {newPackage.buddy_member_id 
+                              ? `-- จับคู่กับคุณ ${members.find(m => m.id === newPackage.buddy_member_id)?.full_name} --`
+                              : '-- ไม่เข้าร่วมโปรโมชั่นคู่หู --'}
+                          </span>
+                          <span className="text-pink-500 text-xs">▼</span>
+                        </div>
+                        
+                        {isBuddyDropdownOpen && (
+                          <div className="absolute left-0 bottom-full mb-2 w-full bg-white border border-slate-200 rounded-2xl shadow-xl p-3 space-y-2">
+                            <input 
+                              type="text" 
+                              placeholder="ค้นหาเพื่อนเพื่อจับคู่รับโบนัส +2 มื้อ..."
+                              value={buddySearchQuery}
+                              onChange={(e) => setBuddySearchQuery(e.target.value)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-normal focus:border-pink-500 outline-none transition-all text-slate-700 font-normal"
+                            />
+                            <div className="max-h-60 overflow-y-auto space-y-1 pr-1">
+                              <div 
+                                onClick={() => {
+                                  setNewPackage({
+                                    ...newPackage,
+                                    buddy_member_id: ''
+                                  });
+                                  setIsBuddyDropdownOpen(false);
+                                  setBuddySearchQuery('');
+                                }}
+                                className="px-3 py-2 text-xs text-slate-500 hover:bg-slate-50 rounded-lg cursor-pointer transition-all"
+                              >
+                                -- ไม่เข้าร่วมโปรโมชั่นคู่หู --
+                              </div>
+                              {eligibleBuddyMembers
+                                .filter(m => m.full_name.toLowerCase().includes(buddySearchQuery.toLowerCase()) || m.phone.includes(buddySearchQuery))
+                                .map(m => (
+                                  <div 
+                                    key={m.id}
+                                    onClick={() => {
+                                      setNewPackage({
+                                        ...newPackage,
+                                        buddy_member_id: m.id
+                                      });
+                                      setIsBuddyDropdownOpen(false);
+                                      setBuddySearchQuery('');
+                                    }}
+                                    className={`px-3 py-2 text-xs font-bold rounded-lg cursor-pointer transition-all flex justify-between items-center ${
+                                      newPackage.buddy_member_id === m.id
+                                        ? 'bg-pink-50 text-pink-600' 
+                                        : 'text-slate-700 hover:bg-slate-50'
+                                    }`}
+                                  >
+                                    <span className="truncate">คุณ {m.full_name}</span>
+                                    <span className="text-pink-600 shrink-0 text-[10px] font-normal opacity-70">
+                                      {m.phone}
+                                    </span>
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                </div>
                
                <div className="px-8 py-6 bg-slate-50 border-t border-slate-100 flex justify-end">

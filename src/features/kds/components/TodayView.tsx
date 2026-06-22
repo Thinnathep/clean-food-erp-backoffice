@@ -624,6 +624,7 @@ export const TodayView: React.FC = () => {
           hasNotes: false,
           hasExtraOrder: false,
           dropPointName: getDropPointName(schedule.pinto_packages?.drop_point),
+          buddyGroupCode: schedule.pinto_packages?.buddy_group?.group_code,
           orders: [],
         };
       } else if (!grouped[timeLabel].members[groupKey].dropPointName && schedule.pinto_packages?.drop_point) {
@@ -2581,6 +2582,18 @@ export const TodayView: React.FC = () => {
                                           )}
                                         >
                                           📍 {item.dropPointName}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {item.buddyGroupCode && (
+                                      <div className="mt-1">
+                                        <span
+                                          className={cn(
+                                            "inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-pink-50 text-pink-600 border border-pink-100/50 uppercase tracking-wider",
+                                            isKitchenMode && "text-lg px-4 py-1.5 bg-pink-900 text-pink-200 border-none mt-2"
+                                          )}
+                                        >
+                                          👯 คู่หู: {item.buddyGroupCode}
                                         </span>
                                       </div>
                                     )}

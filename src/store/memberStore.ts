@@ -11,13 +11,14 @@ import Swal from 'sweetalert2';
 interface MemberState {
   members: Member[];
   activePackages: PintoPackage[];
+  buddyGroups: any[];
   isLoading: boolean;
   error: string | null;
 
   loadMemberData: (silent?: boolean) => Promise<void>;
   updateProfile: (id: string, updates: Partial<Member>) => Promise<void>;
   addMember: (member: Omit<Member, 'id'>) => Promise<Member>;
-  addPackage: (pkg: Omit<PintoPackage, 'id'>) => Promise<void>;
+  addPackage: (pkg: Omit<PintoPackage, 'id'> & { buddy_member_id?: string }) => Promise<void>;
   cancelPackage: (id: string) => Promise<void>;
   
   banMember: (id: string, reason: string) => Promise<void>;
@@ -36,17 +37,24 @@ interface MemberState {
 export const useMemberStore = create<MemberState>((set, get) => ({
   members: [],
   activePackages: [],
+  buddyGroups: [],
   isLoading: false,
   error: null,
 
   loadMemberData: async (silent = false) => {
     try {
       if (!silent) set({ isLoading: true, error: null });
-      const [membersData, packagesData] = await Promise.all([
+      const [membersData, packagesData, buddyGroupsResponse] = await Promise.all([
         fetchMembers(),
-        fetchActivePackages()
+        fetchActivePackages(),
+        supabase.from('erp_buddy_groups').select('*').order('created_at', { ascending: false })
       ]);
-      set({ members: membersData, activePackages: packagesData, isLoading: false });
+      set({ 
+        members: membersData, 
+        activePackages: packagesData, 
+        buddyGroups: buddyGroupsResponse.data || [],
+        isLoading: false 
+      });
     } catch (error: any) {
       set({ error: error.message, isLoading: false });
     }
@@ -80,14 +88,68 @@ export const useMemberStore = create<MemberState>((set, get) => ({
     }
   },
 
-  addPackage: async (pkg) => {
+  addPackage: async (pkgInput) => {
     try {
       set({ isLoading: true });
-      await createPintoPackage(pkg);
+      const { buddy_member_id, ...pkg } = pkgInput;
+      let finalBuddyGroupId = pkg.buddy_group_id;
+
+      if (buddy_member_id) {
+        // Fetch buddy's active package
+        const { data: buddyPackages } = await supabase
+          .from('pinto_packages')
+          .select('*')
+          .eq('member_id', buddy_member_id)
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        const buddyPackage = buddyPackages?.[0];
+
+        if (buddyPackage?.buddy_group_id) {
+           finalBuddyGroupId = buddyPackage.buddy_group_id;
+        } else {
+          // Create new group
+          const groupCode = `BG-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+          const { data: newGroup, error: groupError } = await supabase
+            .from('erp_buddy_groups')
+            .insert([{
+               group_code: groupCode,
+               group_name: `คู่หู ${groupCode}`,
+               current_members: 2,
+               status: 'active'
+            }])
+            .select()
+            .single();
+            
+          if (groupError) throw groupError;
+          finalBuddyGroupId = newGroup.id;
+        }
+
+        if (buddyPackage) {
+           // Update buddy package with +2 meals, buddy_group_id, and bonus_meals tracking
+           await supabase
+             .from('pinto_packages')
+             .update({ 
+               buddy_group_id: finalBuddyGroupId,
+               meals_total: (buddyPackage.meals_total || 0) + 2,
+               meals_remaining: (buddyPackage.meals_remaining || 0) + 2,
+               bonus_meals: 2
+             })
+             .eq('id', buddyPackage.id);
+        }
+        
+        // Add +2 to the current package being created + track bonus_meals
+        pkg.meals_total = (pkg.meals_total || 0) + 2;
+        pkg.meals_remaining = (pkg.meals_remaining || 0) + 2;
+        (pkg as any).bonus_meals = 2;
+      }
+
+      await createPintoPackage({ ...pkg, buddy_group_id: finalBuddyGroupId });
       await get().loadMemberData(true);
       toast.success('สมัครแพ็กเกจเรียบร้อย');
     } catch (error: any) {
-      toast.error('สมัครแพ็กเกจไม่สำเร็จ');
+      toast.error('สมัครแพ็กเกจไม่สำเร็จ: ' + error.message);
     } finally {
       set({ isLoading: false });
     }
@@ -96,6 +158,46 @@ export const useMemberStore = create<MemberState>((set, get) => ({
   cancelPackage: async (id) => {
     try {
       set({ isLoading: true });
+
+      // Before deleting, check if this package is part of a buddy group
+      const { data: cancellingPkg } = await supabase
+        .from('pinto_packages')
+        .select('id, buddy_group_id, bonus_meals, member_id')
+        .eq('id', id)
+        .single();
+
+      if (cancellingPkg?.buddy_group_id) {
+        // Find the buddy partner's package in the same group
+        const { data: partnerPackages } = await supabase
+          .from('pinto_packages')
+          .select('id, meals_total, meals_remaining, bonus_meals')
+          .eq('buddy_group_id', cancellingPkg.buddy_group_id)
+          .neq('id', id)
+          .eq('status', 'active');
+
+        const partnerPkg = partnerPackages?.[0];
+        if (partnerPkg) {
+          // Deduct 2 bonus meals from partner (cap remaining at 0)
+          const newTotal = Math.max(0, (partnerPkg.meals_total || 0) - 2);
+          const newRemaining = Math.max(0, (partnerPkg.meals_remaining || 0) - 2);
+          await supabase
+            .from('pinto_packages')
+            .update({
+              meals_total: newTotal,
+              meals_remaining: newRemaining,
+              bonus_meals: 0,
+              buddy_group_id: null
+            })
+            .eq('id', partnerPkg.id);
+        }
+
+        // Update buddy group status to 'dissolved'
+        await supabase
+          .from('erp_buddy_groups')
+          .update({ status: 'dissolved', current_members: 0 })
+          .eq('id', cancellingPkg.buddy_group_id);
+      }
+
       await deletePintoPackage(id);
       await get().loadMemberData(true);
       toast.success('ยกเลิกแพ็กเกจเรียบร้อย');

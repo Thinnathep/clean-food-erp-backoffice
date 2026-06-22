@@ -178,7 +178,7 @@ export const fetchActivePackages = async (): Promise<PintoPackage[]> => {
   const { data, error } = await supabase
     .from('pinto_packages')
     .select(`
-      id, member_id, package_name, days_total, days_remaining, meals_total, meals_remaining, start_date, end_date, status, created_at,
+      id, member_id, package_name, days_total, days_remaining, meals_total, meals_remaining, start_date, end_date, status, created_at, buddy_group_id, bonus_meals,
       members!pinto_packages_member_id_fkey (
         id, full_name, phone, line_id, avatar_url, date_of_birth, gender, 
         health_goal, allergy_notes, internal_notes, tags, source, member_type,
@@ -244,7 +244,7 @@ export const fetchMemberSchedules = async (startDate: string, endDate: string, p
     .select(`
       id, package_id, member_id, delivery_date, meal_type, menu_item_id, quantity, box_size, delivery_time, kitchen_status, notes, is_extra_order, meal_order_type, is_compensatory,
       menu_items (id, name, category, protein, calories, carbs, fat, image_url, tags),
-      pinto_packages (id, package_name, meals_remaining, drop_point:erp_drop_points(name)),
+      pinto_packages (id, package_name, meals_remaining, buddy_group_id, drop_point:erp_drop_points(name)),
       members!erp_member_meal_schedules_member_id_fkey (id, full_name, phone, delivery_time, member_type, is_banned)
     `)
     .gte('delivery_date', startDate)
@@ -265,11 +265,33 @@ export const fetchMemberSchedules = async (startDate: string, endDate: string, p
      return [];
   }
   
-  // Map null package_id back to virtual retail package_id so frontend filtering works
-  const mappedData = (data as any[]).map(s => ({
-    ...s,
-    package_id: s.package_id === null ? `retail_${s.member_id}` : s.package_id
-  }));
+  // Resolve Buddy Groups
+  const buddyGroupIds = [...new Set((data as any[]).map(s => s.pinto_packages?.buddy_group_id).filter(Boolean))];
+  let buddyGroupsMap: Record<string, any> = {};
+  
+  if (buddyGroupIds.length > 0) {
+    const { data: bgData } = await supabase
+      .from('erp_buddy_groups')
+      .select('id, group_name, group_code')
+      .in('id', buddyGroupIds);
+      
+    if (bgData) {
+      bgData.forEach(bg => {
+        buddyGroupsMap[bg.id] = bg;
+      });
+    }
+  }
+  
+  // Map null package_id back to virtual retail package_id so frontend filtering works, and attach buddy groups
+  const mappedData = (data as any[]).map(s => {
+    if (s.pinto_packages && s.pinto_packages.buddy_group_id && buddyGroupsMap[s.pinto_packages.buddy_group_id]) {
+      s.pinto_packages.buddy_group = buddyGroupsMap[s.pinto_packages.buddy_group_id];
+    }
+    return {
+      ...s,
+      package_id: s.package_id === null ? `retail_${s.member_id}` : s.package_id
+    };
+  });
 
   return mappedData as unknown as MemberMealSchedule[];
 };
