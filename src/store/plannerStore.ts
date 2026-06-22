@@ -463,7 +463,6 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
     set({ hasUnsavedChanges: false, memberSchedules: [] });
     const selectedPackageId = get().selectedPackageId;
     if (selectedPackageId) {
-      const pkg = useMemberStore.getState().activePackages.find(p => p.id === selectedPackageId);
       const startStr = dayjs().subtract(3, 'month').format('YYYY-MM-DD');
       const endStr = dayjs().add(9, 'month').format('YYYY-MM-DD');
       await get().loadMemberPlanner(startStr, endStr, selectedPackageId, true);

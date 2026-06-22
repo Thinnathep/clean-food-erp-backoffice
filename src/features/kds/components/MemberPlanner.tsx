@@ -311,7 +311,6 @@ export const MemberPlanner: React.FC = () => {
   // Fetch Schedules: Package View (Load everything at once for instant week navigation)
   useEffect(() => {
     if (selectedPackageId) {
-      const pkg = activePackages.find(p => p.id === selectedPackageId);
       // Fetch a wide range (e.g. 1 year) so we don't need to load when changing weeks
       const startStr = dayjs().subtract(3, 'month').format('YYYY-MM-DD');
       const endStr = dayjs().add(9, 'month').format('YYYY-MM-DD');

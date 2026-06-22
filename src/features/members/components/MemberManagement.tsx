@@ -16,7 +16,7 @@ import { supabase } from '../../../config/supabase';
 
 export const MemberManagement: React.FC = () => {
   const { 
-    members, activePackages, buddyGroups, isLoading: isLoadingMember, 
+    members, activePackages, isLoading: isLoadingMember, 
     loadMemberData, addMember, updateProfile, 
     addPackage, cancelPackage,
     createQuickRetailOrder, banMember, unbanMember
