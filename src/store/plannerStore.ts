@@ -447,8 +447,8 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
       // Clear the local state that was just saved to avoid "phantom" unsaved changes and wipe temp_ IDs
       set({ hasUnsavedChanges: false, isSaving: false, memberSchedules: [] });
       
-      const startStr = pkg?.start_date || dayjs().subtract(1, 'month').format('YYYY-MM-DD');
-      const endStr = dayjs(startStr).add(1, 'year').format('YYYY-MM-DD');
+      const startStr = dayjs().subtract(3, 'month').format('YYYY-MM-DD');
+      const endStr = dayjs().add(9, 'month').format('YYYY-MM-DD');
       await get().loadMemberPlanner(startStr, endStr, selectedPackageId, true);
       
       Swal.fire({ icon: 'success', title: 'บันทึกแผนงานเรียบร้อย', timer: 1500, toast: true, position: 'top-end', showConfirmButton: false });
@@ -464,8 +464,8 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
     const selectedPackageId = get().selectedPackageId;
     if (selectedPackageId) {
       const pkg = useMemberStore.getState().activePackages.find(p => p.id === selectedPackageId);
-      const startStr = pkg?.start_date || dayjs().subtract(1, 'month').format('YYYY-MM-DD');
-      const endStr = dayjs(startStr).add(1, 'year').format('YYYY-MM-DD');
+      const startStr = dayjs().subtract(3, 'month').format('YYYY-MM-DD');
+      const endStr = dayjs().add(9, 'month').format('YYYY-MM-DD');
       await get().loadMemberPlanner(startStr, endStr, selectedPackageId, true);
     }
     toast.success('ยกเลิกการเปลี่ยนแปลงเรียบร้อย');

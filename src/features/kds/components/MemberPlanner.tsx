@@ -313,8 +313,8 @@ export const MemberPlanner: React.FC = () => {
     if (selectedPackageId) {
       const pkg = activePackages.find(p => p.id === selectedPackageId);
       // Fetch a wide range (e.g. 1 year) so we don't need to load when changing weeks
-      const startStr = pkg?.start_date || dayjs().subtract(1, 'month').format('YYYY-MM-DD');
-      const endStr = dayjs(startStr).add(1, 'year').format('YYYY-MM-DD');
+      const startStr = dayjs().subtract(3, 'month').format('YYYY-MM-DD');
+      const endStr = dayjs().add(9, 'month').format('YYYY-MM-DD');
       loadMemberPlanner(startStr, endStr, selectedPackageId);
     }
   }, [selectedPackageId]);
