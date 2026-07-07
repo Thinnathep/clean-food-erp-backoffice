@@ -12,7 +12,6 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useMenuStore } from '../../../store/menuStore';
-import type { MenuItem } from '../../../types';
 
 export const MenuSettings: React.FC = () => {
   const { menus, updateMenu } = useMenuStore();
@@ -182,7 +181,7 @@ export const MenuSettings: React.FC = () => {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div 
-                            onClick={() => handleToggle(menu.id, 'is_out_of_stock', menu.is_out_of_stock)}
+                            onClick={() => handleToggle(menu.id, 'is_out_of_stock', !!menu.is_out_of_stock)}
                             className={`w-12 h-6 rounded-full p-1 cursor-pointer transition-all duration-300 flex items-center shadow-inner ${
                               menu.is_out_of_stock ? 'bg-orange-500 justify-end' : 'bg-slate-200 justify-start'
                             }`}

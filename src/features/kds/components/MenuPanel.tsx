@@ -18,7 +18,7 @@ export default function MenuPanel({ weekStart, weekPlanId }: Props) {
 
   const { data: menuItems = [], isLoading } = useQuery({
     queryKey: ['menu_items'],
-    queryFn: fetchMenuItems,
+    queryFn: () => fetchMenuItems(),
     staleTime: 1000 * 60 * 10,
   })
 

@@ -12,8 +12,7 @@ import {
   Plus, 
   Trash2,
   CheckCircle,
-  Truck,
-  DollarSign
+  Truck
 } from 'lucide-react';
 
 interface Vehicle {
@@ -128,10 +127,9 @@ export const DeliverySettings: React.FC = () => {
       // Remove generated and read-only columns from payload
       const { 
         id, 
-        created_at, 
         depreciation_per_km, 
         ...restOfVehicle 
-      } = editingVehicle;
+      } = editingVehicle as any;
 
       const payload = {
         ...restOfVehicle,

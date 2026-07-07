@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline, useMapEvents, useMap 
 // @ts-ignore
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Truck, Info, Copy, Calculator, ShoppingBag, Loader2, Settings as SettingsIcon, X, Search, Map as MapIcon, Plus, AlertCircle, TrendingDown, TrendingUp, Gauge, Lightbulb, Package, Store, ChevronUp, ChevronDown, Droplet, CheckCircle } from 'lucide-react';
+import { Truck, Info, Copy, Calculator, ShoppingBag, Loader2, Settings as SettingsIcon, Search, Map as MapIcon, AlertCircle, TrendingDown, TrendingUp, Gauge, Lightbulb, Package, Store, ChevronDown, Droplet, CheckCircle } from 'lucide-react';
 import dayjs from 'dayjs';
 import { supabase } from '../../../config/supabase';
 import { toast } from 'sonner';

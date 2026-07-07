@@ -4,7 +4,6 @@ import {
   Truck, 
   Store, 
   RefreshCw,
-  DollarSign,
   Clock
 } from 'lucide-react';
 import { supabase } from '../../config/supabase';
@@ -13,8 +12,6 @@ import { AnimatePresence, motion } from 'framer-motion';
 
 import { useSystemStore } from '../../store/systemStore';
 import { GeneralSettings } from './settings/GeneralSettings';
-import { LogisticsSettings } from './settings/LogisticsSettings';
-import { DiscountSettings } from './settings/DiscountSettings';
 import { KitchenSettings } from './settings/KitchenSettings';
 
 interface LogisticsConfig {
@@ -65,8 +62,6 @@ export const SettingsPage: React.FC = () => {
     thaiFont,
     setThaiFont
   } = useSystemStore();
-  const [logisticsConfig, setLogisticsConfig] = useState<LogisticsConfig | null>(null);
-  const [discounts, setDiscounts] = useState<ShippingDiscount[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -83,32 +78,11 @@ export const SettingsPage: React.FC = () => {
         .select('value')
         .eq('key', 'logistics_config')
         .single();
-      if (logData) setLogisticsConfig(logData.value);
-
-      // 2. Load Discounts
-      const { data: discData } = await supabase
-        .from('erp_shipping_discounts')
-        .select('*')
-        .order('min_order', { ascending: true });
-      if (discData) setDiscounts(discData);
 
     } catch (error) {
       console.error('Error loading settings:', error);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleSaveLogistics = async () => {
-    if (!logisticsConfig) return;
-    try {
-      const { error } = await supabase
-        .from('erp_settings')
-        .upsert({ key: 'logistics_config', value: logisticsConfig, updated_at: new Date().toISOString() });
-      if (error) throw error;
-      toast.success('บันทึกการตั้งค่าจัดส่งเรียบร้อย');
-    } catch (error) {
-      toast.error('บันทึกไม่สำเร็จ');
     }
   };
 
