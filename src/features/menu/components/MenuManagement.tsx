@@ -33,12 +33,17 @@ const MenuCard = React.memo(({
         className="w-full h-full object-cover"
         loading="lazy"
       />
-      <div className="absolute top-3 left-3 flex gap-2">
+      <div className="absolute top-3 left-3 flex flex-col gap-1 items-start">
         <span className={`px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase tracking-wider shadow-sm ${
           item.is_available ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'
         }`}>
           {item.is_available ? 'Active' : 'Hidden'}
         </span>
+        {item.is_out_of_stock && (
+          <span className="px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase tracking-wider shadow-sm bg-orange-500 text-white">
+            Sold Out
+          </span>
+        )}
       </div>
       <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
         <button 
@@ -145,6 +150,7 @@ export const MenuManagement: React.FC<MenuManagementProps> = ({ type }) => {
       description: '',
       image_url: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=1000&auto=format&fit=crop',
       is_available: true,
+      is_out_of_stock: false,
       tags: [],
       prep_time_minutes: 15,
       recipe_items: [],
@@ -516,19 +522,37 @@ export const MenuManagement: React.FC<MenuManagementProps> = ({ type }) => {
                 </div>
               </div>
 
-              {/* Visibility */}
-              <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100">
-                <div className="flex items-center gap-3">
-                  <div 
-                    onClick={() => setEditingItem({ ...editingItem, is_available: !editingItem.is_available })}
-                    className={`w-11 h-6 rounded-full p-1 cursor-pointer transition-all duration-200 flex items-center ${
-                      editingItem.is_available ? 'bg-emerald-500 justify-end' : 'bg-slate-200 justify-start'
-                    }`}
-                  >
-                    <div className="w-4 h-4 bg-white rounded-full shadow-sm" />
+              {/* Visibility and Stock Status */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div 
+                      onClick={() => setEditingItem({ ...editingItem, is_available: !editingItem.is_available })}
+                      className={`w-11 h-6 rounded-full p-1 cursor-pointer transition-all duration-200 flex items-center ${
+                        editingItem.is_available ? 'bg-emerald-500 justify-end' : 'bg-slate-200 justify-start'
+                      }`}
+                    >
+                      <div className="w-4 h-4 bg-white rounded-full shadow-sm" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-800">แสดงผลหน้าร้าน</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs font-bold text-slate-800">สถานะการแสดงผล</p>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div 
+                      onClick={() => setEditingItem({ ...editingItem, is_out_of_stock: !editingItem.is_out_of_stock })}
+                      className={`w-11 h-6 rounded-full p-1 cursor-pointer transition-all duration-200 flex items-center ${
+                        editingItem.is_out_of_stock ? 'bg-orange-500 justify-end' : 'bg-slate-200 justify-start'
+                      }`}
+                    >
+                      <div className="w-4 h-4 bg-white rounded-full shadow-sm" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-800">สินค้าหมด (Out of Stock)</p>
+                    </div>
                   </div>
                 </div>
               </div>

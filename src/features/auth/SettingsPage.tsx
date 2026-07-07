@@ -37,11 +37,11 @@ interface ShippingDiscount {
 }
 
 export const SettingsPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'general' | 'logistics' | 'discounts' | 'kds'>(() => {
+  const [activeTab, setActiveTab] = useState<'general' | 'kds'>(() => {
     return (localStorage.getItem('kds_settings_active_tab') || 'general') as any;
   });
 
-  const handleTabChange = (tab: 'general' | 'logistics' | 'discounts' | 'kds') => {
+  const handleTabChange = (tab: 'general' | 'kds') => {
     setActiveTab(tab);
     localStorage.setItem('kds_settings_active_tab', tab);
   };
@@ -165,8 +165,6 @@ export const SettingsPage: React.FC = () => {
         <div className="bg-slate-100/70 p-1.5 rounded-2xl border border-slate-200/50 flex flex-wrap gap-1 relative w-full overflow-hidden max-w-fit">
           {[
             { id: 'general', label: 'ทั่วไป & ร้านค้า', icon: Store },
-            { id: 'logistics', label: 'การจัดส่ง', icon: Truck },
-            { id: 'discounts', label: 'ส่วนลดค่าส่ง', icon: DollarSign },
             { id: 'kds', label: 'ระบบครัว (KDS)', icon: Clock },
           ].map((tab) => {
             const isActive = activeTab === tab.id;
@@ -202,24 +200,21 @@ export const SettingsPage: React.FC = () => {
           <div className="flex-1 overflow-y-auto p-8 scrollbar-hide">
             <AnimatePresence mode="wait">
               {activeTab === 'general' && (
-                <GeneralSettings 
-                  isKitchenOpen={isKitchenOpen} 
-                  handleToggleKitchen={handleToggleKitchen} 
-                />
-              )}
-
-              {activeTab === 'logistics' && (
-                <LogisticsSettings 
-                  logisticsConfig={logisticsConfig} 
-                  setLogisticsConfig={setLogisticsConfig} 
-                  handleSaveLogistics={handleSaveLogistics} 
-                />
-              )}
-
-              {activeTab === 'discounts' && (
-                <DiscountSettings 
-                  discounts={discounts} 
-                />
+                <div className="space-y-8">
+                  <GeneralSettings 
+                    isKitchenOpen={isKitchenOpen} 
+                    handleToggleKitchen={handleToggleKitchen} 
+                  />
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-800">ตั้งค่าระบบจัดส่ง (ใหม่)</h3>
+                      <p className="text-xs text-slate-500">จัดการข้อมูลรถ, ค่าน้ำมัน, และค่าจัดส่งแบบรวมศูนย์</p>
+                    </div>
+                    <a href="/logistics/delivery-settings" className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 flex items-center gap-2">
+                      <Truck size={14} /> ไปหน้าตั้งค่าจัดส่ง
+                    </a>
+                  </div>
+                </div>
               )}
 
               {activeTab === 'kds' && (

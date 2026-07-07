@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { 
   Truck, MapPin, Navigation, Clock, CheckCircle2, AlertCircle, 
   Users, DollarSign, Search, Filter, Calendar, ChevronRight,
-  Package, User, Plus, X, RefreshCw, Calculator
+  Package, User, Plus, X, RefreshCw, Calculator, Settings as SettingsIcon
 } from 'lucide-react';
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
@@ -63,6 +63,13 @@ export const LogisticsDashboard: React.FC = () => {
           >
              <RefreshCw size={16} className={isLoading ? 'animate-spin' : ''} />
              ซิงค์งาน
+          </button>
+          <button 
+            onClick={() => navigate('/logistics/delivery-settings')}
+            className="px-6 py-2.5 bg-slate-900 text-white rounded-xl text-sm hover:bg-slate-800 transition-all shadow-md flex items-center gap-2"
+          >
+            <SettingsIcon size={18} />
+            ตั้งค่าระบบจัดส่ง
           </button>
           <div className="w-px h-6 bg-slate-200 mx-1" />
           <button 

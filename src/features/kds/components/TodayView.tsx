@@ -269,6 +269,66 @@ export const TodayView: React.FC = () => {
   const [isKitchenMode, setIsKitchenMode] = useState(false);
   const [mealIndices, setMealIndices] = useState<Record<string, number>>({});
 
+  // 1. Add Pickup Orders State
+  const [pickupOrders, setPickupOrders] = useState<any[]>([]);
+
+  // 2. Fetch Function
+  const fetchPickupOrders = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('erp_pickup_orders')
+        .select(`
+          *,
+          orders:order_id (
+            id,
+            order_ref,
+            customer_name,
+            customer_phone
+          )
+        `)
+        .in('status', ['pending', 'confirmed']);
+      if (error) throw error;
+      setPickupOrders(data || []);
+    } catch (err) {
+      console.error('Error fetching pickup orders:', err);
+    }
+  };
+
+  // 3. Mark as Picked Up Handler
+  const handleMarkPickedUp = async (pickupId: string) => {
+    try {
+      const { error } = await supabase
+        .from('erp_pickup_orders')
+        .update({
+          status: 'picked_up',
+          actual_pickup_at: new Date().toISOString()
+        })
+        .eq('id', pickupId);
+      if (error) throw error;
+      toast.success('อัพเดทสถานะรับที่ร้านเรียบร้อยแล้ว');
+      fetchPickupOrders();
+    } catch (err: any) {
+      toast.error('ไม่สามารถอัพเดทสถานะได้: ' + err.message);
+    }
+  };
+
+  // 4. Cancel Handler (for expired)
+  const handleCancelPickup = async (pickupId: string) => {
+    try {
+      const { error } = await supabase
+        .from('erp_pickup_orders')
+        .update({
+          status: 'cancelled'
+        })
+        .eq('id', pickupId);
+      if (error) throw error;
+      toast.success('ยกเลิกรายการรับที่ร้านเรียบร้อยแล้ว');
+      fetchPickupOrders();
+    } catch (err: any) {
+      toast.error('ไม่สามารถยกเลิกรายการได้: ' + err.message);
+    }
+  };
+
   const handlePrintReceipt = async (
     memberName: string,
     time: string,
@@ -477,6 +537,7 @@ export const TodayView: React.FC = () => {
 
     loadMemberPlanner(start, end);
     fetchTasks();
+    fetchPickupOrders();
 
     const schedulesChannel = supabase
       .channel("schema-db-changes")
@@ -505,6 +566,13 @@ export const TodayView: React.FC = () => {
         { event: "UPDATE", schema: "public", table: "orders" },
         () => {
           fetchTasks();
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "erp_pickup_orders" },
+        () => {
+          fetchPickupOrders();
         },
       )
       .subscribe();
@@ -2866,6 +2934,86 @@ export const TodayView: React.FC = () => {
                   ))
               )}
             </>
+          )}
+
+          {/* Pickup Orders Section */}
+          {(!isSummaryMode || viewMode === "day") && pickupOrders.length > 0 && (
+            <section className="space-y-6 print:break-inside-avoid mt-12 mb-8">
+              <div className="flex items-center justify-between px-2">
+                <div className="flex items-center gap-6">
+                  <div className="h-10 w-1.5 rounded-full bg-blue-500 shadow-lg shadow-blue-500/20"></div>
+                  <div>
+                    <h3 className="text-2xl font-semibold text-slate-900 tracking-tight uppercase">
+                      🏪 รับที่ร้าน (Pick Up)
+                    </h3>
+                    <div className="flex items-center gap-4 mt-0.5">
+                      <span className="text-sm font-medium text-slate-400 flex items-center gap-2">
+                        <Package size={14} />
+                        ยอดรอรับ {pickupOrders.length} รายการ
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
+                {pickupOrders.map((pickup) => {
+                  const isExpired = dayjs(pickup.pickup_date).isBefore(dayjs().startOf('day'));
+                  const orderData = pickup.orders || pickup.order;
+                  
+                  return (
+                    <div
+                      key={pickup.id}
+                      className={cn(
+                        "bg-white rounded-[32px] border border-slate-100 shadow-sm flex flex-col overflow-hidden hover:shadow-xl transition-all duration-300",
+                        isExpired && "border-red-200 bg-red-50/50"
+                      )}
+                    >
+                      <div className="p-5 flex-1 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-black text-slate-800">
+                            {orderData?.customer_name || 'ไม่ทราบชื่อลูกค้า'}
+                          </span>
+                          {isExpired && (
+                            <span className="text-[10px] font-bold text-white bg-red-500 px-2 py-0.5 rounded-full">เลยกำหนด</span>
+                          )}
+                        </div>
+                        <div className="text-xs text-slate-500 space-y-1.5 bg-slate-50 p-3 rounded-2xl">
+                          <p className="flex justify-between">
+                            <span className="text-slate-400">วันที่รับ:</span> 
+                            <span className="font-semibold text-slate-700">{dayjs(pickup.pickup_date).format('DD/MM/YYYY')}</span>
+                          </p>
+                          <p className="flex justify-between">
+                            <span className="text-slate-400">ออเดอร์:</span> 
+                            <span className="font-semibold text-slate-700">{orderData?.order_ref || '-'}</span>
+                          </p>
+                          <p className="flex justify-between">
+                            <span className="text-slate-400">เบอร์ติดต่อ:</span> 
+                            <span className="font-semibold text-slate-700">{pickup.contact_number || orderData?.customer_phone || '-'}</span>
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex border-t border-slate-100">
+                        <button
+                          onClick={() => handleMarkPickedUp(pickup.id)}
+                          className="flex-1 py-3 text-sm font-bold text-emerald-600 hover:bg-emerald-50 transition-colors"
+                        >
+                          รับสินค้าแล้ว
+                        </button>
+                        {isExpired && (
+                          <button
+                            onClick={() => handleCancelPickup(pickup.id)}
+                            className="px-4 py-3 text-sm font-bold text-red-600 hover:bg-red-50 border-l border-slate-100 transition-colors"
+                          >
+                            ยกเลิก
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
           )}
         </div>
       </div>

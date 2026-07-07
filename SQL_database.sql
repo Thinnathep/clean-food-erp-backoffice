@@ -4,8 +4,8 @@
 CREATE TABLE public.members (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   created_at timestamp with time zone DEFAULT now(),
-  full_name text NOT NULL,
-  phone text NOT NULL UNIQUE,
+  full_name text,
+  phone text UNIQUE,
   line_id text,
   avatar_url text,
   member_status text DEFAULT 'active'::text,
@@ -42,6 +42,7 @@ CREATE TABLE public.members (
   is_banned boolean DEFAULT false,
   ban_reason text,
   banned_at timestamp with time zone,
+  role text DEFAULT 'user'::text,
   CONSTRAINT members_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.pinto_packages (
@@ -139,6 +140,7 @@ CREATE TABLE public.orders (
   notes text,
   drop_point_id uuid,
   group_order_id uuid,
+  delivery_method text DEFAULT 'self_delivery'::text,
   CONSTRAINT orders_pkey PRIMARY KEY (order_id),
   CONSTRAINT orders_member_id_fkey FOREIGN KEY (member_id) REFERENCES public.members(id),
   CONSTRAINT orders_menu_item_id_fkey FOREIGN KEY (menu_item_id) REFERENCES public.menu_items(id),
@@ -432,6 +434,7 @@ CREATE TABLE public.menu_items (
   base_price numeric NOT NULL DEFAULT 0.00,
   prep_time_minutes integer DEFAULT 15,
   is_available boolean DEFAULT true,
+  is_out_of_stock boolean DEFAULT false,
   is_subscription_only boolean DEFAULT false,
   sort_order integer DEFAULT 0,
   tags ARRAY DEFAULT '{}'::text[],
@@ -1661,4 +1664,52 @@ CREATE TABLE public.erp_promotion_usage (
   CONSTRAINT erp_pu_package_fkey FOREIGN KEY (package_id) REFERENCES public.pinto_packages(id),
   CONSTRAINT erp_pu_group_fkey FOREIGN KEY (group_order_id) REFERENCES public.erp_group_orders(id),
   CONSTRAINT erp_pu_buddy_fkey FOREIGN KEY (buddy_group_id) REFERENCES public.erp_buddy_groups(id)
+);
+CREATE TABLE public.erp_vehicles (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  name text NOT NULL,
+  vehicle_type text NOT NULL DEFAULT 'motorcycle'::text,
+  license_plate text,
+  fuel_type text NOT NULL DEFAULT 'gasohol95'::text,
+  fuel_efficiency numeric NOT NULL DEFAULT 48,
+  purchase_price numeric DEFAULT 55000,
+  expected_lifespan_km numeric DEFAULT 100000,
+  depreciation_per_km numeric DEFAULT 
+CASE
+    WHEN (expected_lifespan_km > (0)::numeric) THEN (purchase_price / expected_lifespan_km)
+    ELSE (0)::numeric
+END,
+  maintenance_per_km numeric DEFAULT 0.5,
+  insurance_annual numeric DEFAULT 3000,
+  estimated_trips_per_year numeric DEFAULT 1000,
+  is_active boolean DEFAULT true,
+  is_default boolean DEFAULT false,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT erp_vehicles_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.erp_fuel_prices (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  fuel_type text NOT NULL UNIQUE,
+  price_per_liter numeric NOT NULL,
+  source text DEFAULT 'bangchak_api'::text,
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT erp_fuel_prices_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.erp_pickup_orders (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  order_id text,
+  schedule_id uuid,
+  member_id uuid,
+  customer_name text,
+  customer_phone text,
+  pickup_date date NOT NULL DEFAULT CURRENT_DATE,
+  pickup_time_confirmed time without time zone,
+  actual_pickup_at timestamp with time zone,
+  status text NOT NULL DEFAULT 'pending'::text,
+  cancel_reason text,
+  auto_expire_days integer DEFAULT 3,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT erp_pickup_orders_pkey PRIMARY KEY (id)
 );

@@ -34,11 +34,16 @@ export const updateOrdersKitchenStatus = async (ids: string[], status: string): 
 };
 
 // --- Master Menu (Updated for Planner) ---
-export const fetchMenuItems = async (): Promise<MenuItem[]> => {
-  const { data, error } = await supabase
+export const fetchMenuItems = async (options?: { includeHidden?: boolean }): Promise<MenuItem[]> => {
+  let query = supabase
     .from('menu_items')
-    .select('id, name, category, description, image_url, calories, protein, carbs, fat, base_price, is_available, tags, menu_group, prep_time_minutes, packaging_cost, labor_cost, transport_cost, overhead_cost, recipe_instructions, erp_recipe_steps(id, step_number, instruction, time_minutes), erp_recipes(id, item_id, quantity_required, yield_percentage)')
-    .eq('is_available', true)
+    .select('id, name, category, description, image_url, calories, protein, carbs, fat, base_price, is_available, is_out_of_stock, tags, menu_group, prep_time_minutes, packaging_cost, labor_cost, transport_cost, overhead_cost, recipe_instructions, erp_recipe_steps(id, step_number, instruction, time_minutes), erp_recipes(id, item_id, quantity_required, yield_percentage)');
+
+  if (!options?.includeHidden) {
+    query = query.eq('is_available', true);
+  }
+
+  const { data, error } = await query
     .is('deleted_at', null)
     .order('category', { ascending: true })
     .order('name', { ascending: true });

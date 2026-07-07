@@ -12,6 +12,7 @@ import { supabase } from './config/supabase';
 import { Toaster } from 'sonner';
 import { FinanceDashboard } from './features/finance/components/FinanceDashboard';
 import { MenuManagement } from './features/menu/components/MenuManagement';
+import { MenuSettings } from './features/menu/components/MenuSettings';
 import { LogisticsDashboard } from './features/logistics/components/LogisticsDashboard';
 import { ShippingCalculator } from './features/logistics/components/ShippingCalculator';
 import { RouteManagement } from './features/logistics/components/RouteManagement';
@@ -25,6 +26,7 @@ import { DemandForecastView } from './features/kds/components/DemandForecastView
 import { KdsChecklistView } from './features/kds/components/KdsDashboard/views/KdsChecklistView';
 import { KdsPackagingView } from './features/kds/components/KdsDashboard/views/KdsPackagingView';
 import { OrderCalculator } from './features/calculator/components/OrderCalculator';
+import { DeliverySettings } from './features/logistics/components/DeliverySettings';
 
 // Re-saved to ensure all imports are matched correctly
 
@@ -50,7 +52,7 @@ function App() {
           role: session.user.user_metadata?.role || 'ADMIN'
         });
       } else {
-        setUser(null);
+        useAuthStore.getState().logout();
       }
     });
 
@@ -104,6 +106,7 @@ function App() {
         
         <Route path="/menu/member" element={<ProtectedRoute><MainLayout><MenuManagement type="member" /></MainLayout></ProtectedRoute>} />
         <Route path="/menu/retail" element={<ProtectedRoute><MainLayout><MenuManagement type="retail" /></MainLayout></ProtectedRoute>} />
+        <Route path="/menu/settings" element={<ProtectedRoute><MainLayout><MenuSettings /></MainLayout></ProtectedRoute>} />
         <Route path="/menu" element={<Navigate to="/menu/member" replace />} />
 
         <Route path="/finance" element={<ProtectedRoute><MainLayout><FinanceDashboard initialTab="overview" /></MainLayout></ProtectedRoute>} />
@@ -122,6 +125,7 @@ function App() {
         <Route path="/logistics/calculator" element={<ProtectedRoute><MainLayout><ShippingCalculator /></MainLayout></ProtectedRoute>} />
         <Route path="/logistics/routes" element={<ProtectedRoute><MainLayout><RouteManagement /></MainLayout></ProtectedRoute>} />
         <Route path="/logistics/drop-points" element={<ProtectedRoute><MainLayout><DropPointManagement /></MainLayout></ProtectedRoute>} />
+        <Route path="/logistics/delivery-settings" element={<ProtectedRoute><MainLayout><DeliverySettings /></MainLayout></ProtectedRoute>} />
         <Route path="/inventory/recipes" element={<ProtectedRoute><MainLayout><div className="p-8 text-slate-500">Recipe/BOM Management - Coming Soon</div></MainLayout></ProtectedRoute>} />
         
         {/* Calculator */}

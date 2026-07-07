@@ -35,6 +35,7 @@ export interface MenuItem {
   image_url: string;
   tags: string[]; 
   is_available: boolean;
+  is_out_of_stock?: boolean;
   prep_time_minutes: number;
   sort_order?: number;
   created_at?: string;

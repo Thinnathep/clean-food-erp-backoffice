@@ -106,6 +106,7 @@ const navItems: NavItem[] = [
     children: [
       { label: 'เมนูสมาชิก', path: '/menu/member', icon: Utensils },
       { label: 'เมนูร้าน', path: '/menu/retail', icon: Store },
+      { label: 'ตั้งค่าจัดการอาหาร', path: '/menu/settings', icon: Settings },
     ]
   },
   { 

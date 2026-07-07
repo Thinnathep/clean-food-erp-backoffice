@@ -49,7 +49,7 @@ export const useMenuStore = create<MenuState>()(
       loadMenus: async (silent = false) => {
         try {
           if (!silent) set({ isLoading: true, error: null });
-          const data = await fetchMenuItems();
+          const data = await fetchMenuItems({ includeHidden: true });
           set({ menus: data, isLoading: false });
         } catch (error: any) {
           set({ error: error.message, isLoading: false });
