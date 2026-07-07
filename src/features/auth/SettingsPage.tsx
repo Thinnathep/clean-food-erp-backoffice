@@ -6,32 +6,12 @@ import {
   RefreshCw,
   Clock
 } from 'lucide-react';
-import { supabase } from '../../config/supabase';
 import { toast } from 'sonner';
 import { AnimatePresence, motion } from 'framer-motion';
 
 import { useSystemStore } from '../../store/systemStore';
 import { GeneralSettings } from './settings/GeneralSettings';
 import { KitchenSettings } from './settings/KitchenSettings';
-
-interface LogisticsConfig {
-  free_delivery_min_order: number;
-  free_delivery_max_distance: number;
-  base_fare: number;
-  base_included_distance: number;
-  fee_per_km_normal: number;
-  fee_per_km_far: number;
-  minimum_order_value: number;
-  price_per_box: number;
-}
-
-interface ShippingDiscount {
-  id: string;
-  min_order: number;
-  discount_amount: number;
-  label: string;
-  is_active: boolean;
-}
 
 export const SettingsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'general' | 'kds'>(() => {
@@ -62,29 +42,10 @@ export const SettingsPage: React.FC = () => {
     thaiFont,
     setThaiFont
   } = useSystemStore();
-  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    loadSettings();
     loadSystemSettings();
   }, [loadSystemSettings]);
-
-  const loadSettings = async () => {
-    setIsLoading(true);
-    try {
-      // 1. Load Logistics Config
-      const { data: logData } = await supabase
-        .from('erp_settings')
-        .select('value')
-        .eq('key', 'logistics_config')
-        .single();
-
-    } catch (error) {
-      console.error('Error loading settings:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleToggleKitchen = async () => {
     const newState = !isKitchenOpen;
@@ -215,8 +176,8 @@ export const SettingsPage: React.FC = () => {
 
           <div className="bg-slate-50 px-8 py-4 flex items-center justify-between border-t border-slate-100">
             <p className="text-[10px] text-slate-400 uppercase tracking-widest">การเปลี่ยนแปลงบางอย่างจะมีผลทันทีต่อระบบหน้าบ้าน</p>
-            <button onClick={loadSettings} className="flex items-center gap-2 text-[10px] font-bold text-slate-500 hover:text-slate-800 transition-all uppercase tracking-widest">
-              <RefreshCw size={12} className={isLoading ? 'animate-spin' : ''} /> รีเฟรชข้อมูล
+            <button onClick={() => loadSystemSettings()} className="flex items-center gap-2 text-[10px] font-bold text-slate-500 hover:text-slate-800 transition-all uppercase tracking-widest">
+              <RefreshCw size={12} /> รีเฟรชข้อมูล
             </button>
           </div>
         </div>
