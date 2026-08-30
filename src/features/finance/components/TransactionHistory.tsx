@@ -178,6 +178,20 @@ export const TransactionHistory: React.FC<Props> = ({
 
   return (
     <div className="space-y-6">
+      {/* 💡 Helper Guide Banner */}
+      <div className={`p-3.5 rounded-2xl border text-xs space-y-1.5 ${
+        isDarkMode ? 'bg-slate-800/60 border-slate-700/60' : 'bg-slate-50 border-slate-200'
+      }`}>
+        <div className="flex items-center gap-2 font-bold text-slate-800">
+          <RefreshCw size={14} className="text-emerald-600 shrink-0" />
+          <span>ประวัติธุรกรรมและการปรับปรุงสมดุลกองทุน</span>
+        </div>
+        <p className="text-slate-600 text-[11px] leading-relaxed">
+          • แสดงบันทึกเงินเข้า (IN) จากการแบ่งรายรับ และเงินออก (OUT) จากการตัดค่าใช้จ่าย<br />
+          • ผู้ดูแลระบบ (ADMIN) สามารถกดลบรายการที่บันทึกผิดพลาดได้ ระบบจะปรับยอดเงินคืนเข้ากองทุนเดิมให้โดยอัตโนมัติ
+        </p>
+      </div>
+
       {/* Filters Area */}
       <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-white border-slate-200 shadow-sm'}`}>
         <div className="flex flex-wrap gap-4 items-center">

@@ -1,0 +1,814 @@
+{
+  "startedAt": "2026-08-30T05:27:43.324Z",
+  "finishedAt": "2026-08-30T05:27:55.251Z",
+  "environment": {
+    "sqlPath": "D:\\VS CODE\\CL FOOD CR erp_backoffice\\erp_backoffice\\SQL_database.sql",
+    "strictRls": true,
+    "rlsExemptTables": []
+  },
+  "summary": {
+    "total": 20,
+    "pass": 15,
+    "fail": 2,
+    "warn": 1,
+    "skip": 2
+  },
+  "checks": [
+    {
+      "section": "Config",
+      "name": "Env DATABASE_URL",
+      "status": "PASS",
+      "detail": "DATABASE_URL is set.",
+      "durationMs": 0,
+      "meta": {}
+    },
+    {
+      "section": "Schema",
+      "name": "Load SQL schema file",
+      "status": "PASS",
+      "detail": "Loaded SQL schema successfully.",
+      "durationMs": 4,
+      "meta": {
+        "sqlPath": "D:\\VS CODE\\CL FOOD CR erp_backoffice\\erp_backoffice\\SQL_database.sql"
+      }
+    },
+    {
+      "section": "Schema",
+      "name": "Parse SQL expected tables",
+      "status": "PASS",
+      "detail": "Parsed 84 expected tables from SQL file.",
+      "durationMs": 0,
+      "meta": {}
+    },
+    {
+      "section": "Database",
+      "name": "Connectivity",
+      "status": "PASS",
+      "detail": "Connected to postgres as postgres.",
+      "durationMs": 118,
+      "meta": {
+        "db": "postgres",
+        "usr": "postgres",
+        "ts": "2026-08-30T05:27:43.023Z"
+      }
+    },
+    {
+      "section": "Schema",
+      "name": "Public tables discovery",
+      "status": "PASS",
+      "detail": "Discovered 84 public tables.",
+      "durationMs": 151,
+      "meta": {
+        "tableNames": [
+          "erp_audit_logs",
+          "erp_bank_accounts",
+          "erp_blacklist",
+          "erp_buddy_groups",
+          "erp_cash_reconciliations",
+          "erp_churn_scores",
+          "erp_crm_campaign_members",
+          "erp_crm_campaigns",
+          "erp_crm_interactions",
+          "erp_deliveries",
+          "erp_delivery_route_stops",
+          "erp_delivery_routes",
+          "erp_delivery_schedules",
+          "erp_demand_forecasts",
+          "erp_drop_points",
+          "erp_expense_categories",
+          "erp_financial_transactions",
+          "erp_food_safety_logs",
+          "erp_fuel_claims",
+          "erp_fuel_prices",
+          "erp_fund_pools",
+          "erp_fund_transactions",
+          "erp_goods_receipt_items",
+          "erp_goods_receipts",
+          "erp_group_orders",
+          "erp_inventory_adjustments",
+          "erp_inventory_batches",
+          "erp_inventory_items",
+          "erp_inventory_locations",
+          "erp_inventory_transactions",
+          "erp_invoice_items",
+          "erp_invoices",
+          "erp_kds_tasks",
+          "erp_kitchen_checklist",
+          "erp_kitchen_checklist_master",
+          "erp_kitchen_sessions",
+          "erp_member_ban_logs",
+          "erp_member_meal_schedules",
+          "erp_member_streaks",
+          "erp_menu_preferences",
+          "erp_order_feedback",
+          "erp_pickup_orders",
+          "erp_pl_snapshots",
+          "erp_production_order_items",
+          "erp_production_orders",
+          "erp_promotion_usage",
+          "erp_purchase_order_items",
+          "erp_purchase_orders",
+          "erp_recipe_steps",
+          "erp_recipes",
+          "erp_revenue_buckets",
+          "erp_rider_gps_logs",
+          "erp_rider_performance",
+          "erp_settings",
+          "erp_shipping_discounts",
+          "erp_split_configs",
+          "erp_staff",
+          "erp_stock_deductions",
+          "erp_supplier_price_lists",
+          "erp_suppliers",
+          "erp_system_configs",
+          "erp_tenant_configs",
+          "erp_tenant_subscriptions",
+          "erp_tenant_users",
+          "erp_tenants",
+          "erp_unit_conversions",
+          "erp_units",
+          "erp_vehicle_logs",
+          "erp_vehicles",
+          "meal_deduction_logs",
+          "member_addresses",
+          "members",
+          "menu_cycle_templates",
+          "menu_items",
+          "notifications_log",
+          "order_items",
+          "orders",
+          "orders_web",
+          "payments",
+          "pinto_meal_plan",
+          "pinto_packages",
+          "promotions",
+          "shop_holidays",
+          "weekly_plans"
+        ]
+      }
+    },
+    {
+      "section": "Schema",
+      "name": "Expected tables exist",
+      "status": "PASS",
+      "detail": "All expected tables from SQL file are present.",
+      "durationMs": 0,
+      "meta": {}
+    },
+    {
+      "section": "Schema",
+      "name": "Critical column coverage",
+      "status": "PASS",
+      "detail": "All expected columns are present.",
+      "durationMs": 0,
+      "meta": {}
+    },
+    {
+      "section": "Schema",
+      "name": "shop_holidays.holiday_date constraint guard",
+      "status": "PASS",
+      "detail": "holiday_date keeps NOT NULL + UNIQUE constraint.",
+      "durationMs": 110,
+      "meta": {
+        "not_null_ok": true,
+        "unique_ok": true
+      }
+    },
+    {
+      "section": "RLS",
+      "name": "RLS overview by table",
+      "status": "PASS",
+      "detail": "Collected RLS metadata for 84 tables.",
+      "durationMs": 75,
+      "meta": {
+        "rows": [
+          {
+            "table_name": "erp_audit_logs",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 4
+          },
+          {
+            "table_name": "erp_bank_accounts",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_blacklist",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_buddy_groups",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_cash_reconciliations",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_churn_scores",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_crm_campaign_members",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_crm_campaigns",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_crm_interactions",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_deliveries",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 6
+          },
+          {
+            "table_name": "erp_delivery_route_stops",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_delivery_routes",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_delivery_schedules",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 2
+          },
+          {
+            "table_name": "erp_demand_forecasts",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_drop_points",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_expense_categories",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 2
+          },
+          {
+            "table_name": "erp_financial_transactions",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 3
+          },
+          {
+            "table_name": "erp_food_safety_logs",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_fuel_claims",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_fuel_prices",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_fund_pools",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 2
+          },
+          {
+            "table_name": "erp_fund_transactions",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 2
+          },
+          {
+            "table_name": "erp_goods_receipt_items",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_goods_receipts",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_group_orders",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_inventory_adjustments",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 3
+          },
+          {
+            "table_name": "erp_inventory_batches",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 3
+          },
+          {
+            "table_name": "erp_inventory_items",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 4
+          },
+          {
+            "table_name": "erp_inventory_locations",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 2
+          },
+          {
+            "table_name": "erp_inventory_transactions",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 3
+          },
+          {
+            "table_name": "erp_invoice_items",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_invoices",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_kds_tasks",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 3
+          },
+          {
+            "table_name": "erp_kitchen_checklist",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 2
+          },
+          {
+            "table_name": "erp_kitchen_checklist_master",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 2
+          },
+          {
+            "table_name": "erp_kitchen_sessions",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 5
+          },
+          {
+            "table_name": "erp_member_ban_logs",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_member_meal_schedules",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 7
+          },
+          {
+            "table_name": "erp_member_streaks",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 2
+          },
+          {
+            "table_name": "erp_menu_preferences",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_order_feedback",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 2
+          },
+          {
+            "table_name": "erp_pickup_orders",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_pl_snapshots",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_production_order_items",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_production_orders",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_promotion_usage",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_purchase_order_items",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_purchase_orders",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_recipe_steps",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 0
+          },
+          {
+            "table_name": "erp_recipes",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 4
+          },
+          {
+            "table_name": "erp_revenue_buckets",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 2
+          },
+          {
+            "table_name": "erp_rider_gps_logs",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_rider_performance",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_settings",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_shipping_discounts",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_split_configs",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 2
+          },
+          {
+            "table_name": "erp_staff",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 4
+          },
+          {
+            "table_name": "erp_stock_deductions",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_supplier_price_lists",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "erp_suppliers",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 2
+          },
+          {
+            "table_name": "erp_system_configs",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 5
+          },
+          {
+            "table_name": "erp_tenant_configs",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 0
+          },
+          {
+            "table_name": "erp_tenant_subscriptions",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 0
+          },
+          {
+            "table_name": "erp_tenant_users",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 0
+          },
+          {
+            "table_name": "erp_tenants",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 0
+          },
+          {
+            "table_name": "erp_unit_conversions",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 2
+          },
+          {
+            "table_name": "erp_units",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 4
+          },
+          {
+            "table_name": "erp_vehicle_logs",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 2
+          },
+          {
+            "table_name": "erp_vehicles",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 1
+          },
+          {
+            "table_name": "meal_deduction_logs",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 2
+          },
+          {
+            "table_name": "member_addresses",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 4
+          },
+          {
+            "table_name": "members",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 8
+          },
+          {
+            "table_name": "menu_cycle_templates",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 3
+          },
+          {
+            "table_name": "menu_items",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 10
+          },
+          {
+            "table_name": "notifications_log",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 2
+          },
+          {
+            "table_name": "order_items",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 5
+          },
+          {
+            "table_name": "orders",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 10
+          },
+          {
+            "table_name": "orders_web",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 6
+          },
+          {
+            "table_name": "payments",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 2
+          },
+          {
+            "table_name": "pinto_meal_plan",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 11
+          },
+          {
+            "table_name": "pinto_packages",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 7
+          },
+          {
+            "table_name": "promotions",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 4
+          },
+          {
+            "table_name": "shop_holidays",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 3
+          },
+          {
+            "table_name": "weekly_plans",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 7
+          }
+        ]
+      }
+    },
+    {
+      "section": "RLS",
+      "name": "RLS strict validation",
+      "status": "FAIL",
+      "detail": "RLS gap on 5 table(s): erp_recipe_steps(rls=true, policies=0), erp_tenant_configs(rls=true, policies=0), erp_tenant_subscriptions(rls=true, policies=0), erp_tenant_users(rls=true, policies=0), erp_tenants(rls=true, policies=0)",
+      "durationMs": 0,
+      "meta": {
+        "offenders": [
+          {
+            "table_name": "erp_recipe_steps",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 0
+          },
+          {
+            "table_name": "erp_tenant_configs",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 0
+          },
+          {
+            "table_name": "erp_tenant_subscriptions",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 0
+          },
+          {
+            "table_name": "erp_tenant_users",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 0
+          },
+          {
+            "table_name": "erp_tenants",
+            "rls_enabled": true,
+            "force_rls": false,
+            "policy_count": 0
+          }
+        ]
+      }
+    },
+    {
+      "section": "API",
+      "name": "REST health endpoint",
+      "status": "FAIL",
+      "detail": "REST endpoint failed with HTTP 401 (891 ms).",
+      "durationMs": 891,
+      "meta": {}
+    },
+    {
+      "section": "API",
+      "name": "Query orders",
+      "status": "PASS",
+      "detail": "HTTP 200 (980 ms).",
+      "durationMs": 981,
+      "meta": {}
+    },
+    {
+      "section": "API",
+      "name": "Query menu_items",
+      "status": "PASS",
+      "detail": "HTTP 200 (256 ms).",
+      "durationMs": 256,
+      "meta": {}
+    },
+    {
+      "section": "API",
+      "name": "Query erp_inventory_items",
+      "status": "PASS",
+      "detail": "HTTP 200 (192 ms).",
+      "durationMs": 192,
+      "meta": {}
+    },
+    {
+      "section": "API",
+      "name": "Query pinto_meal_plan",
+      "status": "PASS",
+      "detail": "HTTP 200 (187 ms).",
+      "durationMs": 187,
+      "meta": {}
+    },
+    {
+      "section": "Jobs",
+      "name": "pg_cron extension",
+      "status": "WARN",
+      "detail": "pg_cron is not installed. Background jobs may be external.",
+      "durationMs": 98,
+      "meta": {}
+    },
+    {
+      "section": "Jobs",
+      "name": "Active cron jobs",
+      "status": "SKIP",
+      "detail": "Skipped because pg_cron is not installed.",
+      "durationMs": 0,
+      "meta": {}
+    },
+    {
+      "section": "Jobs",
+      "name": "Recent cron failures (24h)",
+      "status": "SKIP",
+      "detail": "Skipped because pg_cron is not installed.",
+      "durationMs": 0,
+      "meta": {}
+    },
+    {
+      "section": "Database",
+      "name": "Disabled triggers",
+      "status": "PASS",
+      "detail": "No disabled business triggers.",
+      "durationMs": 82,
+      "meta": {}
+    },
+    {
+      "section": "Database",
+      "name": "Long running queries (> 5 min)",
+      "status": "PASS",
+      "detail": "No long-running active queries.",
+      "durationMs": 82,
+      "meta": {}
+    }
+  ]
+}

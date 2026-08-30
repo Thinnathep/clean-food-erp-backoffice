@@ -57,7 +57,7 @@ export const RevenueRecorder: React.FC<Props> = ({ configs, onSaved, isDarkMode 
   }, []);
 
   const fetchMembers = async () => {
-    const { data } = await supabase.from('erp_members').select('id, full_name, phone, total_spent').order('full_name');
+    const { data } = await supabase.from('members').select('id, full_name, phone, lifetime_value').order('full_name');
     setMembers(data || []);
   };
 
@@ -223,9 +223,22 @@ export const RevenueRecorder: React.FC<Props> = ({ configs, onSaved, isDarkMode 
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
       {/* Form */}
       <div className={`lg:col-span-3 rounded-2xl border p-6 transition-all ${card}`}>
-        <h3 className={`text-lg font-bold mb-5 flex items-center gap-2 ${heading}`}>
+        <h3 className={`text-lg font-bold mb-4 flex items-center gap-2 ${heading}`}>
           <TrendingUp size={20} className="text-emerald-500" /> บันทึกรายรับใหม่
         </h3>
+
+        {/* 💡 Helper Guide Banner */}
+        <div className="mb-5 p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-xs space-y-1.5">
+          <div className="flex items-center gap-2 text-emerald-800 font-bold">
+            <TrendingUp size={14} className="text-emerald-700 shrink-0" />
+            <span>คำแนะนำ: ระบบจะคำนวณแยกเงินเข้า 4 กองทุนให้อัตโนมัติ</span>
+          </div>
+          <p className="text-slate-600 text-[11px] leading-relaxed">
+            • <strong>สูตรคำนวณ</strong>: ยอดสุทธิ (ยอดรวม - ค่าส่ง) จะแบ่งเข้า <strong>วัตถุดิบ 35%</strong>, <strong>แรงงาน 15%</strong>, <strong>ดำเนินงาน 20%</strong>, และ <strong>กำไร 30%</strong><br />
+            • <strong>ค่าจัดส่ง 100%</strong>: ค่าส่งจะถูกแยกเข้ากองทุนจัดส่งเต็มจำนวน เพื่อจ่ายค่ารอบไรเดอร์ ฿45/จุด
+          </p>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
              <div>
@@ -456,7 +469,7 @@ export const RevenueRecorder: React.FC<Props> = ({ configs, onSaved, isDarkMode 
                     <p className="text-xs text-slate-500 mb-2">{m.phone}</p>
                     <div className="flex items-center justify-between p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/10 mt-1">
                        <span className="text-[10px] text-slate-500">ยอดสะสม (LTV)</span>
-                       <span className="text-xs font-bold text-emerald-600">฿{(m as any).total_spent?.toLocaleString() || '0'}</span>
+                       <span className="text-xs font-bold text-emerald-600">฿{((m as any).lifetime_value ?? (m as any).total_spent ?? 0).toLocaleString()}</span>
                     </div>
                  </div>
               ))}

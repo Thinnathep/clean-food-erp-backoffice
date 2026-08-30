@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="cf_grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#047857" />
+    </linearGradient>
+    <linearGradient id="leaf_grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34d399" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+    <linearGradient id="leaf_grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6ee7b7" />
+      <stop offset="100%" stop-color="#10b981" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#064e3b" flood-opacity="0.35" />
+    </filter>
+  </defs>
+
+  <!-- Background Squircle -->
+  <rect width="512" height="512" rx="128" fill="url(#cf_grad)" />
+
+  <!-- Clean Food Plate/Bowl with Fresh Sprout -->
+  <g filter="url(#shadow)">
+    <!-- Healthy Meal Bowl Base -->
+    <path d="M 120 270 C 120 375 190 415 256 415 C 322 415 392 375 392 270 Z" fill="#ffffff" />
+    
+    <!-- Bowl Rim Accent -->
+    <path d="M 104 260 C 104 250 114 242 126 242 L 386 242 C 398 242 408 250 408 260 C 408 270 398 278 386 278 L 126 278 C 114 278 104 270 104 260 Z" fill="#f0fdf4" />
+
+    <!-- Left Sprout Leaf -->
+    <path d="M 256 240 C 200 220 140 160 155 95 C 220 95 256 175 256 240 Z" fill="url(#leaf_grad2)" />
+    
+    <!-- Right Sprout Leaf -->
+    <path d="M 256 240 C 285 175 345 110 410 120 C 400 185 325 230 256 240 Z" fill="url(#leaf_grad1)" />
+
+    <!-- Center Sprout Stem -->
+    <path d="M 250 140 Q 256 200 256 245" stroke="#047857" stroke-width="8" stroke-linecap="round" fill="none" />
+
+    <!-- Fork & Spoon Minimal Accent Inside Bowl -->
+    <path d="M 226 315 L 226 360 M 218 315 L 218 340 M 234 315 L 234 340" stroke="#10b981" stroke-width="4" stroke-linecap="round" fill="none" opacity="0.8" />
+    <path d="M 286 315 C 280 315 276 325 276 335 C 276 345 282 350 286 350 L 286 360" stroke="#10b981" stroke-width="4" stroke-linecap="round" fill="none" opacity="0.8" />
+  </g>
+
+  <!-- Vitality Sparkles -->
+  <circle cx="190" cy="80" r="14" fill="#a7f3d0" opacity="0.9" />
+  <circle cx="340" cy="70" r="10" fill="#a7f3d0" opacity="0.75" />
+</svg>

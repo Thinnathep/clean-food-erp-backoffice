@@ -1,0 +1,11 @@
+Updated AUDIT_REPORT.md
+Updated 02_Facebook_Posts.md
+Updated 03_LINE_Broadcast.md
+Updated 04_FAQ.md
+Updated 05_Customer_Reply.md
+Updated 10_Poster_Copy.md
+Updated 06_Promotion_399.md
+Updated 07_Promotion_459.md
+Updated 08_Promotion_Copywriting.md
+Updated 15_Design_Checklist.md
+Updated 16_Campaign_Guideline.md

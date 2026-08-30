@@ -8,7 +8,10 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "healthcheck:erp": "node ./scripts/erp-system-healthcheck.mjs"
+    "healthcheck:erp": "node ./scripts/erp-system-healthcheck.mjs",
+    "test:integrity": "node ./scripts/test-frontend-integrity.mjs",
+    "test:domain": "node ./scripts/test-erp-domain.mjs",
+    "test": "node ./scripts/test-frontend-integrity.mjs && node ./scripts/test-erp-domain.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

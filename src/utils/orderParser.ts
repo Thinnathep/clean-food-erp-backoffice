@@ -112,7 +112,7 @@ export const parseOrderText = (
     }
 
     // Clean up prices at the end like "= ฿49" or "฿ 49" or "= 49"
-    let cleanLine = line.replace(/=?\s*฿?\s*[0-9]+(\.[0-9]{2})?\s*$/i, '').trim();
+    const cleanLine = line.replace(/=?\s*฿?\s*[0-9]+(\.[0-9]{2})?\s*$/i, '').trim();
 
     // Check for quantity, e.g. "(*1)", "(x2)", "x2", "x 2", "2 กล่อง", "2 ที่"
     let qty = 1;

@@ -65,6 +65,57 @@ const DEFAULT_DELIVERY_DISCOUNTS: { id?: string; minOrder: number; discount: num
   { minOrder: 180, discount: 15, label: "ส่วนลดค่าส่ง ฿15" },
 ];
 
+const MapClickHandler: React.FC<{ onMapClick: (coords: [number, number]) => void }> = ({ onMapClick }) => {
+  useMapEvents({
+    click(e: L.LeafletMouseEvent) {
+      onMapClick([e.latlng.lat, e.latlng.lng]);
+    },
+  });
+  return null;
+};
+
+const AutoFitBounds: React.FC<{ shop: [number, number]; customer: [number, number] | null; route: [number, number][] }> = ({ shop, customer, route }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (!map || !map.getContainer()) return;
+    if (customer) {
+      try {
+        const bounds = L.latLngBounds([shop, customer]);
+        if (route.length > 0) {
+          route.forEach(coord => bounds.extend(coord));
+        }
+        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15, animate: true });
+      } catch {
+        // Prevent crashes if map container was destroyed
+      }
+    }
+  }, [customer, shop, route, map]);
+  return null;
+};
+
+const RecenterMap: React.FC<{ coords: [number, number] }> = ({ coords }) => {
+  const map = useMap();
+  useEffect(() => {
+    let timer: any;
+    if (coords && map && map.getContainer()) {
+      try {
+        map.setView(coords, map.getZoom());
+        timer = setTimeout(() => {
+          if (map && map.getContainer()) {
+            map.invalidateSize();
+          }
+        }, 100);
+      } catch {
+        // Safeguard during route transition
+      }
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [coords, map]);
+  return null;
+};
+
 export const ShippingCalculator: React.FC = () => {
   const navigate = useNavigate();
   // --- States ---
@@ -160,41 +211,6 @@ export const ShippingCalculator: React.FC = () => {
     } finally {
       setIsSavingPickup(false);
     }
-  };
-
-  // --- Map Helper Components ---
-  const MapEvents = () => {
-    useMapEvents({
-      click(e: L.LeafletMouseEvent) {
-        setCustomerCoords([e.latlng.lat, e.latlng.lng]);
-      },
-    });
-    return null;
-  };
-
-  const AutoFitBounds = ({ shop, customer, route }: { shop: [number, number], customer: [number, number] | null, route: [number, number][] }) => {
-    const map = useMap();
-    useEffect(() => {
-      if (customer) {
-        const bounds = L.latLngBounds([shop, customer]);
-        if (route.length > 0) {
-          route.forEach(coord => bounds.extend(coord));
-        }
-        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15, animate: true });
-      }
-    }, [customer, shop, route, map]);
-    return null;
-  };
-
-  const RecenterMap = ({ coords }: { coords: [number, number] }) => {
-    const map = useMap();
-    useEffect(() => {
-      if (coords) {
-        map.setView(coords, map.getZoom());
-        setTimeout(() => map.invalidateSize(), 100);
-      }
-    }, [coords, map]);
-    return null;
   };
 
   // --- Route Fetching ---
@@ -410,7 +426,7 @@ export const ShippingCalculator: React.FC = () => {
               <Mkr position={shopCoords} icon={shopIcon}><Popup>ตำแหน่งร้านของคุณ</Popup></Mkr>
               {customerCoords && <Mkr position={customerCoords} icon={customerIcon}><Popup>ตำแหน่งลูกค้า</Popup></Mkr>}
               {route.length > 0 && <Poly positions={route} color="#10b981" weight={6} opacity={0.8} lineCap="round" lineJoin="round" />}
-              <MapEvents />
+              <MapClickHandler onMapClick={setCustomerCoords} />
               <RecenterMap coords={shopCoords} />
               <AutoFitBounds shop={shopCoords} customer={customerCoords} route={route} />
             </Map>

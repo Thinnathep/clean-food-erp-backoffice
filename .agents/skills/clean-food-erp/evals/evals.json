@@ -1,0 +1,54 @@
+{
+  "skill_name": "clean-food-erp",
+  "version": "1.0.0",
+  "evals": [
+    {
+      "id": 1,
+      "name": "recipe-bom-costing",
+      "prompt": "คำนวณต้นทุนอาหาร (Food Cost) ของเมนู 'ข้าวกะเพราอกไก่คลีน' ที่ใช้อกไก่ 150 กรัม (กก. ละ 90 บาท), ข้าวไรซ์เบอร์รี่ 100 กรัม (กก. ละ 45 บาท), เครื่องปรุง 5 บาท, กล่องบรรจุภัณฑ์ 3 บาท โดยมีราคาขาย 79 บาท อยากทราบว่าคิดเป็นกี่เปอร์เซ็นต์ของราคาขาย และเข้าเกณฑ์เป้าหมายของ Clean Food CR หรือไม่?",
+      "expected_output": "คำนวณต้นทุนวัตถุดิบได้ 23.00 บาท (อกไก่ 13.50 + ข้าว 4.50 + เครื่องปรุง 5.00), รวมบรรจุภัณฑ์ 26.00 บาท, คิดเป็น Food Cost 29.11% ของราคาขาย 79 บาท ซึ่งอยู่ในเกณฑ์เป้าหมาย (ไม่เกิน 35%)",
+      "assertions": [
+        {
+          "text": "Correctly calculates chicken cost as 13.50 THB and rice cost as 4.50 THB",
+          "type": "exact_calculation"
+        },
+        {
+          "text": "Evaluates cost percentage against Clean Food CR business constitution benchmark (<= 35%)",
+          "type": "domain_rule_check"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "four-fund-split",
+      "prompt": "ถ้าขายแพ็กเกจปิ่นโตสุขภาพ 6 กล่อง ได้เงิน 399 บาท มีค่าจัดส่ง 0 บาท (ส่งฟรี) ให้แสดงการคำนวณแยกเงินเข้า 4 กองทุน (Material 35%, Labor 15%, Ops 20%, Profit 30%) ตามระบบ Clean Food CR",
+      "expected_output": "แยกเงินเข้า Material Fund = 139.65 บาท, Labor Fund = 59.85 บาท, Ops Fund = 79.80 บาท, Profit Fund = 119.70 บาท รวมเป็น 399.00 บาท",
+      "assertions": [
+        {
+          "text": "Applies 35/15/20/30 split percentages correctly to net sales",
+          "type": "math_verification"
+        },
+        {
+          "text": "References erp_fund_pools and erp_revenue_buckets tables",
+          "type": "schema_grounding"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "delivery-batch-rule",
+      "prompt": "ลูกค้าถามว่าสั่งแพ็กเกจ 6 กล่อง ให้ส่งวันจันทร์ 2 กล่อง อังคาร 2 กล่อง พฤหัส 2 กล่อง ได้หรือไม่?",
+      "expected_output": "ไม่สามารถทำได้ เนื่องจากกฎเหล็ก (Constitution) ของร้านกำหนดส่งเฉพาะวัน จันทร์, พุธ, ศุกร์ เวลา 11:00-13:00 น. และสำหรับโปรโมชั่นต้องส่งครบเซ็ตครั้งเดียวในรอบส่งเพื่อไม่ให้ค่าขนส่งกินกำไร",
+      "assertions": [
+        {
+          "text": "Enforces non-negotiable rule: Delivery days are only Mon/Wed/Fri",
+          "type": "business_rule_check"
+        },
+        {
+          "text": "Enforces non-negotiable rule: Promo packages are delivered in a single batch",
+          "type": "business_rule_check"
+        }
+      ]
+    }
+  ]
+}

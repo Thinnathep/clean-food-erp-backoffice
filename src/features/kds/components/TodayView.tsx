@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useState, useRef } from "react";
+import React, { useMemo, useEffect, useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChefHat,
@@ -16,6 +16,7 @@ import {
   Power,
   Download,
   Copy,
+  RotateCcw,
 } from "lucide-react";
 import html2canvas from "html2canvas";
 import dayjs from "dayjs";
@@ -277,16 +278,9 @@ export const TodayView: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('erp_pickup_orders')
-        .select(`
-          *,
-          orders:order_id (
-            id,
-            order_ref,
-            customer_name,
-            customer_phone
-          )
-        `)
-        .in('status', ['pending', 'confirmed']);
+        .select('*')
+        .in('status', ['pending', 'confirmed'])
+        .order('pickup_date', { ascending: true });
       if (error) throw error;
       setPickupOrders(data || []);
     } catch (err) {
@@ -539,8 +533,9 @@ export const TodayView: React.FC = () => {
     fetchTasks();
     fetchPickupOrders();
 
+    let isMounted = true;
     const schedulesChannel = supabase
-      .channel("schema-db-changes")
+      .channel(`kds-realtime-${Date.now()}`)
       .on(
         "postgres_changes",
         {
@@ -549,6 +544,7 @@ export const TodayView: React.FC = () => {
           table: "erp_member_meal_schedules",
         },
         () => {
+          if (!isMounted) return;
           if (viewMode === "week") {
             const d = dayjs(selectedDate);
             const day = d.day();
@@ -565,20 +561,27 @@ export const TodayView: React.FC = () => {
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "orders" },
         () => {
-          fetchTasks();
+          if (isMounted) fetchTasks();
         },
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "erp_pickup_orders" },
         () => {
-          fetchPickupOrders();
+          if (isMounted) fetchPickupOrders();
         },
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(schedulesChannel);
+      isMounted = false;
+      setTimeout(() => {
+        try {
+          supabase.removeChannel(schedulesChannel);
+        } catch {
+          // ignore channel teardown errors
+        }
+      }, 300);
     };
   }, [selectedDate, viewMode]);
 
@@ -1391,6 +1394,58 @@ export const TodayView: React.FC = () => {
     return dayjs(selectedDate).locale("th").format("dddd");
   };
 
+  const completedBoxesCount = useMemo(() => {
+    let count = 0;
+    if (!todayProduction?.groups) return 0;
+    Object.values(todayProduction.groups).forEach((tg: any) => {
+      Object.values(tg.members).forEach((memberItem: any) => {
+        memberItem.orders.forEach((o: any) => {
+          if (o.status === "ready" || o.status === "done" || o.status === "เสร็จสิ้น") {
+            count += o.qty || 1;
+          }
+        });
+      });
+    });
+    return count;
+  }, [todayProduction]);
+
+  const completionPercent = totalBoxes > 0 ? Math.round((completedBoxesCount / totalBoxes) * 100) : 0;
+
+  const handleCopyDailyBatchSummary = useCallback(() => {
+    if (!todayProduction || Object.keys(todayProduction.groups).length === 0) {
+      toast.error("ไม่มีรายการผลิตในวันที่เลือก");
+      return;
+    }
+
+    const formattedDate = dayjs(selectedDate).locale("th").format("DD/MM/YYYY (dddd)");
+    let text = `🍳 สรุปยอดเตรียมอาหารประจำวัน — ${formattedDate}\n`;
+    text += `📦 ยอดผลิตรวม: ${totalBoxes} กล่อง | ทำเสร็จแล้ว: ${completedBoxesCount} กล่อง (${completionPercent}%)\n`;
+    text += `👥 ลูกค้ารวม: ${Object.values(todayProduction.groups).reduce((acc: number, g: any) => acc + Object.keys(g.members).length, 0)} ท่าน\n`;
+    if (todayProduction.specialNotesCount > 0) {
+      text += `⚠️ มีหมายเหตุ/แพ้อาหาร: ${todayProduction.specialNotesCount} รายการ\n`;
+    }
+    text += `━━━━━━━━━━━━━━━━━━\n`;
+
+    Object.entries(todayProduction.groups).forEach(([roundTime, group]: [string, any]) => {
+      text += `\n📍 [รอบส่ง: ${roundTime}] (รวม ${group.totalRoundQty} กล่อง)\n`;
+      Object.entries(group.members).forEach(([mName, item]: [string, any]) => {
+        const orderSummary = item.orders.map((o: any) => `${o.menuName} x${o.qty}`).join(", ");
+        text += `• ${mName} (${item.totalQty} กล่อง): ${orderSummary}`;
+        if (item.hasNotes) {
+          const notes = item.orders.filter((o: any) => o.note).map((o: any) => o.note).join("; ");
+          text += ` [⚠️ ${notes}]`;
+        }
+        text += `\n`;
+      });
+    });
+
+    text += `\n━━━━━━━━━━━━━━━━━━\n`;
+    text += `Clean Food Chiang Rai — Kitchen Ops System 🥗✨`;
+
+    navigator.clipboard.writeText(text);
+    toast.success("📋 คัดลอกสรุปรายการผลิตส่ง LINE เรียบร้อยแล้ว!");
+  }, [todayProduction, selectedDate, totalBoxes, completedBoxesCount, completionPercent]);
+
   const [nutritionModal, setNutritionModal] = useState<{
     open: boolean;
     memberName: string;
@@ -1909,37 +1964,47 @@ export const TodayView: React.FC = () => {
         </div>
       </div>
 
-      <div className="p-4 md:p-6 lg:p-10 space-y-8 max-w-full mx-auto print:p-0">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 print:hidden flex-wrap">
-          <div className="flex items-center gap-5">
-            <div className="w-12 h-12 bg-slate-900 rounded-xl flex items-center justify-center text-white shadow-lg">
-              <ChefHat size={28} />
+      <div className="p-3 sm:p-5 md:p-8 space-y-6 max-w-full mx-auto print:p-0">
+        {/* Top Control Bar — Bento Header */}
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 print:hidden bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/80 shadow-xs">
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl flex items-center justify-center text-white shadow-md shadow-slate-900/20 shrink-0">
+              <ChefHat size={24} />
             </div>
             <div>
-              <h2 className="text-3xl font-bold text-slate-900 tracking-tight whitespace-nowrap">
-                แผนงานเตรียมอาหาร
-              </h2>
-              <p className="text-slate-500 text-xs font-semibold">
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                  แผนงานเตรียมอาหาร
+                </h2>
+                <span className="text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-full font-bold uppercase">
+                  {viewMode === "day" ? "Day View" : "Week View"}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 font-medium">
                 {viewMode === "day"
                   ? "รายการผลิตประจำวันที่"
                   : isSummaryMode
                     ? "สรุปภาพรวมสัปดาห์"
                     : "รายการผลิตประจำสัปดาห์"}{" "}
                 •{" "}
-                {dayjs(selectedDate).locale("th").format("ddddที่ DD MMM YYYY")}
+                <span className="font-bold text-slate-700">
+                  {dayjs(selectedDate).locale("th").format("ddddที่ DD MMM YYYY")}
+                </span>
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="bg-white border border-slate-100 rounded-2xl p-1 flex gap-1 shadow-sm mr-2">
+          {/* Action & Filter Pills */}
+          <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+            {/* View Switcher */}
+            <div className="bg-slate-100/90 border border-slate-200/60 rounded-2xl p-1 flex gap-1 shadow-inner">
               <button
                 onClick={() => setViewMode("day")}
                 className={cn(
-                  "px-4 py-2 rounded-xl text-[11px] font-bold transition-all",
+                  "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all min-h-[36px]",
                   viewMode === "day"
-                    ? "bg-slate-900 text-white shadow-md shadow-slate-900/20"
-                    : "text-slate-400 hover:text-slate-600",
+                    ? "bg-white text-slate-900 shadow-xs"
+                    : "text-slate-500 hover:text-slate-800",
                 )}
               >
                 รายวัน
@@ -1950,10 +2015,10 @@ export const TodayView: React.FC = () => {
                   setIsSummaryMode(true);
                 }}
                 className={cn(
-                  "px-4 py-2 rounded-xl text-[11px] font-bold transition-all",
+                  "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all min-h-[36px]",
                   viewMode === "week"
-                    ? "bg-slate-900 text-white shadow-md shadow-slate-900/20"
-                    : "text-slate-400 hover:text-slate-600",
+                    ? "bg-white text-slate-900 shadow-xs"
+                    : "text-slate-500 hover:text-slate-800",
                 )}
               >
                 สัปดาห์
@@ -1961,14 +2026,14 @@ export const TodayView: React.FC = () => {
             </div>
 
             {viewMode === "week" && (
-              <div className="bg-white border border-slate-100 rounded-2xl p-1 flex gap-1 shadow-sm">
+              <div className="bg-slate-100/90 border border-slate-200/60 rounded-2xl p-1 flex gap-1 shadow-inner">
                 <button
                   onClick={() => setIsSummaryMode(true)}
                   className={cn(
-                    "px-4 py-2 rounded-xl text-[11px] font-bold transition-all",
+                    "px-3 py-1.5 rounded-xl text-xs font-bold transition-all min-h-[36px]",
                     isSummaryMode
-                      ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/20"
-                      : "text-slate-400 hover:text-slate-600",
+                      ? "bg-emerald-600 text-white shadow-xs"
+                      : "text-slate-500 hover:text-slate-800",
                   )}
                 >
                   ภาพรวม
@@ -1976,10 +2041,10 @@ export const TodayView: React.FC = () => {
                 <button
                   onClick={() => setIsSummaryMode(false)}
                   className={cn(
-                    "px-4 py-2 rounded-xl text-[11px] font-bold transition-all",
+                    "px-3 py-1.5 rounded-xl text-xs font-bold transition-all min-h-[36px]",
                     !isSummaryMode
-                      ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/20"
-                      : "text-slate-400 hover:text-slate-600",
+                      ? "bg-emerald-600 text-white shadow-xs"
+                      : "text-slate-500 hover:text-slate-800",
                   )}
                 >
                   รายการละเอียด
@@ -1987,14 +2052,15 @@ export const TodayView: React.FC = () => {
               </div>
             )}
 
-            <div className="bg-white border border-slate-100 rounded-2xl p-1.5 flex items-center shadow-sm">
+            {/* Filter Pills */}
+            <div className="bg-slate-100/90 border border-slate-200/60 rounded-2xl p-1 flex items-center shadow-inner gap-0.5">
               <button
                 onClick={() => setFilterType("menu")}
                 className={cn(
-                  "px-4 py-2 rounded-xl text-[11px] font-bold transition-all",
+                  "px-3 py-1.5 rounded-xl text-xs font-bold transition-all min-h-[36px]",
                   filterType === "menu"
-                    ? "bg-slate-900 text-white shadow-md shadow-slate-900/20"
-                    : "text-slate-400 hover:text-slate-600",
+                    ? "bg-white text-slate-900 shadow-xs"
+                    : "text-slate-500 hover:text-slate-800",
                 )}
               >
                 เมนู
@@ -2002,22 +2068,21 @@ export const TodayView: React.FC = () => {
               <button
                 onClick={() => setFilterType("member")}
                 className={cn(
-                  "px-4 py-2 rounded-xl text-[11px] font-bold transition-all",
+                  "px-3 py-1.5 rounded-xl text-xs font-bold transition-all min-h-[36px]",
                   filterType === "member"
-                    ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/20"
-                    : "text-slate-400 hover:text-slate-600",
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "text-slate-500 hover:text-slate-800",
                 )}
               >
                 สมาชิก
               </button>
-
               <button
                 onClick={() => setFilterType("retail")}
                 className={cn(
-                  "px-4 py-2 rounded-xl text-[11px] font-bold transition-all",
+                  "px-3 py-1.5 rounded-xl text-xs font-bold transition-all min-h-[36px]",
                   filterType === "retail"
-                    ? "bg-blue-500 text-white shadow-md shadow-blue-500/20"
-                    : "text-slate-400 hover:text-slate-600",
+                    ? "bg-blue-600 text-white shadow-xs"
+                    : "text-slate-500 hover:text-slate-800",
                 )}
               >
                 รายย่อย
@@ -2025,10 +2090,10 @@ export const TodayView: React.FC = () => {
               <button
                 onClick={() => setFilterType("extra")}
                 className={cn(
-                  "px-4 py-2 rounded-xl text-[11px] font-bold transition-all",
+                  "px-3 py-1.5 rounded-xl text-xs font-bold transition-all min-h-[36px]",
                   filterType === "extra"
-                    ? "bg-orange-500 text-white shadow-md shadow-orange-500/20"
-                    : "text-slate-400 hover:text-slate-600",
+                    ? "bg-orange-600 text-white shadow-xs"
+                    : "text-slate-500 hover:text-slate-800",
                 )}
               >
                 สั่งแยก
@@ -2036,7 +2101,7 @@ export const TodayView: React.FC = () => {
               {filterType !== "all" && (
                 <button
                   onClick={() => setFilterType("all")}
-                  className="px-2 text-slate-300 hover:text-slate-500"
+                  className="px-2 text-slate-400 hover:text-slate-600"
                   title="ล้างตัวกรอง"
                   aria-label="ล้างตัวกรอง"
                 >
@@ -2045,69 +2110,75 @@ export const TodayView: React.FC = () => {
               )}
             </div>
 
+            {/* Quick Today Button */}
             <button
               onClick={() => {
                 setSelectedDate(dayjs().format("YYYY-MM-DD"));
                 setViewMode("day");
               }}
-              className="px-6 py-3 bg-white border border-slate-100 rounded-2xl text-xs font-bold text-indigo-500 hover:text-indigo-600 hover:bg-slate-50 transition-all shadow-sm flex items-center justify-center active:scale-95"
+              className="px-3.5 py-1.5 bg-indigo-50 border border-indigo-200/80 rounded-2xl text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition-all shadow-xs flex items-center justify-center min-h-[40px] active:scale-95"
             >
               วันนี้
             </button>
 
-            <div className="bg-white border border-slate-100 rounded-2xl p-1.5 flex items-center shadow-sm">
+            {/* Date Switcher */}
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-1 flex items-center shadow-xs">
               <button
                 onClick={() => changeDate(-1)}
-                className="p-2.5 hover:bg-slate-50 text-slate-400 hover:text-slate-900 rounded-xl transition-all"
+                className="p-2 hover:bg-slate-50 text-slate-500 hover:text-slate-900 rounded-xl transition-all"
                 title="วันก่อนหน้า"
                 aria-label="วันก่อนหน้า"
               >
-                <ChevronLeft size={18} />
+                <ChevronLeft size={16} />
               </button>
-              <div className="px-6 text-center min-w-[140px]">
-                <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest leading-none mb-1">
+              <div className="px-3 text-center min-w-[130px]">
+                <p className="text-[9px] font-bold text-indigo-500 uppercase tracking-widest leading-none mb-0.5">
                   {getDateLabel()}
                 </p>
-                <p className="text-sm font-bold text-slate-700 leading-none">
+                <p className="text-xs font-bold text-slate-800 leading-none">
                   {dayjs(selectedDate).locale("th").format("D MMMM YYYY")}
                 </p>
               </div>
               <button
                 onClick={() => changeDate(1)}
-                className="p-2.5 hover:bg-slate-50 text-slate-400 hover:text-slate-900 rounded-xl transition-all"
+                className="p-2 hover:bg-slate-50 text-slate-500 hover:text-slate-900 rounded-xl transition-all"
                 title="วันถัดไป"
                 aria-label="วันถัดไป"
               >
-                <ChevronRight size={18} />
+                <ChevronRight size={16} />
               </button>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 print:hidden">
-          <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center text-center gap-4">
-            <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shrink-0 shadow-sm">
-              <Package size={28} />
+        {/* 4 Bento Stat Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 print:hidden">
+          {/* Card 1: Total Boxes */}
+          <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/80 shadow-xs flex items-center gap-3.5 hover:shadow-md transition-all">
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-2xl flex items-center justify-center shrink-0 shadow-md shadow-blue-500/20">
+              <Package size={22} />
             </div>
             <div>
-              <p className="text-[12px] uppercase text-slate-400 font-bold mb-1">
+              <p className="text-[11px] uppercase text-slate-400 font-bold tracking-wider">
                 ยอดผลิตรวม
               </p>
-              <h3 className="text-3xl font-black text-slate-900">
+              <h3 className="text-2xl sm:text-3xl font-black text-slate-900">
                 {totalBoxes}{" "}
-                <span className="text-sm font-bold text-slate-400">กล่อง</span>
+                <span className="text-xs font-bold text-slate-400">กล่อง</span>
               </h3>
             </div>
           </div>
-          <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center text-center gap-4">
-            <div className="w-14 h-14 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center shrink-0 shadow-sm">
-              <UtensilsCrossed size={28} />
+
+          {/* Card 2: Customers/Menus */}
+          <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/80 shadow-xs flex items-center gap-3.5 hover:shadow-md transition-all">
+            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-violet-600 text-white rounded-2xl flex items-center justify-center shrink-0 shadow-md shadow-purple-500/20">
+              <UtensilsCrossed size={22} />
             </div>
             <div>
-              <p className="text-[12px] uppercase text-slate-400 font-bold mb-1">
+              <p className="text-[11px] uppercase text-slate-400 font-bold tracking-wider">
                 {filterType === "menu" ? "จำนวนเมนู" : "จำนวนลูกค้า"}
               </p>
-              <h3 className="text-3xl font-black text-slate-900">
+              <h3 className="text-2xl sm:text-3xl font-black text-slate-900">
                 {(() => {
                   const allKeys = new Set();
                   Object.values(todayProduction.groups).forEach((tg: any) => {
@@ -2115,51 +2186,114 @@ export const TodayView: React.FC = () => {
                   });
                   return allKeys.size;
                 })()}
-                <span className="text-sm font-bold text-slate-400">
+                <span className="text-xs font-bold text-slate-400">
                   {" "}
                   {filterType === "menu" ? "รายการ" : "ท่าน"}
                 </span>
               </h3>
             </div>
           </div>
-          <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center text-center gap-4">
-            <div className="w-14 h-14 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center shrink-0 shadow-sm">
-              <AlertTriangle size={28} />
+
+          {/* Card 3: Allergy Alerts */}
+          <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/80 shadow-xs flex items-center gap-3.5 hover:shadow-md transition-all">
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-md ${
+              todayProduction.specialNotesCount > 0 
+                ? 'bg-gradient-to-br from-amber-500 to-rose-500 text-white shadow-amber-500/20 animate-pulse' 
+                : 'bg-slate-100 text-slate-400'
+            }`}>
+              <AlertTriangle size={22} />
             </div>
             <div>
-              <p className="text-[12px] uppercase text-slate-400 font-bold mb-1">
+              <p className="text-[11px] uppercase text-slate-400 font-bold tracking-wider">
                 หมายเหตุแพ้อาหาร
               </p>
-              <h3 className="text-3xl font-black text-slate-900">
+              <h3 className={`text-2xl sm:text-3xl font-black ${
+                todayProduction.specialNotesCount > 0 ? 'text-amber-600' : 'text-slate-900'
+              }`}>
                 {todayProduction.specialNotesCount}{" "}
-                <span className="text-sm font-bold text-slate-400">รายการ</span>
+                <span className="text-xs font-bold text-slate-400">รายการ</span>
               </h3>
             </div>
           </div>
+
+          {/* Card 4: Kitchen Status */}
           <div
             className={cn(
-              "p-6 rounded-2xl shadow-lg flex flex-col items-center text-center gap-4 border transition-all duration-500",
+              "p-4 sm:p-5 rounded-3xl shadow-xs flex items-center gap-3.5 border transition-all duration-300",
               isKitchenOpen
-                ? "bg-emerald-500 border-emerald-400"
-                : "bg-rose-500 border-rose-400",
+                ? "bg-emerald-600 border-emerald-500 text-white shadow-emerald-600/20"
+                : "bg-rose-600 border-rose-500 text-white shadow-rose-600/20",
             )}
           >
-            <div className="w-14 h-14 bg-white/20 text-white rounded-2xl flex items-center justify-center shrink-0 shadow-sm">
-              {isKitchenOpen ? <CheckCircle2 size={28} /> : <Power size={28} />}
+            <div className="w-12 h-12 bg-white/20 text-white rounded-2xl flex items-center justify-center shrink-0">
+              {isKitchenOpen ? <CheckCircle2 size={22} /> : <Power size={22} />}
             </div>
             <div>
-              <p
-                className={cn(
-                  "text-[12px] uppercase font-bold mb-1",
-                  isKitchenOpen ? "text-emerald-100" : "text-rose-100",
-                )}
-              >
+              <p className="text-[11px] uppercase font-bold tracking-wider text-white/80">
                 สถานะระบบ
               </p>
-              <h3 className="text-xl font-black text-white italic">
-                {isKitchenOpen ? "พร้อมทำงาน" : "ปิดทำการ"}
+              <h3 className="text-lg sm:text-xl font-black text-white">
+                {isKitchenOpen ? "พร้อมทำงาน 🟢" : "ปิดทำการ 🔴"}
               </h3>
             </div>
+          </div>
+        </div>
+
+        {/* Live Shift Progress Bar & Action Deck */}
+        <div className="bg-white p-4 sm:p-5 rounded-3xl border border-slate-200/80 shadow-xs space-y-3 print:hidden">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black text-sm shadow-inner shrink-0">
+                ⚡
+              </div>
+              <div>
+                <h4 className="text-sm font-black text-slate-900 leading-tight">
+                  ความคืบหน้าการจัดเตรียมอาหารประจำวัน
+                </h4>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  จัดเสร็จแล้ว <strong className="text-emerald-600 font-black">{completedBoxesCount}</strong> จากทั้งหมด {totalBoxes} กล่อง ({completionPercent}%)
+                </p>
+              </div>
+            </div>
+            {/* Quick Action Buttons */}
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={handleCopyDailyBatchSummary}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-900 hover:bg-slate-800 active:scale-95 text-white rounded-xl text-xs font-bold shadow-md shadow-slate-900/10 transition-all min-h-[38px]"
+                title="คัดลอกสรุปรายการผลิตส่ง LINE ครัว"
+              >
+                <Copy size={14} className="text-emerald-400" />
+                <span>คัดลอกส่ง LINE 📋</span>
+              </button>
+              <button
+                onClick={() => window.print()}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-800 rounded-xl text-xs font-bold border border-slate-200 transition-all min-h-[38px]"
+                title="พิมพ์ใบสั่งงานเตรียมอาหาร"
+              >
+                <Printer size={14} />
+                <span>พิมพ์ใบสั่งงาน 🖨️</span>
+              </button>
+              <button
+                onClick={() => setIsKitchenMode(!isKitchenMode)}
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold border transition-all min-h-[38px] active:scale-95 ${
+                  isKitchenMode 
+                    ? 'bg-amber-500 text-white border-amber-600 shadow-md shadow-amber-500/20' 
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                }`}
+                title="สลับโหมดจอครัว KDS ขนาดใหญ่"
+              >
+                <ChefHat size={14} className={isKitchenMode ? 'text-white' : 'text-amber-500'} />
+                <span>{isKitchenMode ? 'ออกจากโหมดจอครัว' : 'โหมดจอครัว KDS 📱'}</span>
+              </button>
+            </div>
+          </div>
+          {/* Animated Progress Bar */}
+          <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-200/50">
+            <motion.div
+              className="bg-gradient-to-r from-emerald-500 to-teal-500 h-full rounded-full transition-all duration-500"
+              initial={{ width: 0 }}
+              animate={{ width: `${completionPercent}%` }}
+            />
           </div>
         </div>
 
@@ -2430,15 +2564,26 @@ export const TodayView: React.FC = () => {
           {(!isSummaryMode || viewMode === "day") && (
             <>
               {Object.keys(todayProduction.groups).length === 0 ? (
-                <div className="bg-white rounded-3xl p-20 text-center border border-dashed border-slate-200 shadow-sm flex flex-col items-center">
-                  <ChefHat size={60} className="text-slate-100 mb-6" />
-                  <h3 className="text-xl font-bold text-slate-900 mb-2 italic">
+                <div className="bg-white rounded-3xl p-10 sm:p-14 text-center border border-dashed border-slate-200/80 shadow-xs flex flex-col items-center">
+                  <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-300 mb-4 shadow-inner">
+                    <ChefHat size={32} />
+                  </div>
+                  <h3 className="text-lg sm:text-xl font-black text-slate-800 mb-1.5">
                     ไม่มีรายการผลิตในวันที่เลือก
                   </h3>
-                  <p className="text-slate-400 max-w-sm font-semibold">
-                    ระบบไม่พบแผนการจัดส่งในวันที่{" "}
-                    {dayjs(selectedDate).locale("th").format("DD MMMM YYYY")}
+                  <p className="text-xs text-slate-500 max-w-md mb-5 leading-relaxed">
+                    ระบบไม่พบแผนการจัดส่งสำหรับวันที่ <strong className="text-slate-800">{dayjs(selectedDate).locale("th").format("DD MMMM YYYY")}</strong><br/>
+                    (รอบส่งปิ่นโตมาตรฐาน: วันจันทร์, วันพุธ และวันศุกร์)
                   </p>
+                  <button
+                    onClick={() => {
+                      setSelectedDate(dayjs().format("YYYY-MM-DD"));
+                      setViewMode("day");
+                    }}
+                    className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-md shadow-slate-900/10 active:scale-95 transition-all"
+                  >
+                    กลับไปดูรายการวันนี้ 📅
+                  </button>
                 </div>
               ) : (
                 Object.entries(todayProduction.groups)
@@ -2557,9 +2702,9 @@ export const TodayView: React.FC = () => {
                               <div
                                 key={memberName}
                                 className={cn(
-                                  "bg-white rounded-[32px] border border-slate-100 shadow-sm flex flex-col overflow-hidden hover:shadow-xl transition-all duration-300 group relative",
+                                  "bg-white rounded-3xl border border-slate-200/80 shadow-xs flex flex-col overflow-hidden hover:shadow-xl transition-all duration-300 group relative",
                                   isDone &&
-                                    "border-slate-300 shadow-inner opacity-40 grayscale-[0.5]",
+                                    "border-slate-200 bg-slate-50/60 shadow-inner opacity-45 grayscale-[0.4]",
                                   isKitchenMode &&
                                     "border-4 border-slate-800 shadow-2xl",
                                   !isDone &&
@@ -2570,11 +2715,11 @@ export const TodayView: React.FC = () => {
                                 {/* Header Section (Always Prominent) */}
                                 <div
                                   className={cn(
-                                    "p-5 pb-0 flex justify-between items-start gap-2 relative z-10",
+                                    "p-4 sm:p-5 pb-0 flex justify-between items-start gap-2 relative z-10",
                                     isKitchenMode && "p-8",
                                   )}
                                 >
-                                  <div className="flex flex-col gap-2">
+                                  <div className="flex flex-col gap-1.5">
                                     <div className="flex items-center gap-2">
                                       <motion.button
                                         whileTap={{ scale: 0.9 }}
@@ -2587,17 +2732,17 @@ export const TodayView: React.FC = () => {
                                           )
                                         }
                                         className={cn(
-                                          "w-10 h-10 rounded-2xl flex items-center justify-center transition-all shadow-md",
+                                          "w-9 h-9 sm:w-10 sm:h-10 rounded-2xl flex items-center justify-center transition-all shadow-sm",
                                           isDone
-                                            ? "bg-emerald-500 text-white shadow-emerald-500/40"
-                                            : "bg-emerald-50 text-emerald-500 hover:bg-emerald-100 border border-emerald-100",
+                                            ? "bg-emerald-600 text-white shadow-emerald-600/30"
+                                            : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200/80",
                                           isKitchenMode &&
                                             "w-16 h-16 rounded-[24px]",
                                         )}
                                       >
                                         <CheckCircle2
-                                          size={isKitchenMode ? 36 : 24}
-                                          strokeWidth={3}
+                                          size={isKitchenMode ? 36 : 22}
+                                          strokeWidth={2.5}
                                         />
                                       </motion.button>
                                       {item.isRetail && (
@@ -2905,27 +3050,33 @@ export const TodayView: React.FC = () => {
                                   </div>
                                 </div>
 
-                                <div
+                                <motion.button
+                                  whileTap={{ scale: 0.98 }}
                                   onClick={(e) =>
                                     handleToggleClick(time, memberName, item, e)
                                   }
-                                  className={`h-12 border-t flex items-center justify-center gap-2 cursor-pointer transition-all ${isDone ? "bg-slate-800 border-slate-900 hover:bg-slate-700" : "bg-emerald-50/30 border-emerald-100 hover:bg-emerald-100"}`}
+                                  className={`h-11 sm:h-12 border-t flex items-center justify-center gap-2 cursor-pointer font-bold text-xs transition-all w-full select-none ${
+                                    isDone
+                                      ? "bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700"
+                                      : "bg-emerald-600 hover:bg-emerald-700 border-emerald-500 text-white shadow-xs"
+                                  }`}
                                 >
                                   {isDone ? (
                                     <>
-                                      <X size={14} className="text-white" />
-                                      <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-white">
-                                        ยกเลิกรายการ (UNDO)
+                                      <RotateCcw size={14} className="text-slate-300" />
+                                      <span className="tracking-wider text-[11px]">
+                                        ยกเลิก / ทำใหม่ (UNDO)
                                       </span>
                                     </>
                                   ) : (
-                                    <span
-                                      className={`text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-600`}
-                                    >
-                                      ยืนยันแพ็คอาหาร (READY)
-                                    </span>
+                                    <>
+                                      <CheckCircle2 size={15} className="text-white" />
+                                      <span className="tracking-wider text-[11px]">
+                                        ยืนยันแพ็คเสร็จ (READY)
+                                      </span>
+                                    </>
                                   )}
-                                </div>
+                                </motion.button>
                               </div>
                             );
                           })}
@@ -2959,7 +3110,9 @@ export const TodayView: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
                 {pickupOrders.map((pickup) => {
                   const isExpired = dayjs(pickup.pickup_date).isBefore(dayjs().startOf('day'));
-                  const orderData = pickup.orders || pickup.order;
+                  const customerName = pickup.customer_name || pickup.orders?.customer_name || 'ไม่ทราบชื่อลูกค้า';
+                  const orderRef = pickup.order_id || pickup.orders?.order_ref || '-';
+                  const contactPhone = pickup.customer_phone || pickup.contact_number || pickup.orders?.customer_phone || '-';
                   
                   return (
                     <div
@@ -2972,7 +3125,7 @@ export const TodayView: React.FC = () => {
                       <div className="p-5 flex-1 space-y-4">
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-black text-slate-800">
-                            {orderData?.customer_name || 'ไม่ทราบชื่อลูกค้า'}
+                            {customerName}
                           </span>
                           {isExpired && (
                             <span className="text-[10px] font-bold text-white bg-red-500 px-2 py-0.5 rounded-full">เลยกำหนด</span>
@@ -2985,11 +3138,11 @@ export const TodayView: React.FC = () => {
                           </p>
                           <p className="flex justify-between">
                             <span className="text-slate-400">ออเดอร์:</span> 
-                            <span className="font-semibold text-slate-700">{orderData?.order_ref || '-'}</span>
+                            <span className="font-semibold text-slate-700">{orderRef}</span>
                           </p>
                           <p className="flex justify-between">
                             <span className="text-slate-400">เบอร์ติดต่อ:</span> 
-                            <span className="font-semibold text-slate-700">{pickup.contact_number || orderData?.customer_phone || '-'}</span>
+                            <span className="font-semibold text-slate-700">{contactPhone}</span>
                           </p>
                         </div>
                       </div>

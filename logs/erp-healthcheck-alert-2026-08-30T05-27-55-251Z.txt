@@ -1,0 +1,6 @@
+ERP HEALTHCHECK ALERT
+Timestamp: 2026-08-30T05:27:55.264Z
+Fail count: 2
+
+- [RLS] RLS strict validation: RLS gap on 5 table(s): erp_recipe_steps(rls=true, policies=0), erp_tenant_configs(rls=true, policies=0), erp_tenant_subscriptions(rls=true, policies=0), erp_tenant_users(rls=true, policies=0), erp_tenants(rls=true, policies=0)
+- [API] REST health endpoint: REST endpoint failed with HTTP 401 (891 ms).

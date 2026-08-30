@@ -93,9 +93,21 @@ export const SplitSimulator: React.FC<Props> = ({ isDarkMode = false }) => {
       {/* Left Column: Inputs & Presets (Span 5) */}
       <div className="lg:col-span-5 space-y-6">
         <div className={`rounded-3xl border p-6 transition-all ${card}`}>
-          <h3 className={`text-lg font-bold mb-6 flex items-center gap-2 ${heading}`}>
-            <Calculator size={22} className="text-cyan-400" /> ห้องปฏิบัติการ Split V2
+          <h3 className={`text-lg font-bold mb-4 flex items-center gap-2 ${heading}`}>
+            <Calculator size={22} className="text-cyan-400" /> เครื่องมือจำลองการแยกเงิน 4 กองทุน
           </h3>
+
+          {/* 💡 Helper Guide Banner */}
+          <div className="mb-5 p-3.5 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-xs space-y-1.5">
+            <div className="flex items-center gap-2 text-cyan-800 font-bold">
+              <Calculator size={14} className="text-cyan-700 shrink-0" />
+              <span>เครื่องมือจำลองและทดสอบการแยกเงิน 4 กองทุน</span>
+            </div>
+            <p className="text-slate-600 text-[11px] leading-relaxed">
+              • ปรับเปลี่ยนราคาแพ็กเกจ ค่าส่ง และสัดส่วน % เพื่อดูผลลัพธ์การกระจายเงินเข้า 4 กองทุนแบบ Real-time<br />
+              • สามารถบันทึกเป็นสูตรโปรโมชั่นใหม่สำหรับใช้ในระบบได้ทันที
+            </p>
+          </div>
 
           {/* Quick presets */}
           <div className="space-y-6">

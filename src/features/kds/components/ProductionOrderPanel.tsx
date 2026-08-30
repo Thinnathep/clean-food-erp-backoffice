@@ -5,7 +5,7 @@ import dayjs from 'dayjs';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Factory, Play, CheckCircle2, XCircle, Clock, Plus,
-  ChevronDown, RefreshCw, Scissors, X
+  ChevronDown, RefreshCw, Scissors, X, Printer
 } from 'lucide-react';
 
 // ─── Animation Tokens ───
@@ -318,6 +318,18 @@ export const ProductionOrderPanel: React.FC = () => {
           </div>
         </motion.div>
 
+        {/* 💡 Helper Guide Banner */}
+        <motion.div variants={fadeUp} className="p-3.5 rounded-2xl bg-violet-500/10 border border-violet-500/20 text-xs space-y-1.5">
+          <div className="flex items-center gap-2 text-violet-800 font-bold">
+            <Factory size={14} className="text-violet-700 shrink-0" />
+            <span>คู่มือการทำงานใบสั่งผลิต & ระบบตัดสต็อกอัตโนมัติ (BOM Auto-Deduction)</span>
+          </div>
+          <p className="text-slate-600 text-[11px] leading-relaxed">
+            • <strong>สร้างจากรายการวันนี้</strong>: ระบบจะดึงยอดออเดอร์ของสมาชิกตามรอบส่งมาสร้างเป็นใบสั่งงานครัวให้อัตโนมัติ<br />
+            • <strong>ตัดสต็อกอัตโนมัติ (Auto-deduction)</strong>: เมื่อปรุงเสร็จและกดปุ่ม "เสร็จสิ้น" ระบบจะคำนวณสูตรอาหาร (BOM) และตัดวัตถุดิบออกจากสต็อกตามจำนวนผลิตจริงทันที
+          </p>
+        </motion.div>
+
         {/* Summary Stats */}
         <motion.div variants={fadeUp} className="grid grid-cols-3 gap-3 sm:gap-4">
           <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4 text-center">
@@ -494,6 +506,10 @@ export const ProductionOrderPanel: React.FC = () => {
 
                           {/* Actions */}
                           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-2 border-t border-slate-50">
+                            <button title="Button" type="button" onClick={() => window.print()}
+                              className="inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-medium active:scale-[0.97] transition-all min-h-[44px]">
+                              <Printer size={15} /> พิมพ์ใบสั่งงาน
+                            </button>
                             {order.status === 'draft' && (
                               <>
                                 <button title="Button" type="button" onClick={() => cancelOrder(order.id)}

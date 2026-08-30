@@ -8,6 +8,8 @@ import {
   ChevronLeft, ChevronRight, RefreshCw, History
 } from 'lucide-react';
 
+import { useAuthStore } from '../../../store/authStore';
+
 // ─── Types ───
 interface PoolInfo {
   pool_type: string;
@@ -163,7 +165,7 @@ export const CashReconciliation: React.FC = () => {
           variance: entry.variance,
           variance_reason: entry.variance_reason || null,
           status: 'completed',
-          counted_by: '00000000-0000-0000-0000-000000000001',
+          counted_by: useAuthStore.getState().user?.id || '00000000-0000-0000-0000-000000000001',
         };
 
         if (entry.id) {
@@ -246,6 +248,18 @@ export const CashReconciliation: React.FC = () => {
           </button>
         </div>
       </motion.div>
+
+      {/* 💡 Helper Guide Banner */}
+      <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs space-y-1.5">
+        <div className="flex items-center gap-2 text-amber-800 font-bold">
+          <Coins size={14} className="text-amber-700 shrink-0" />
+          <span>คู่มือการตรวจนับเงินสดปิดกะ (Cash Reconciliation)</span>
+        </div>
+        <p className="text-slate-600 text-[11px] leading-relaxed">
+          • <strong>ยอดที่ควรมีในระบบ</strong> = ยอดยกมาต้นวัน + รายรับวันนี้ - รายจ่ายวันนี้<br />
+          • <strong>ผลต่าง (Variance)</strong> = ยอดเงินสดจริงที่นับได้ - ยอดที่ควรมี (หากผลต่างไม่เป็น 0 ให้ระบุเหตุผล เช่น เงินทอนขาด/เกิน หรือรอเคลียร์บิล)
+        </p>
+      </div>
 
       {/* Total Summary */}
       <motion.div

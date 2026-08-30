@@ -356,6 +356,18 @@ export const FinanceSettings: React.FC<Props> = ({ configs, onRefresh, isDarkMod
              </div>
         </div>
 
+        {/* 💡 Helper Guide Banner */}
+        <div className="mb-5 p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-xs space-y-1.5">
+          <div className="flex items-center gap-2 text-emerald-800 font-bold">
+            <Settings size={14} className="text-emerald-700 shrink-0" />
+            <span>การกำหนดสัดส่วนการแยกเงิน (Split Models)</span>
+          </div>
+          <p className="text-slate-600 text-[11px] leading-relaxed">
+            • สัดส่วนผลรวมทั้ง 4 กองทุน (วัตถุดิบ + แรงงาน + ดำเนินงาน + กำไร) ต้องเท่ากับ <strong>100%</strong> พอดีเสมอ<br />
+            • สูตรเริ่มต้น (Default Model) จะถูกนำไปใช้แยกเงินอัตโนมัติเมื่อมีการบันทึกรายรับจากแพ็กเกจหรือหน้าร้าน
+          </p>
+        </div>
+
         {(showAddForm || editingId) && (
            <div className={`mb-6 p-6 rounded-2xl border-2 border-emerald-500/20 bg-emerald-500/5 animate-in zoom-in-95 duration-200`}>
               <h4 className={`text-sm font-bold mb-4 flex items-center gap-2 ${heading}`}>

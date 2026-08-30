@@ -19,7 +19,7 @@ export const LTVAnalysis: React.FC<Props> = ({ isDarkMode = false }) => {
   const fetchTopSpenders = async () => {
     try {
       const { data, error } = await supabase
-        .from('erp_members')
+        .from('members')
         .select('*')
         .order('lifetime_value', { ascending: false })
         .limit(50);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Tag,
   Sparkles,
@@ -15,10 +15,15 @@ import {
   Package,
   X,
   Info,
-  Calculator
+  Calculator,
+  RotateCcw,
+  CheckCircle2,
+  MapPin,
+  ChevronDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import dayjs from 'dayjs';
+import 'dayjs/locale/th';
 import { supabase } from '../../../config/supabase';
 import { toast } from 'sonner';
 import { clsx, type ClassValue } from 'clsx';
@@ -43,7 +48,7 @@ const DEFAULT_TEMPLATES: SalesTemplate[] = [
     id: 'g1',
     category: 'greeting',
     label: 'ทักทายต้อนรับ',
-    content: 'สวัสดีค่ะ/ค่ะ ยินดีต้อนรับสู่ Clean Food ค่ะ สนใจดูแลสุขภาพด้วยคอร์สอาหารคลีนเมนูไหนเป็นพิเศษไหมค่ะ?'
+    content: 'สวัสดีค่ะ ยินดีต้อนรับสู่ Clean Food Chiang Rai ค่ะ สนใจดูแลสุขภาพด้วยคอร์สอาหารคลีนเมนูไหนเป็นพิเศษไหมคะ?'
   },
   {
     id: 's1',
@@ -55,19 +60,19 @@ const DEFAULT_TEMPLATES: SalesTemplate[] = [
     id: 'd1',
     category: 'delivery',
     label: 'แจ้งรอบการส่ง',
-    content: 'เราจัดส่งรอบเช้า 08:00 - 10:00 และรอบเย็น 15:00 - 17:00 ค่ะ ลูกค้าสามารถเลือกเวลาที่สะดวกรับได้เลยค่ะ'
+    content: 'เราจัดส่งรอบเช้า 11:00 - 13:00 และรอบเย็น 15:00 - 17:00 ค่ะ ลูกค้าสามารถเลือกเวลาที่สะดวกรับได้เลยค่ะ'
   },
   {
     id: 'p1',
     category: 'payment',
     label: 'แจ้งเลขบัญชี',
-    content: 'สามารถโอนชำระได้ที่: ธนาคารกสิกรไทย เลขที่บัญชี 000-0-00000-0 ชื่อบัญชี บจก. คลีนฟู้ด เออร์ลี่ ค่ะ'
+    content: 'สามารถโอนชำระได้ที่: ธนาคารกสิกรไทย เลขที่บัญชี 000-0-00000-0 ชื่อบัญชี บจก. คลีนฟู้ด เชียงราย ค่ะ'
   },
   {
     id: 'c1',
     category: 'closing',
     label: 'ปิดการขาย/ขอบคุณ',
-    content: 'เรียบร้อยค่ะ บันทึกข้อมูลคอร์สของลูกค้าเข้าระบบแล้วค่ะ ขอบคุณที่ไว้วางใจให้เราดูแลสุขภาพนะค่ะ'
+    content: 'เรียบร้อยค่ะ บันทึกข้อมูลคอร์สของลูกค้าเข้าระบบแล้วค่ะ ขอบคุณที่ไว้วางใจให้เราดูแลสุขภาพนะคะ'
   }
 ];
 
@@ -128,7 +133,7 @@ export const PromotionManagement: React.FC = () => {
           } else {
             setMatchedMember(null);
           }
-        } catch (err) {
+        } catch {
           setMatchedMember(null);
         } finally {
           setIsSearchingPhone(false);
@@ -148,7 +153,7 @@ export const PromotionManagement: React.FC = () => {
       setCustomerInfo(prev => ({
         ...prev,
         name: matchedMember.full_name || prev.name,
-        nickname: matchedMember.nickname || prev.nickname,
+        nickname: matchedMember.line_display_name || matchedMember.nickname || prev.nickname,
         lineId: matchedMember.line_id || prev.lineId,
         address: matchedMember.address || prev.address,
         healthGoal: matchedMember.health_goal || prev.healthGoal,
@@ -232,12 +237,25 @@ export const PromotionManagement: React.FC = () => {
     }));
   };
 
-  useEffect(() => {
-    fetchPromotions();
-    fetchLogisticsConfig();
+  const fetchPromotions = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('promotions')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      setPromotions(data || []);
+    } catch (error: any) {
+      toast.error('ไม่สามารถดึงข้อมูลโปรโมชั่นได้: ' + error.message);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
-  const fetchLogisticsConfig = async () => {
+  const fetchLogisticsConfig = useCallback(async () => {
     try {
       const { data } = await supabase.from('erp_settings').select('value').eq('key', 'logistics_config').single();
       if (data) {
@@ -250,7 +268,12 @@ export const PromotionManagement: React.FC = () => {
         });
       }
     } catch (err) { console.error('Error fetching logistics config:', err); }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchPromotions();
+    fetchLogisticsConfig();
+  }, [fetchPromotions, fetchLogisticsConfig]);
 
   // Auto-calculate delivery fee for all types
   useEffect(() => {
@@ -264,10 +287,11 @@ export const PromotionManagement: React.FC = () => {
       rounds = promo ? promo.days_count : 14;
     }
     
-    let baseExtra = customerInfo.locationType === 'outside' ? 20 : 0;
+    const baseExtra = customerInfo.locationType === 'outside' ? 20 : 0;
 
+    let targetFee = 0;
     if (dist <= logisticsConfig.PROMO_FREE_DIST && customerInfo.locationType === 'inside') {
-      setCustomerInfo(prev => ({ ...prev, deliveryFee: 0 }));
+      targetFee = 0;
     } else {
       const excessDist = Math.max(0, dist - logisticsConfig.PROMO_FREE_DIST);
       let feePerRound = logisticsConfig.BASE_FARE + baseExtra;
@@ -275,8 +299,9 @@ export const PromotionManagement: React.FC = () => {
         const ex = excessDist - logisticsConfig.BASE_INCLUDED_DISTANCE;
         feePerRound += ex * logisticsConfig.FEE_PER_KM_NORMAL;
       }
-      setCustomerInfo(prev => ({ ...prev, deliveryFee: Math.ceil(feePerRound * rounds) }));
+      targetFee = Math.ceil(feePerRound * rounds);
     }
+    setCustomerInfo(prev => prev.deliveryFee === targetFee ? prev : { ...prev, deliveryFee: targetFee });
   }, [customerInfo.distanceKm, customerInfo.memberType, customerInfo.selectedPromoId, logisticsConfig, promotions, customerInfo.locationType, isManualDeliveryFee]);
 
   const handleSaveCustomer = async () => {
@@ -299,7 +324,7 @@ export const PromotionManagement: React.FC = () => {
         memberId = existingMember.id;
         await supabase.from('members').update({
           full_name: customerInfo.name,
-          nickname: customerInfo.nickname,
+          line_display_name: customerInfo.nickname,
           line_id: customerInfo.lineId,
           address: customerInfo.address,
           health_goal: customerInfo.healthGoal,
@@ -311,7 +336,7 @@ export const PromotionManagement: React.FC = () => {
       } else {
         const { data: newMember, error: createError } = await supabase.from('members').insert({
           full_name: customerInfo.name,
-          nickname: customerInfo.nickname,
+          line_display_name: customerInfo.nickname,
           phone: customerInfo.phone,
           line_id: customerInfo.lineId,
           address: customerInfo.address,
@@ -391,24 +416,6 @@ ${customerInfo.googleMapsUrl ? `📍 พิกัด: ${customerInfo.googleMapsU
 ได้รับยอด ${totalPrice.toLocaleString()} บาทเรียบร้อยค่ะ ขอบคุณที่ไว้วางใจให้ Clean Food CR ดูแลโภชนาการค่ะ ทางร้านจะจัดเตรียมวัตถุดิบและเริ่มจัดส่งมื้อแรก ในวัน ${startDateFormatted} ช่วงเวลา ${customerInfo.deliverySlot} ค่ะ`;
   };
 
-  const fetchPromotions = async () => {
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('promotions')
-        .select('*')
-        .eq('is_active', true)
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      setPromotions(data || []);
-    } catch (error: any) {
-      toast.error('ไม่สามารถดึงข้อมูลโปรโมชั่นได้: ' + error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleCreatePromotion = async () => {
     if (!newPromo.name || !newPromo.code) return toast.error('กรุณาระบุชื่อและรหัสโปรโมชั่น');
     setIsSubmitting(true);
@@ -457,178 +464,187 @@ ${customerInfo.googleMapsUrl ? `📍 พิกัด: ${customerInfo.googleMapsU
   const handleCopyText = (id: string, text: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
-    toast.success('คัดลอกข้อความแล้ว');
+    toast.success('คัดลอกข้อความแล้ว ✨');
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const containerVariants = {
-    hidden: { opacity: 0, y: 10 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.4, staggerChildren: 0.1 } }
-  };
-
   return (
-    <div className="flex-1 flex flex-col bg-[#f8fafc] min-h-screen">
-      {/* Header Area */}
-      <div className="bg-white border-b border-slate-200 px-8 py-6 shadow-sm sticky top-0 z-20">
-        <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-center gap-5">
-            <div className="w-14 h-14 rounded-[1.25rem] bg-slate-900 flex items-center justify-center text-white shadow-xl shadow-slate-900/10 border border-slate-800">
-              <Rocket size={28} className="text-emerald-400" />
+    <div className="flex-1 flex flex-col bg-slate-50 min-h-screen font-sans">
+      
+      {/* ─── Top Header Bar ─── */}
+      <div className="bg-white border-b border-slate-200/80 px-4 sm:px-6 lg:px-8 py-5 shadow-xs sticky top-0 z-30 backdrop-blur-md bg-white/95">
+        <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-white flex items-center justify-center shadow-md shadow-emerald-500/20 shrink-0">
+              <Rocket size={22} className="text-white" />
             </div>
             <div>
-              <h2 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-                Promotion Management
-                <span className="text-[10px] bg-emerald-500 text-white px-2 py-0.5 rounded-full uppercase tracking-widest font-bold">Sales War Room</span>
-              </h2>
-              <p className="text-sm text-slate-500 font-medium">จัดการเสนอขายและแคตตาล็อกโปรโมชั่นอัจฉริยะ</p>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight font-display">
+                  เพิ่มสมาชิกโปรโมชั่น & เซลส์
+                </h1>
+                <span className="hidden sm:inline-block text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                  Sales Hub
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 font-medium">จัดการเสนอขาย คัดลอกสคริปต์ และคำนวณค่าส่งอัจฉริยะ</p>
             </div>
           </div>
 
-          {/* Tab Switcher */}
-          <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 shadow-inner min-w-[320px]">
+          {/* Responsive Tab Switcher */}
+          <div className="flex bg-slate-100/80 p-1 rounded-2xl border border-slate-200/60 shadow-inner w-full md:w-auto overflow-x-auto no-scrollbar">
             <button 
               onClick={() => setActiveTab('sales')}
               className={cn(
-                "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all",
-                activeTab === 'sales' ? "bg-white text-slate-900 shadow-md ring-1 ring-black/5" : "text-slate-500 hover:text-slate-700"
+                "flex-1 md:flex-none flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap",
+                activeTab === 'sales' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
               )}
             >
-              <MessageSquare size={18} /> งานเสนอขาย
+              <MessageSquare size={15} className={activeTab === 'sales' ? "text-emerald-600" : "text-slate-400"} /> 
+              <span>งานเสนอขาย & สมัคร</span>
             </button>
             <button 
               onClick={() => setActiveTab('catalog')}
               className={cn(
-                "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all",
-                activeTab === 'catalog' ? "bg-white text-slate-900 shadow-md ring-1 ring-black/5" : "text-slate-500 hover:text-slate-700"
+                "flex-1 md:flex-none flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap",
+                activeTab === 'catalog' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
               )}
             >
-              <Tag size={18} /> แคตตาล็อกโปรฯ
+              <Tag size={15} className={activeTab === 'catalog' ? "text-emerald-600" : "text-slate-400"} /> 
+              <span>คลังโปรโมชั่น</span>
             </button>
             <button 
               onClick={() => setActiveTab('calculator')}
               className={cn(
-                "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all",
-                activeTab === 'calculator' ? "bg-white text-slate-900 shadow-md ring-1 ring-black/5" : "text-slate-500 hover:text-slate-700"
+                "flex-1 md:flex-none flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap",
+                activeTab === 'calculator' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
               )}
             >
-              <Calculator size={18} /> คำนวณออเดอร์
+              <Calculator size={15} className={activeTab === 'calculator' ? "text-emerald-600" : "text-slate-400"} /> 
+              <span>คำนวณออเดอร์</span>
             </button>
           </div>
         </div>
       </div>
 
-      <div className="p-8 max-w-[1600px] mx-auto w-full">
+      {/* ─── Main Content Container ─── */}
+      <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto w-full flex-1">
         <AnimatePresence mode="wait">
           {activeTab === 'sales' ? (
             <motion.div 
               key="sales-tab"
-              variants={containerVariants}
-              initial="hidden"
-              animate="visible"
-              exit="hidden"
-              className="grid grid-cols-1 xl:grid-cols-12 gap-5"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="grid grid-cols-1 xl:grid-cols-12 gap-6"
             >
               {/* Left Column: High-Density Customer Intake Form */}
-              <div className="xl:col-span-8 space-y-4">
-                <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm relative overflow-hidden">
-                  <div className="relative z-10 space-y-4">
-                    {/* Top Header & Searchable Dropdown */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+              <div className="xl:col-span-8 space-y-5">
+                <div className="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-7 shadow-xs relative overflow-hidden">
+                  <div className="space-y-5">
+                    
+                    {/* Header & Promo Dropdown */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
                           <Users size={16} />
                         </div>
-                        <h3 className="text-sm font-bold text-slate-800">ลงทะเบียนสมาชิกใหม่ & สมัครคอร์ส</h3>
-                      </div>
-                      <div className="flex flex-col sm:items-end w-full sm:w-auto relative">
-                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">เลือกโปรโมชั่นที่เสนอ</span>
-                        <div className="relative select-none w-full sm:w-64">
-                          <div 
-                            onClick={() => setIsPromoDropdownOpen(!isPromoDropdownOpen)}
-                            className="bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-emerald-600 flex items-center justify-between cursor-pointer hover:border-emerald-400 transition-all"
-                          >
-                            <span className="truncate">
-                              {customerInfo.selectedPromoId 
-                                ? promotions.find(p => p.id === customerInfo.selectedPromoId)?.name + ` (฿${Number(promotions.find(p => p.id === customerInfo.selectedPromoId)?.price || 0).toLocaleString()})`
-                                : 'เลือกโปรโมชั่นที่ต้องการ...'}
-                            </span>
-                            <span className="ml-2 text-emerald-500 text-[8px]">▼</span>
-                          </div>
-                          
-                          {isPromoDropdownOpen && (
-                            <>
-                              <div className="fixed inset-0 z-40" onClick={() => setIsPromoDropdownOpen(false)} />
-                              <div className="absolute right-0 top-full mt-1 w-80 bg-white border border-slate-200 rounded-xl shadow-xl p-2 space-y-2 z-50">
-                                <input 
-                                  type="text" 
-                                  placeholder="พิมพ์ค้นหาโปรโมชั่น..."
-                                  value={promoSearchQuery}
-                                  onChange={(e) => setPromoSearchQuery(e.target.value)}
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-normal focus:border-emerald-500 outline-none transition-all text-slate-700"
-                                />
-                                <div className="max-h-52 overflow-y-auto space-y-0.5 pr-1 custom-scrollbar">
-                                  <div 
-                                    onClick={() => {
-                                      setCustomerInfo({...customerInfo, selectedPromoId: '', packagePrice: ''});
-                                      setIsManualDeliveryFee(false);
-                                      setIsPromoDropdownOpen(false);
-                                      setPromoSearchQuery('');
-                                    }}
-                                    className="px-2 py-1 text-xs text-slate-500 hover:bg-slate-50 rounded cursor-pointer transition-all"
-                                  >
-                                    -- ไม่ระบุโปรโมชั่น --
-                                  </div>
-                                  {getSortedPromotions(promotions)
-                                    .filter(p => p.name.toLowerCase().includes(promoSearchQuery.toLowerCase()) || p.code.toLowerCase().includes(promoSearchQuery.toLowerCase()))
-                                    .map(p => (
-                                      <div 
-                                        key={p.id}
-                                        onClick={() => {
-                                          const code = (p.code || '').toUpperCase();
-                                          const promoType = (p.promotion_type || 'PINTO').toUpperCase();
-                                          let type: 'pinto' | 'promo' | 'retail' = 'pinto';
-                                          if (code.startsWith('MUSCLE') || p.name.includes('เพิ่มกล้าม')) {
-                                            type = 'promo';
-                                          } else if (promoType === 'RETAIL' || code.includes('WEEKEND') || code.includes('GROUP') || code.includes('RETAIL')) {
-                                            type = 'retail';
-                                          } else {
-                                            type = 'pinto';
-                                          }
-                                          
-                                          setCustomerInfo({
-                                            ...customerInfo, 
-                                            selectedPromoId: p.id,
-                                            memberType: type,
-                                            packagePrice: p.price
-                                          });
-                                          setIsManualDeliveryFee(false);
-                                          setIsPromoDropdownOpen(false);
-                                          setPromoSearchQuery('');
-                                        }}
-                                        className={`px-2 py-1.5 text-xs font-bold rounded cursor-pointer transition-all flex justify-between items-center ${
-                                          customerInfo.selectedPromoId === p.id 
-                                            ? 'bg-emerald-50 text-emerald-600' 
-                                            : 'text-slate-700 hover:bg-slate-50'
-                                        }`}
-                                      >
-                                        <span className="truncate mr-2 font-normal text-slate-700">{p.name}</span>
-                                        <span className="text-emerald-600 shrink-0 font-bold">฿{Number(p.price).toLocaleString()}</span>
-                                      </div>
-                                    ))}
-                                </div>
-                              </div>
-                            </>
-                          )}
+                        <div>
+                          <h2 className="text-sm sm:text-base font-bold text-slate-900">ลงทะเบียนสมาชิกใหม่ & สมัครคอร์ส</h2>
+                          <p className="text-[11px] text-slate-400">กรอกข้อมูลและเลือกแพ็กเกจเพื่อเปิดใช้งาน</p>
                         </div>
+                      </div>
+
+                      {/* Promo Dropdown Button */}
+                      <div className="relative w-full sm:w-72 select-none">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">เลือกโปรโมชั่นที่เสนอ</span>
+                        <div 
+                          onClick={() => setIsPromoDropdownOpen(!isPromoDropdownOpen)}
+                          className="bg-emerald-50/60 hover:bg-emerald-50 px-3.5 py-2 rounded-xl border border-emerald-200 text-xs font-bold text-emerald-800 flex items-center justify-between cursor-pointer transition-all"
+                        >
+                          <span className="truncate">
+                            {customerInfo.selectedPromoId 
+                              ? promotions.find(p => p.id === customerInfo.selectedPromoId)?.name + ` (฿${Number(promotions.find(p => p.id === customerInfo.selectedPromoId)?.price || 0).toLocaleString()})`
+                              : '-- เลือกโปรโมชั่นที่ต้องการ --'}
+                          </span>
+                          <ChevronDown size={14} className="text-emerald-600 shrink-0 ml-1.5" />
+                        </div>
+                        
+                        {isPromoDropdownOpen && (
+                          <>
+                            <div className="fixed inset-0 z-40" onClick={() => setIsPromoDropdownOpen(false)} />
+                            <div className="absolute right-0 top-full mt-1.5 w-full sm:w-80 bg-white border border-slate-200 rounded-2xl shadow-xl p-2.5 space-y-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                              <input 
+                                type="text" 
+                                placeholder="พิมพ์ค้นหาโปรโมชั่น..."
+                                value={promoSearchQuery}
+                                onChange={(e) => setPromoSearchQuery(e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
+                                className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:border-emerald-500 outline-none"
+                              />
+                              <div className="max-h-56 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+                                <div 
+                                  onClick={() => {
+                                    setCustomerInfo({...customerInfo, selectedPromoId: '', packagePrice: ''});
+                                    setIsManualDeliveryFee(false);
+                                    setIsPromoDropdownOpen(false);
+                                    setPromoSearchQuery('');
+                                  }}
+                                  className="px-2.5 py-1.5 text-xs text-slate-500 hover:bg-slate-50 rounded-lg cursor-pointer transition-all font-medium"
+                                >
+                                  -- ไม่ระบุโปรโมชั่น --
+                                </div>
+                                {getSortedPromotions(promotions)
+                                  .filter(p => p.name.toLowerCase().includes(promoSearchQuery.toLowerCase()) || p.code?.toLowerCase().includes(promoSearchQuery.toLowerCase()))
+                                  .map(p => (
+                                    <div 
+                                      key={p.id}
+                                      onClick={() => {
+                                        const code = (p.code || '').toUpperCase();
+                                        const promoType = (p.promotion_type || 'PINTO').toUpperCase();
+                                        let derivedType: 'pinto' | 'promo' | 'retail' = 'pinto';
+                                        if (code.startsWith('MUSCLE') || p.name.includes('เพิ่มกล้าม')) {
+                                          derivedType = 'promo';
+                                        } else if (promoType === 'RETAIL' || code.includes('WEEKEND') || code.includes('GROUP') || code.includes('RETAIL')) {
+                                          derivedType = 'retail';
+                                        }
+                                        
+                                        setCustomerInfo({
+                                          ...customerInfo, 
+                                          selectedPromoId: p.id,
+                                          memberType: derivedType,
+                                          packagePrice: p.price
+                                        });
+                                        setIsManualDeliveryFee(false);
+                                        setIsPromoDropdownOpen(false);
+                                        setPromoSearchQuery('');
+                                      }}
+                                      className={`px-2.5 py-2 text-xs rounded-xl cursor-pointer transition-all flex justify-between items-center ${
+                                        customerInfo.selectedPromoId === p.id 
+                                          ? 'bg-emerald-50 text-emerald-700 font-bold' 
+                                          : 'text-slate-700 hover:bg-slate-50 font-medium'
+                                      }`}
+                                    >
+                                      <span className="truncate mr-2">{p.name}</span>
+                                      <span className="text-emerald-600 font-mono font-bold shrink-0">฿{Number(p.price).toLocaleString()}</span>
+                                    </div>
+                                  ))}
+                              </div>
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
 
-                    {/* High-Density Fields Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      {/* Row 1 */}
+                    {/* High-Density Form Inputs */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                      
+                      {/* Phone Input with Real-time lookup */}
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">เบอร์โทรศัพท์ <span className="text-red-500">*</span></label>
+                        <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                          เบอร์โทรศัพท์ <span className="text-red-500">*</span>
+                        </label>
                         <div className="relative">
                           <input 
                             type="text" 
@@ -636,115 +652,120 @@ ${customerInfo.googleMapsUrl ? `📍 พิกัด: ${customerInfo.googleMapsU
                             value={customerInfo.phone} 
                             onChange={(e) => setCustomerInfo({...customerInfo, phone: e.target.value})}
                             className={cn(
-                              "w-full px-3 py-1.5 bg-slate-50 border rounded-lg text-xs outline-none transition-all",
+                              "w-full px-3 py-2 bg-slate-50 border rounded-xl text-xs outline-none transition-all font-mono",
                               matchedMember ? "border-amber-300 bg-amber-50 text-amber-900 pr-24 font-bold" : "border-slate-200 text-slate-800 focus:border-emerald-500 focus:bg-white"
                             )}
                           />
                           {isSearchingPhone && (
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]">กำลังค้นหา...</span>
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-[10px]">ค้นหา...</span>
                           )}
                           {matchedMember && !isSearchingPhone && (
                             <button
                               type="button"
                               onClick={handleLoadMatchedMember}
-                              className="absolute right-1 top-1/2 -translate-y-1/2 bg-amber-500 hover:bg-amber-600 text-white text-[9px] font-bold px-2 py-1 rounded-md transition-all"
+                              className="absolute right-1.5 top-1/2 -translate-y-1/2 bg-amber-500 hover:bg-amber-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg shadow-xs transition-all active:scale-95"
                             >
-                              โหลดข้อมูลเก่า
+                              ดึงข้อมูลเดิม
                             </button>
                           )}
                         </div>
                         {matchedMember && (
-                          <span className="text-[10px] text-amber-600 font-bold mt-1 block">
-                            พบประวัติของ คุณ{matchedMember.full_name || matchedMember.nickname}
+                          <span className="text-[10px] text-amber-700 font-bold mt-1 block">
+                            ✨ พบข้อมูลของ คุณ{matchedMember.full_name || matchedMember.line_display_name}
                           </span>
                         )}
                       </div>
 
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">ชื่อ-นามสกุล <span className="text-red-500">*</span></label>
+                        <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">
+                          ชื่อ-นามสกุล <span className="text-red-500">*</span>
+                        </label>
                         <input 
                           type="text" 
-                          placeholder="คุณณัฐพล"
+                          placeholder="คุณสมชาย สุขภาพดี"
                           value={customerInfo.name} 
                           onChange={(e) => setCustomerInfo({...customerInfo, name: e.target.value})}
-                          className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:border-emerald-500 focus:bg-white outline-none transition-all font-medium"
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:border-emerald-500 focus:bg-white outline-none transition-all font-medium"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">ชื่อเล่น</label>
+                        <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">ชื่อเล่น / LINE Display</label>
                         <input 
                           type="text" 
-                          placeholder="ณัฐ"
+                          placeholder="เช่น ตั้ม"
                           value={customerInfo.nickname} 
                           onChange={(e) => setCustomerInfo({...customerInfo, nickname: e.target.value})}
-                          className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:border-emerald-500 focus:bg-white outline-none transition-all font-medium"
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:border-emerald-500 focus:bg-white outline-none transition-all font-medium"
                         />
                       </div>
 
-                      {/* Row 2 */}
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">LINE ID</label>
+                        <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">LINE ID</label>
                         <input 
                           type="text" 
-                          placeholder="ไอดีไลน์"
+                          placeholder="@lineid"
                           value={customerInfo.lineId} 
                           onChange={(e) => setCustomerInfo({...customerInfo, lineId: e.target.value})}
-                          className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:border-emerald-500 focus:bg-white outline-none transition-all font-medium"
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:border-emerald-500 focus:bg-white outline-none transition-all font-medium"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">วันที่เริ่มจัดส่ง</label>
+                        <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">วันที่เริ่มจัดส่ง</label>
                         <input 
                           type="date" 
                           value={customerInfo.startDate} 
                           onChange={(e) => setCustomerInfo({...customerInfo, startDate: e.target.value})}
-                          className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:border-emerald-500 focus:bg-white outline-none transition-all font-bold"
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:border-emerald-500 focus:bg-white outline-none transition-all font-bold"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">รอบเวลาจัดส่ง</label>
+                        <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">รอบเวลาจัดส่ง</label>
                         <select 
                           value={customerInfo.deliverySlot} 
                           onChange={(e) => setCustomerInfo({...customerInfo, deliverySlot: e.target.value})}
-                          className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:border-emerald-500 focus:bg-white outline-none transition-all font-bold"
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:border-emerald-500 focus:bg-white outline-none transition-all font-bold"
                         >
-                          <option value="11:00 - 13:00">11:00 - 13:00 (รอบเช้า)</option>
+                          <option value="11:00 - 13:00">11:00 - 13:00 (รอบเที่ยง)</option>
                           <option value="15:00 - 17:00">15:00 - 17:00 (รอบเย็น)</option>
                         </select>
                       </div>
 
-                      {/* Row 3 */}
+                      {/* Maps URL */}
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Google Maps URL</label>
-                        <input 
-                          type="text" 
-                          placeholder="วางลิ้งค์พิกัด..."
-                          value={customerInfo.googleMapsUrl} 
-                          onChange={(e) => setCustomerInfo({...customerInfo, googleMapsUrl: e.target.value})}
-                          className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:border-emerald-500 focus:bg-white outline-none transition-all truncate font-medium"
-                        />
+                        <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">Google Maps URL</label>
+                        <div className="relative">
+                          <input 
+                            type="text" 
+                            placeholder="วางลิงก์พิกัดแผนที่..."
+                            value={customerInfo.googleMapsUrl} 
+                            onChange={(e) => setCustomerInfo({...customerInfo, googleMapsUrl: e.target.value})}
+                            className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:border-emerald-500 focus:bg-white outline-none transition-all truncate font-medium"
+                          />
+                          <MapPin size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                        </div>
                       </div>
 
+                      {/* Distance & Area Type */}
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">ระยะทาง (กม.)</label>
+                          <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">ระยะทาง (กม.)</label>
                           <input 
                             type="number" 
-                            placeholder="5.5"
+                            placeholder="0"
                             value={customerInfo.distanceKm} 
                             onChange={(e) => setCustomerInfo({...customerInfo, distanceKm: e.target.value})}
-                            className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:border-emerald-500 focus:bg-white outline-none transition-all font-bold"
+                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:border-emerald-500 focus:bg-white outline-none transition-all font-mono font-bold"
                           />
                         </div>
                         <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">เขตพื้นที่</label>
+                          <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">เขตพื้นที่</label>
                           <select 
                             value={customerInfo.locationType} 
                             onChange={(e) => setCustomerInfo({...customerInfo, locationType: e.target.value})}
-                            className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:border-emerald-500 focus:bg-white outline-none transition-all font-bold"
+                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:border-emerald-500 focus:bg-white outline-none transition-all font-bold"
                           >
                             <option value="inside">ในเขตเมือง</option>
                             <option value="outside">นอกเขตเมือง</option>
@@ -752,22 +773,23 @@ ${customerInfo.googleMapsUrl ? `📍 พิกัด: ${customerInfo.googleMapsU
                         </div>
                       </div>
 
+                      {/* Package Price & Delivery Fee */}
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">ราคาแพ็กเกจ (บาท)</label>
+                          <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">ราคาแพ็กเกจ (฿)</label>
                           <input 
                             type="number" 
                             placeholder="0"
                             value={customerInfo.packagePrice} 
                             onChange={(e) => setCustomerInfo({...customerInfo, packagePrice: e.target.value})}
-                            className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:border-emerald-500 focus:bg-white outline-none transition-all font-bold"
+                            className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:border-emerald-500 focus:bg-white outline-none transition-all font-mono font-bold"
                           />
                         </div>
                         <div>
-                          <label className="block text-[10px] font-bold text-indigo-600 uppercase mb-1 flex items-center justify-between">
-                            <span>ค่าจัดส่ง (บาท)</span>
+                          <label className="block text-[11px] font-bold text-emerald-700 uppercase mb-1 flex items-center justify-between">
+                            <span>ค่าจัดส่ง (฿)</span>
                             {isManualDeliveryFee && (
-                              <button type="button" onClick={() => setIsManualDeliveryFee(false)} className="text-[9px] bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-1.5 py-0.5 rounded transition-all">ออโต้</button>
+                              <button type="button" onClick={() => setIsManualDeliveryFee(false)} className="text-[9px] bg-emerald-100 hover:bg-emerald-200 text-emerald-800 px-1.5 py-0.5 rounded transition-all">ออโต้</button>
                             )}
                           </label>
                           <input 
@@ -778,110 +800,98 @@ ${customerInfo.googleMapsUrl ? `📍 พิกัด: ${customerInfo.googleMapsU
                               setIsManualDeliveryFee(true);
                               setCustomerInfo({...customerInfo, deliveryFee: e.target.value});
                             }}
-                            className="w-full px-3 py-1.5 bg-indigo-50 border border-indigo-200 rounded-lg text-xs text-indigo-700 focus:border-indigo-500 outline-none transition-all font-black text-sm"
+                            className="w-full px-3 py-2 bg-emerald-50/70 border border-emerald-200 rounded-xl text-xs text-emerald-800 focus:border-emerald-500 outline-none transition-all font-mono font-black"
                           />
                         </div>
                       </div>
 
-                      {/* Row 4 */}
+                      {/* Member Type Switcher */}
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">ประเภทลูกค้า</label>
-                        <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200">
-                          <button 
-                            type="button"
-                            onClick={() => setCustomerInfo({...customerInfo, memberType: 'pinto'})}
-                            className={cn(
-                              "flex-1 py-1 text-[9px] font-bold rounded transition-all",
-                              customerInfo.memberType === 'pinto' ? "bg-white shadow-sm text-indigo-600" : "text-slate-500"
-                            )}
-                          >
-                            ปิ่นโต
-                          </button>
-                          <button 
-                            type="button"
-                            onClick={() => setCustomerInfo({...customerInfo, memberType: 'promo'})}
-                            className={cn(
-                              "flex-1 py-1 text-[9px] font-bold rounded transition-all",
-                              customerInfo.memberType === 'promo' ? "bg-white shadow-sm text-blue-600" : "text-slate-500"
-                            )}
-                          >
-                            โปรฯ
-                          </button>
-                          <button 
-                            type="button"
-                            onClick={() => setCustomerInfo({...customerInfo, memberType: 'retail'})}
-                            className={cn(
-                              "flex-1 py-1 text-[9px] font-bold rounded transition-all",
-                              customerInfo.memberType === 'retail' ? "bg-white shadow-sm text-emerald-600" : "text-slate-500"
-                            )}
-                          >
-                            รายย่อย
-                          </button>
+                        <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">ประเภทลูกค้า</label>
+                        <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/80 gap-1">
+                          {[
+                            { key: 'pinto', label: 'ปิ่นโต' },
+                            { key: 'promo', label: 'โปรฯ' },
+                            { key: 'retail', label: 'รายย่อย' }
+                          ].map((t) => (
+                            <button 
+                              key={t.key}
+                              type="button"
+                              onClick={() => setCustomerInfo({...customerInfo, memberType: t.key})}
+                              className={cn(
+                                "flex-1 py-1 text-xs font-bold rounded-lg transition-all",
+                                customerInfo.memberType === t.key ? "bg-white shadow-xs text-slate-900" : "text-slate-500 hover:text-slate-700"
+                              )}
+                            >
+                              {t.label}
+                            </button>
+                          ))}
                         </div>
                       </div>
 
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">เป้าหมายสุขภาพ</label>
+                        <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">เป้าหมายสุขภาพ</label>
                         <select 
                           value={customerInfo.healthGoal} 
                           onChange={(e) => setCustomerInfo({...customerInfo, healthGoal: e.target.value})}
-                          className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:border-emerald-500 focus:bg-white outline-none transition-all font-medium"
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:border-emerald-500 focus:bg-white outline-none transition-all font-medium"
                         >
                           <option value="ไม่ระบุ">ไม่ระบุ</option>
                           <option value="ลดน้ำหนัก">ลดน้ำหนัก</option>
                           <option value="สร้างกล้ามเนื้อ">สร้างกล้ามเนื้อ</option>
-                          <option value="ดูแลสุขภาพ">ดูแลสุขภาพ</option>
+                          <option value="ดูแลสุขภาพ">ดูแลสุขภาพ (Clean Balance)</option>
                           <option value="คุมโรค">คุมโรค (เบาหวาน/ความดัน)</option>
                         </select>
                       </div>
 
                       <div>
-                        <label className="block text-[10px] font-bold text-red-500 uppercase mb-1">สิ่งที่แพ้ / ไม่ทาน</label>
+                        <label className="block text-[11px] font-bold text-red-600 uppercase mb-1">สิ่งที่แพ้ / ไม่ทาน</label>
                         <input 
                           type="text" 
                           placeholder="เช่น ไม่ทานเผ็ด, แพ้ถั่ว"
                           value={customerInfo.allergyNotes} 
                           onChange={(e) => setCustomerInfo({...customerInfo, allergyNotes: e.target.value})}
-                          className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:border-red-400 focus:bg-white outline-none transition-all font-medium"
+                          className="w-full px-3 py-2 bg-red-50/40 border border-red-200 rounded-xl text-xs text-red-800 focus:border-red-400 focus:bg-white outline-none transition-all font-medium"
                         />
                       </div>
 
-                      {/* Row 5: Days checklist (Hidden for Retail) */}
+                      {/* Delivery Days (Hidden for Retail) */}
                       {customerInfo.memberType !== 'retail' && (
-                        <div className="md:col-span-3">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-t border-slate-100 pt-2 pb-1">
+                        <div className="md:col-span-3 border-t border-slate-100 pt-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
                             <div className="flex items-center gap-2">
-                              <label className="block text-[10px] font-bold text-slate-500 uppercase">วันส่งประจำ</label>
-                              <span className="text-[9px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
-                                {customerInfo.deliveryDays.length} วัน/สัปดาห์
+                              <label className="block text-[11px] font-bold text-slate-600 uppercase">วันส่งประจำ</label>
+                              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md">
+                                {customerInfo.deliveryDays.length} วัน / สัปดาห์
                               </span>
                             </div>
                             <div className="flex items-center gap-1">
-                              <span className="text-[9px] text-slate-400">ปุ่มลัด:</span>
+                              <span className="text-[10px] text-slate-400">ปุ่มลัด:</span>
                               <button 
                                 type="button"
                                 onClick={() => applyDaysPreset('mon-sat')}
-                                className="px-2 py-0.5 text-[9px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded border border-slate-200 transition-all"
+                                className="px-2 py-0.5 text-[10px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg border border-slate-200 transition-all"
                               >
                                 จ-ส (ปกติ)
                               </button>
                               <button 
                                 type="button"
                                 onClick={() => applyDaysPreset('mon-fri')}
-                                className="px-2 py-0.5 text-[9px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded border border-slate-200 transition-all"
+                                className="px-2 py-0.5 text-[10px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg border border-slate-200 transition-all"
                               >
                                 จ-ศ
                               </button>
                               <button 
                                 type="button"
                                 onClick={() => applyDaysPreset('everyday')}
-                                className="px-2 py-0.5 text-[9px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded border border-slate-200 transition-all"
+                                className="px-2 py-0.5 text-[10px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg border border-slate-200 transition-all"
                               >
                                 ทุกวัน
                               </button>
                             </div>
                           </div>
-                          <div className="flex gap-1">
+                          
+                          <div className="flex gap-1.5 overflow-x-auto pb-1">
                             {DAYS.map(day => {
                               const isSelected = customerInfo.deliveryDays.includes(day.id);
                               return (
@@ -890,10 +900,10 @@ ${customerInfo.googleMapsUrl ? `📍 พิกัด: ${customerInfo.googleMapsU
                                   type="button"
                                   onClick={() => toggleDay(day.id)}
                                   className={cn(
-                                    "w-8 h-8 rounded-lg font-bold text-xs transition-all border flex items-center justify-center",
+                                    "w-9 h-9 rounded-xl font-bold text-xs transition-all border flex items-center justify-center",
                                     isSelected 
-                                      ? "bg-emerald-500 border-emerald-500 text-white shadow-sm"
-                                      : "bg-white border-slate-200 text-slate-400 hover:border-slate-300"
+                                      ? "bg-emerald-600 border-emerald-600 text-white shadow-xs" 
+                                      : "bg-white border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600"
                                   )}
                                 >
                                   {day.label}
@@ -904,21 +914,21 @@ ${customerInfo.googleMapsUrl ? `📍 พิกัด: ${customerInfo.googleMapsU
                         </div>
                       )}
 
-                      {/* Row 6: Detailed Address */}
+                      {/* Detailed Address */}
                       <div className="md:col-span-3">
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">ที่อยู่จัดส่งโดยละเอียด</label>
+                        <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">ที่อยู่จัดส่งโดยละเอียด</label>
                         <textarea 
-                          placeholder="บ้านเลขที่, ถนน, หมู่บ้าน, จุดสังเกต..."
+                          placeholder="บ้านเลขที่, ซอย, ถนน, หมู่บ้าน, จุดสังเกต..."
                           rows={2}
                           value={customerInfo.address} 
                           onChange={(e) => setCustomerInfo({...customerInfo, address: e.target.value})}
-                          className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:border-emerald-500 focus:bg-white outline-none transition-all resize-none font-medium"
+                          className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:border-emerald-500 focus:bg-white outline-none transition-all resize-none font-medium"
                         />
                       </div>
                     </div>
 
                     {/* Action buttons */}
-                    <div className="flex gap-3 border-t border-slate-100 pt-3">
+                    <div className="flex flex-wrap sm:flex-nowrap gap-2.5 border-t border-slate-100 pt-4">
                       <button 
                         type="button"
                         onClick={() => setCustomerInfo({
@@ -930,245 +940,257 @@ ${customerInfo.googleMapsUrl ? `📍 พิกัด: ${customerInfo.googleMapsU
                           googleMapsUrl: '', distanceKm: '', locationType: 'inside', deliveryFee: '',
                           packagePrice: ''
                         })}
-                        className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-lg text-xs font-bold transition-all"
+                        className="px-4 py-2.5 border border-slate-200 hover:bg-slate-100 text-slate-600 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5"
                       >
-                        ล้างฟอร์ม
+                        <RotateCcw size={14} /> ล้างฟอร์ม
                       </button>
+                      
                       <button 
                         type="button"
                         onClick={handleSaveCustomer}
                         disabled={isSubmitting}
-                        className="flex-1 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-bold text-xs shadow-md transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                        className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-md shadow-emerald-600/20 transition-all active:scale-[0.99] flex items-center justify-center gap-2 disabled:opacity-50"
                       >
-                        {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />} 
-                        {customerInfo.memberType === 'retail' ? 'บันทึกออเดอร์รายย่อย' : 'บันทึกและสมัครแพ็กเกจ'}
+                        {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />} 
+                        {customerInfo.memberType === 'retail' ? 'บันทึกออเดอร์รายย่อย' : 'บันทึกข้อมูลและเปิดแพ็กเกจ'}
                       </button>
                     </div>
+
                   </div>
                 </div>
               </div>
 
               {/* Right Column: Sales Toolkit (Order Summary + Scripts) */}
-              <div className="xl:col-span-4 space-y-4">
-                <div className="sticky top-[100px] space-y-4">
+              <div className="xl:col-span-4 space-y-5">
+                <div className="sticky top-[100px] space-y-5">
+                  
                   {/* Order Summary Card */}
-                  <div className="bg-white rounded-2xl p-5 border-2 border-emerald-500/20 shadow-sm relative overflow-hidden">
-                    <div className="relative z-10 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                            <Check size={16} />
-                          </div>
-                          <h4 className="text-xs font-bold text-slate-900">สรุปรายละเอียดออเดอร์</h4>
+                  <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                          <CheckCircle2 size={16} />
                         </div>
-                        <button 
-                          onClick={() => handleCopyText('summary', generateOrderSummary())}
-                          className="px-3 py-1 bg-slate-900 text-white rounded-lg text-[10px] font-bold hover:bg-slate-800 transition-all flex items-center gap-1 shadow-sm"
-                        >
-                          <Copy size={10} /> COPY TEXT
-                        </button>
-                      </div>
-
-                      <div className="bg-slate-50 rounded-lg p-3 border border-slate-100 font-mono text-[10px] leading-relaxed text-slate-700 max-h-48 overflow-y-auto whitespace-pre-wrap select-all custom-scrollbar">
-                        {generateOrderSummary()}
+                        <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">สรุปรายละเอียดออเดอร์</h3>
                       </div>
                       
-                      <div className="flex items-center justify-between p-3 bg-emerald-50 rounded-lg border border-emerald-100">
-                        <div>
-                          <p className="text-[9px] font-bold text-emerald-600 uppercase">ยอดโอนสุทธิ</p>
-                          <p className="text-lg font-black text-emerald-700">
-                            ฿{(Number(customerInfo.packagePrice || 0) + Number(customerInfo.deliveryFee || 0)).toLocaleString()}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[9px] font-bold text-slate-400 uppercase">รวมค่าส่งแล้ว</p>
-                          <p className="text-[10px] font-bold text-slate-600">
-                            +{Number(customerInfo.deliveryFee || 0).toLocaleString()} บาท
-                          </p>
-                        </div>
+                      <button 
+                        onClick={() => handleCopyText('summary', generateOrderSummary())}
+                        className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-[10px] font-bold transition-all flex items-center gap-1 shadow-xs active:scale-95"
+                      >
+                        <Copy size={11} /> คัดลอกข้อความ
+                      </button>
+                    </div>
+
+                    <div className="bg-slate-50 rounded-2xl p-3.5 border border-slate-100 font-mono text-[11px] leading-relaxed text-slate-700 max-h-48 overflow-y-auto whitespace-pre-wrap select-all custom-scrollbar">
+                      {generateOrderSummary()}
+                    </div>
+                    
+                    {/* Price summary badge */}
+                    <div className="flex items-center justify-between p-3.5 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-2xl border border-emerald-100">
+                      <div>
+                        <p className="text-[10px] font-bold text-emerald-700 uppercase">ยอดโอนสุทธิ</p>
+                        <p className="text-xl font-bold text-emerald-800 font-mono tracking-tight">
+                          ฿{(Number(customerInfo.packagePrice || 0) + Number(customerInfo.deliveryFee || 0)).toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase">รวมค่าส่งแล้ว</p>
+                        <p className="text-xs font-mono font-bold text-slate-600">
+                          +{Number(customerInfo.deliveryFee || 0).toLocaleString()} ฿
+                        </p>
                       </div>
                     </div>
                   </div>
 
                   {/* Ready-to-use Templates / Sales Script */}
-                  <div className="bg-slate-900 rounded-2xl p-5 shadow-sm text-white relative overflow-hidden">
-                    <div className="relative z-10 space-y-4">
+                  <div className="bg-slate-900 rounded-3xl p-5 sm:p-6 shadow-xl shadow-slate-900/10 text-white space-y-4 relative overflow-hidden">
+                    <div className="absolute -right-8 -bottom-8 w-36 h-36 bg-emerald-500/10 rounded-full blur-2xl" />
+                    
+                    <div className="flex items-center justify-between relative z-10">
                       <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-white/10 text-emerald-400 flex items-center justify-center">
+                        <div className="w-8 h-8 rounded-xl bg-white/10 text-emerald-400 flex items-center justify-center">
                           <Sparkles size={16} />
                         </div>
-                        <h4 className="text-xs font-bold">เทมเพลตและบทพูดแนะนำการขาย</h4>
-                      </div>
-
-                      <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1 custom-scrollbar">
-                        {/* Dynamic Scripts */}
-                        {customerInfo.selectedPromoId && promotions.find(p => p.id === customerInfo.selectedPromoId)?.sales_script && (
-                          <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg space-y-1.5">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[8px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-400/20 px-1.5 py-0.5 rounded">
-                                บทพูดโปรนี้
-                              </span>
-                              <button 
-                                onClick={() => handleCopyText('dynamic', promotions.find(p => p.id === customerInfo.selectedPromoId)?.sales_script)}
-                                className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500 text-white hover:bg-emerald-600 transition-all"
-                              >
-                                <Copy size={8} /> Copy
-                              </button>
-                            </div>
-                            <p className="text-[10px] text-emerald-100 italic leading-relaxed">
-                              "{promotions.find(p => p.id === customerInfo.selectedPromoId)?.sales_script}"
-                            </p>
-                          </div>
-                        )}
-
-                        {DEFAULT_TEMPLATES.map((tmpl) => (
-                          <div key={tmpl.id} className="p-3 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-all space-y-1.5">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[8px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded">
-                                {tmpl.category}
-                              </span>
-                              <button 
-                                onClick={() => handleCopyText(tmpl.id, tmpl.content)}
-                                className={cn(
-                                  "flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold transition-all",
-                                  copiedId === tmpl.id 
-                                    ? "bg-emerald-500 text-white" 
-                                    : "bg-white/10 text-white hover:bg-emerald-500"
-                                )}
-                              >
-                                {copiedId === tmpl.id ? <Check size={10} /> : <Copy size={10} />}
-                                {copiedId === tmpl.id ? 'Copied' : 'Copy'}
-                              </button>
-                            </div>
-                            <p className="text-[10px] font-bold text-white">{tmpl.label}</p>
-                            <p className="text-[10px] text-slate-400 leading-relaxed italic">"{tmpl.content}"</p>
-                          </div>
-                        ))}
+                        <h3 className="text-xs font-bold text-white uppercase tracking-wider">เทมเพลตบทพูดแนะนำการขาย</h3>
                       </div>
                     </div>
+
+                    <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1 custom-scrollbar relative z-10">
+                      {/* Dynamic Scripts from Selected Promo */}
+                      {customerInfo.selectedPromoId && promotions.find(p => p.id === customerInfo.selectedPromoId)?.sales_script && (
+                        <div className="p-3.5 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[9px] font-black uppercase tracking-wider text-emerald-300 bg-emerald-400/20 px-2 py-0.5 rounded-md">
+                              บทพูดโปรนี้
+                            </span>
+                            <button 
+                              onClick={() => handleCopyText('dynamic', promotions.find(p => p.id === customerInfo.selectedPromoId)?.sales_script)}
+                              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold bg-emerald-500 hover:bg-emerald-600 text-white transition-all active:scale-95"
+                            >
+                              <Copy size={10} /> คัดลอก
+                            </button>
+                          </div>
+                          <p className="text-xs text-emerald-100 italic leading-relaxed">
+                            "{promotions.find(p => p.id === customerInfo.selectedPromoId)?.sales_script}"
+                          </p>
+                        </div>
+                      )}
+
+                      {DEFAULT_TEMPLATES.map((tmpl) => (
+                        <div key={tmpl.id} className="p-3.5 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-md">
+                              {tmpl.label}
+                            </span>
+                            <button 
+                              onClick={() => handleCopyText(tmpl.id, tmpl.content)}
+                              className={cn(
+                                "flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold transition-all active:scale-95",
+                                copiedId === tmpl.id ? "bg-emerald-500 text-white" : "bg-white/10 text-white hover:bg-emerald-600"
+                              )}
+                            >
+                              {copiedId === tmpl.id ? <Check size={10} /> : <Copy size={10} />}
+                              {copiedId === tmpl.id ? 'คัดลอกแล้ว' : 'คัดลอก'}
+                            </button>
+                          </div>
+                          <p className="text-xs text-slate-300 leading-relaxed italic">"{tmpl.content}"</p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
+
                 </div>
               </div>
             </motion.div>
           ) : activeTab === 'catalog' ? (
             <motion.div 
               key="catalog-tab"
-              variants={containerVariants}
-              initial="hidden"
-              animate="visible"
-              exit="hidden"
-              className="space-y-8"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="space-y-6"
             >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center">
-                       <Tag size={20} />
-                    </div>
-                    <div>
-                       <h3 className="text-xl font-bold">คลังโปรโมชั่นทั้งหมด</h3>
-                       <p className="text-xs text-slate-500">จัดการข้อมูลแพ็กเกจและโปรโมชั่นในฐานข้อมูล</p>
-                    </div>
-                 </div>
-                 <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
-                    <input 
-                       type="text" 
-                       placeholder="พิมพ์ค้นหาโปรโมชั่นในคลัง..."
-                       value={catalogSearchQuery}
-                       onChange={(e) => setCatalogSearchQuery(e.target.value)}
-                       className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs outline-none w-64 focus:border-emerald-500"
-                    />
-                    <button 
-                       onClick={() => setIsModalOpen(true)}
-                       className="flex items-center gap-2 px-6 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold shadow-xl shadow-slate-900/10 hover:bg-slate-800 transition-all"
-                    >
-                       <Plus size={16} /> เพิ่มโปรโมชั่นใหม่
-                    </button>
-                 </div>
+              {/* Catalog Top Toolbar */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                    <Tag size={20} />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900">คลังโปรโมชั่นทั้งหมด</h2>
+                    <p className="text-xs text-slate-500">จัดการข้อมูลแพ็กเกจและโปรโมชั่นในฐานข้อมูล</p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+                  <input 
+                    type="text" 
+                    placeholder="ค้นหาชื่อ หรือ รหัสโปรฯ..."
+                    value={catalogSearchQuery}
+                    onChange={(e) => setCatalogSearchQuery(e.target.value)}
+                    className="flex-1 sm:w-64 px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-emerald-500 focus:bg-white transition-all font-medium"
+                  />
+                  <button 
+                    onClick={() => setIsModalOpen(true)}
+                    className="flex items-center gap-1.5 px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold shadow-sm hover:bg-slate-800 transition-all active:scale-95"
+                  >
+                    <Plus size={15} /> เพิ่มโปรโมชั่นใหม่
+                  </button>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {/* Promotions Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                 {isLoading ? (
                   Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="bg-white rounded-3xl border border-slate-200 h-64 animate-pulse" />
+                    <div key={i} className="bg-white rounded-3xl border border-slate-200/80 h-72 animate-pulse" />
                   ))
                 ) : promotions.length > 0 ? (
                   getSortedPromotions(promotions)
-                    .filter(p => p.name.toLowerCase().includes(catalogSearchQuery.toLowerCase()) || p.code.toLowerCase().includes(catalogSearchQuery.toLowerCase()))
+                    .filter(p => p.name.toLowerCase().includes(catalogSearchQuery.toLowerCase()) || p.code?.toLowerCase().includes(catalogSearchQuery.toLowerCase()))
                     .map((promo) => {
                       return (
-                      <div key={promo.id} className="bg-white rounded-[2rem] border border-slate-200 overflow-hidden shadow-lg shadow-slate-200/40 hover:shadow-2xl hover:border-emerald-500/30 transition-all group flex flex-col">
-                        <div className="p-6 bg-slate-900 text-white flex flex-col gap-1 relative overflow-hidden">
-                           <div className="relative z-10">
-                              <div className="flex items-center justify-between mb-4">
-                                 <span className="text-[10px] font-black bg-emerald-500 px-2.5 py-1 rounded-md uppercase tracking-wider">
-                                    {promo.promotion_type}
-                                 </span>
-                                 <div className="flex gap-2">
-                                    <button 
-                                      onClick={() => handleDeletePromotion(promo.id)}
-                                      className="w-8 h-8 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all"
-                                    >
-                                       <Trash2 size={14} />
-                                    </button>
-                                 </div>
+                        <div 
+                          key={promo.id} 
+                          className="bg-white rounded-3xl border border-slate-200/80 overflow-hidden shadow-xs hover:shadow-md hover:border-emerald-400/80 transition-all group flex flex-col justify-between"
+                        >
+                          <div className="p-5 bg-slate-900 text-white relative overflow-hidden">
+                            <div className="relative z-10 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-bold bg-emerald-500 text-white px-2.5 py-0.5 rounded-lg uppercase tracking-wider">
+                                  {promo.promotion_type}
+                                </span>
+                                <button 
+                                  onClick={() => handleDeletePromotion(promo.id)}
+                                  className="w-7 h-7 rounded-lg bg-red-500/20 text-red-400 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all"
+                                  title="ลบโปรโมชั่น"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
                               </div>
-                              <h4 className="text-lg font-bold line-clamp-1">{promo.name}</h4>
-                              <p className="text-[10px] text-slate-400">ชื่อ: {promo.code}</p>
-                           </div>
-                           <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl translate-x-1/2 -translate-y-1/2" />
-                        </div>
-                        
-                        <div className="p-6 flex-1 space-y-5">
-                           <div className="flex justify-between items-end">
+                              <h3 className="text-base font-bold text-white line-clamp-1">{promo.name}</h3>
+                              <p className="text-[10px] text-slate-400 font-mono">CODE: {promo.code}</p>
+                            </div>
+                            <div className="absolute top-0 right-0 w-28 h-28 bg-emerald-500/10 rounded-full blur-2xl translate-x-1/2 -translate-y-1/2" />
+                          </div>
+                          
+                          <div className="p-5 flex-1 space-y-4">
+                            <div className="flex justify-between items-baseline">
                               <div>
-                                 <p className="text-[10px] font-bold text-slate-400 uppercase">ราคาแพ็กเกจ</p>
-                                 <p className="text-2xl font-black text-slate-900">฿{(promo.price || 0).toLocaleString()}</p>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase">ราคาแพ็กเกจ</p>
+                                <p className="text-xl font-bold font-mono text-slate-900">฿{(promo.price || 0).toLocaleString()}</p>
                               </div>
                               <div className="text-right">
-                                 <p className="text-[10px] font-bold text-slate-400 uppercase">จำนวนมื้อ</p>
-                                 <p className="text-lg font-bold text-slate-800">{promo.meals_count || '0'} มื้อ</p>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase">จำนวนมื้อ</p>
+                                <p className="text-base font-bold font-mono text-slate-800">{promo.meals_count || '0'} มื้อ</p>
                               </div>
-                           </div>
+                            </div>
 
-                           <div className="h-px bg-slate-100" />
-
-                           <div className="grid grid-cols-2 gap-4">
-                              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
-                                 <p className="text-[9px] font-bold text-slate-400 uppercase mb-1 flex items-center gap-1"><Package size={10} /> เฉลี่ยมื้อละ</p>
-                                 <p className="text-sm font-black text-indigo-600">฿{promo.meals_count > 0 ? (promo.price / promo.meals_count).toFixed(2) : '0'}</p>
+                            <div className="grid grid-cols-2 gap-2.5">
+                              <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100">
+                                <p className="text-[9px] font-bold text-slate-400 uppercase mb-0.5 flex items-center gap-1">
+                                  <Package size={10} /> เฉลี่ยมื้อละ
+                                </p>
+                                <p className="text-xs font-mono font-bold text-slate-800">
+                                  ฿{promo.meals_count > 0 ? (promo.price / promo.meals_count).toFixed(2) : '0'}
+                                </p>
                               </div>
-                              <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-100">
-                                 <p className="text-[9px] font-bold text-emerald-600/60 uppercase mb-1 flex items-center gap-1"><Clock size={10} /> ระยะเวลา</p>
-                                 <p className="text-sm font-black text-emerald-600">{promo.days_count || '0'} วัน</p>
+                              <div className="p-2.5 bg-emerald-50/60 rounded-xl border border-emerald-100">
+                                <p className="text-[9px] font-bold text-emerald-700 uppercase mb-0.5 flex items-center gap-1">
+                                  <Clock size={10} /> ระยะเวลา
+                                </p>
+                                <p className="text-xs font-mono font-bold text-emerald-800">{promo.days_count || '0'} วัน</p>
                               </div>
-                           </div>
+                            </div>
 
-                           {promo.sales_script && (
-                             <div className="p-3 bg-indigo-50 rounded-xl border border-indigo-100">
-                                <p className="text-[9px] font-bold text-indigo-400 uppercase mb-1">Sales Script</p>
-                                <p className="text-[10px] text-indigo-700 italic line-clamp-2">"{promo.sales_script}"</p>
-                             </div>
-                           )}
-                        </div>
+                            {promo.sales_script && (
+                              <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100">
+                                <p className="text-[9px] font-bold text-slate-400 uppercase mb-0.5">Sales Script</p>
+                                <p className="text-[11px] text-slate-600 italic line-clamp-2">"{promo.sales_script}"</p>
+                              </div>
+                            )}
+                          </div>
 
-                        <div className="p-4 bg-slate-50 border-t border-slate-100">
-                           <button 
-                             onClick={() => setSelectedPromo(promo)}
-                             className="w-full py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-bold hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-100 transition-all flex items-center justify-center gap-2"
-                           >
+                          <div className="p-3.5 bg-slate-50 border-t border-slate-100">
+                            <button 
+                              onClick={() => setSelectedPromo(promo)}
+                              className="w-full py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-xs font-bold hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-all flex items-center justify-center gap-1.5 shadow-xs"
+                            >
                               <Info size={14} /> ดูเงื่อนไขและรายละเอียด
-                           </button>
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })
+                      );
+                    })
                 ) : (
-                  <div className="col-span-full py-20 text-center bg-white rounded-[3rem] border-2 border-dashed border-slate-200">
-                     <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto text-slate-300 mb-6">
-                        <Tag size={40} />
-                     </div>
-                     <h4 className="text-xl font-bold text-slate-800">ไม่พบข้อมูลโปรโมชั่น</h4>
-                     <p className="text-slate-500 mt-2">กรุณาสร้างโปรโมชั่นใหม่ที่หน้า Finance หรือตรวจสอบสถานะในฐานข้อมูล</p>
+                  <div className="col-span-full py-16 text-center bg-white rounded-3xl border-2 border-dashed border-slate-200">
+                    <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto text-slate-300 mb-3">
+                      <Tag size={28} />
+                    </div>
+                    <h4 className="text-base font-bold text-slate-800">ไม่พบข้อมูลโปรโมชั่น</h4>
+                    <p className="text-xs text-slate-400 mt-1">กรุณากดปุ่ม "เพิ่มโปรโมชั่นใหม่" ด้านบนเพื่อสร้างข้อมูล</p>
                   </div>
                 )}
               </div>
@@ -1176,10 +1198,10 @@ ${customerInfo.googleMapsUrl ? `📍 พิกัด: ${customerInfo.googleMapsU
           ) : activeTab === 'calculator' ? (
             <motion.div 
               key="calculator-tab"
-              variants={containerVariants}
-              initial="hidden"
-              animate="visible"
-              exit="hidden"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
               className="w-full"
             >
               <OrderCalculator />
@@ -1187,10 +1209,10 @@ ${customerInfo.googleMapsUrl ? `📍 พิกัด: ${customerInfo.googleMapsU
           ) : null}
         </AnimatePresence>
 
-        {/* Create Promotion Modal */}
+        {/* ─── Create Promotion Modal ─── */}
         <AnimatePresence>
           {isModalOpen && (
-            <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 overflow-y-auto">
+            <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
               <motion.div 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -1199,132 +1221,134 @@ ${customerInfo.googleMapsUrl ? `📍 พิกัด: ${customerInfo.googleMapsU
                 className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm"
               />
               <motion.div 
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="relative w-full max-w-2xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col my-8"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+                className="relative w-full max-w-2xl bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] z-10"
               >
-                <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-900 text-white">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-emerald-500 flex items-center justify-center text-white">
-                      <Tag size={24} />
+                <div className="px-6 py-4.5 border-b border-slate-100 flex items-center justify-between bg-slate-900 text-white">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-500 flex items-center justify-center text-white">
+                      <Tag size={16} />
                     </div>
                     <div>
-                      <h3 className="font-bold text-2xl">สร้างโปรโมชั่นใหม่</h3>
-                      <p className="text-xs text-slate-400">กำหนดข้อมูลแพ็กเกจและกลยุทธ์การขาย</p>
+                      <h3 className="font-bold text-base">สร้างโปรโมชั่นใหม่</h3>
+                      <p className="text-[11px] text-slate-400">กำหนดข้อมูลแพ็กเกจและกลยุทธ์การขาย</p>
                     </div>
                   </div>
                   <button 
                     onClick={() => setIsModalOpen(false)}
-                    className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-all"
+                    className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-all"
                   >
-                    <X size={24} />
+                    <X size={18} />
                   </button>
                 </div>
 
-                <div className="p-8 space-y-6 overflow-y-auto max-h-[70vh] custom-scrollbar">
-                   <div className="grid grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                         <label className="text-xs font-bold text-slate-500 uppercase">ชื่อโปรโมชั่น</label>
-                         <input 
-                            type="text" 
-                            placeholder="เช่น โปร 5.5 ลดกระหน่ำ"
-                            value={newPromo.name}
-                            onChange={(e) => setNewPromo({...newPromo, name: e.target.value})}
-                            className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none"
-                         />
-                      </div>
-                      <div className="space-y-2">
-                         <label className="text-xs font-bold text-slate-500 uppercase">รหัสโปรโมชั่น (Code)</label>
-                         <input 
-                            type="text" 
-                            placeholder="PROMO55"
-                            value={newPromo.code}
-                            onChange={(e) => setNewPromo({...newPromo, code: e.target.value})}
-                            className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-mono"
-                         />
-                      </div>
-                   </div>
-
-                   <div className="grid grid-cols-3 gap-6">
-                      <div className="space-y-2">
-                         <label className="text-xs font-bold text-slate-500 uppercase">ราคาขาย (฿)</label>
-                         <input 
-                            type="number" 
-                            value={newPromo.price}
-                            onChange={(e) => setNewPromo({...newPromo, price: Number(e.target.value)})}
-                            className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-bold"
-                         />
-                      </div>
-                      <div className="space-y-2">
-                         <label className="text-xs font-bold text-slate-500 uppercase">จำนวนมื้อ</label>
-                         <input 
-                            type="number" 
-                            value={newPromo.meals_count}
-                            onChange={(e) => setNewPromo({...newPromo, meals_count: Number(e.target.value)})}
-                            className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-bold"
-                         />
-                      </div>
-                      <div className="space-y-2">
-                         <label className="text-xs font-bold text-slate-500 uppercase">ประเภท</label>
-                         <select 
-                            value={newPromo.promotion_type}
-                            onChange={(e) => setNewPromo({...newPromo, promotion_type: e.target.value})}
-                            className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none font-bold"
-                         >
-                            <option value="PINTO">ปิ่นโต (Subscription)</option>
-                            <option value="RETAIL">ขายปลีก (Retail)</option>
-                            <option value="MUSCLE">เพิ่มกล้ามเนื้อ (Muscle)</option>
-                         </select>
-                      </div>
-                   </div>
-
-                   <div className="space-y-2">
-                      <label className="text-xs font-bold text-slate-500 uppercase">บทพูดเสนอขาย (Sales Script)</label>
-                      <textarea 
-                         placeholder="ข้อความที่ Concierge จะใช้ Copy ไปเสนอขายลูกค้า..."
-                         value={newPromo.sales_script}
-                         onChange={(e) => setNewPromo({...newPromo, sales_script: e.target.value})}
-                         className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none min-h-[100px] resize-none text-sm italic"
+                <div className="p-6 space-y-4 overflow-y-auto custom-scrollbar flex-1 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">ชื่อโปรโมชั่น</label>
+                      <input 
+                        type="text" 
+                        placeholder="เช่น โปรผูกปิ่นโต 30 มื้อ"
+                        value={newPromo.name}
+                        onChange={(e) => setNewPromo({...newPromo, name: e.target.value})}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-emerald-500 focus:bg-white transition-all font-medium"
                       />
-                   </div>
-
-                   <div className="space-y-2">
-                      <label className="text-xs font-bold text-slate-500 uppercase">เงื่อนไขเพิ่มเติม</label>
-                      <textarea 
-                         placeholder="เช่น ส่งฟรีเฉพาะเขตกทม, ไม่รวมวันหยุด..."
-                         value={newPromo.conditions}
-                         onChange={(e) => setNewPromo({...newPromo, conditions: e.target.value})}
-                         className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-emerald-500/20 outline-none min-h-[80px] resize-none text-sm"
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">รหัสโปรโมชั่น (Code)</label>
+                      <input 
+                        type="text" 
+                        placeholder="PROMO30"
+                        value={newPromo.code}
+                        onChange={(e) => setNewPromo({...newPromo, code: e.target.value})}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-emerald-500 focus:bg-white transition-all font-mono font-bold"
                       />
-                   </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">ราคาขาย (฿)</label>
+                      <input 
+                        type="number" 
+                        value={newPromo.price}
+                        onChange={(e) => setNewPromo({...newPromo, price: Number(e.target.value)})}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-emerald-500 font-mono font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">จำนวนมื้อ</label>
+                      <input 
+                        type="number" 
+                        value={newPromo.meals_count}
+                        onChange={(e) => setNewPromo({...newPromo, meals_count: Number(e.target.value)})}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-emerald-500 font-mono font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">ประเภท</label>
+                      <select 
+                        value={newPromo.promotion_type}
+                        onChange={(e) => setNewPromo({...newPromo, promotion_type: e.target.value})}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-emerald-500 font-bold"
+                      >
+                        <option value="PINTO">ปิ่นโต (PINTO)</option>
+                        <option value="RETAIL">ขายปลีก (RETAIL)</option>
+                        <option value="MUSCLE">เพิ่มกล้าม (MUSCLE)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">บทพูดเสนอขาย (Sales Script)</label>
+                    <textarea 
+                      placeholder="ข้อความที่ฝ่ายขายจะใช้ Copy ไปเสนอขายลูกค้า..."
+                      rows={3}
+                      value={newPromo.sales_script}
+                      onChange={(e) => setNewPromo({...newPromo, sales_script: e.target.value})}
+                      className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-emerald-500 focus:bg-white resize-none text-xs italic"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">เงื่อนไขเพิ่มเติม</label>
+                    <textarea 
+                      placeholder="เช่น จัดส่งฟรีในเขตเมือง, ปรับเปลี่ยนเมนูได้ล่วงหน้า 1 วัน..."
+                      rows={2}
+                      value={newPromo.conditions}
+                      onChange={(e) => setNewPromo({...newPromo, conditions: e.target.value})}
+                      className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-emerald-500 focus:bg-white resize-none text-xs"
+                    />
+                  </div>
                 </div>
 
-                <div className="p-8 bg-slate-50 border-t border-slate-100 flex gap-4">
-                   <button 
-                     onClick={() => setIsModalOpen(false)}
-                     className="flex-1 py-4 bg-white border border-slate-200 text-slate-600 rounded-2xl font-bold hover:bg-slate-100 transition-all"
-                   >
-                     ยกเลิก
-                   </button>
-                   <button 
-                     onClick={handleCreatePromotion}
-                     disabled={isSubmitting}
-                     className="flex-[2] py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/20 flex items-center justify-center gap-2"
-                   >
-                     {isSubmitting ? <Loader2 size={20} className="animate-spin" /> : <Plus size={20} />}
-                     สร้างโปรโมชั่น
-                   </button>
+                <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2.5">
+                  <button 
+                    onClick={() => setIsModalOpen(false)}
+                    className="px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-100 transition-all"
+                  >
+                    ยกเลิก
+                  </button>
+                  <button 
+                    onClick={handleCreatePromotion}
+                    disabled={isSubmitting}
+                    className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-1.5"
+                  >
+                    {isSubmitting ? <Loader2 size={15} className="animate-spin" /> : <Plus size={15} />}
+                    สร้างโปรโมชั่น
+                  </button>
                 </div>
               </motion.div>
             </div>
           )}
         </AnimatePresence>
 
-        {/* Promotion Detail Modal */}
+        {/* ─── Promotion Detail Modal ─── */}
         <AnimatePresence>
           {selectedPromo && (
-            <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 overflow-y-auto">
+            <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
               <motion.div 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -1333,78 +1357,80 @@ ${customerInfo.googleMapsUrl ? `📍 พิกัด: ${customerInfo.googleMapsU
                 className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm"
               />
               <motion.div 
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="relative w-full max-w-xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col my-8"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 20 }}
+                className="relative w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] z-10"
               >
-                <div className="p-8 bg-slate-900 text-white relative overflow-hidden">
-                   <div className="relative z-10">
-                      <div className="flex items-center justify-between mb-4">
-                         <span className="text-[10px] font-black bg-emerald-500 px-2.5 py-1 rounded-md uppercase tracking-wider">
-                            {selectedPromo.promotion_type}
-                         </span>
-                         <button 
-                            onClick={() => setSelectedPromo(null)}
-                            className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-all"
-                         >
-                            <X size={20} />
-                         </button>
-                      </div>
-                      <h3 className="text-2xl font-bold">{selectedPromo.name}</h3>
-                      <p className="text-xs text-slate-400">ชื่อโปรโมชั่น: {selectedPromo.code}</p>
-                   </div>
-                   <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl translate-x-1/4 -translate-y-1/4" />
+                <div className="p-6 bg-slate-900 text-white relative overflow-hidden">
+                  <div className="relative z-10 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold bg-emerald-500 text-white px-2.5 py-0.5 rounded-lg uppercase tracking-wider">
+                        {selectedPromo.promotion_type}
+                      </span>
+                      <button 
+                        onClick={() => setSelectedPromo(null)}
+                        className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-all"
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
+                    <h3 className="text-xl font-bold text-white">{selectedPromo.name}</h3>
+                    <p className="text-xs text-slate-400 font-mono">CODE: {selectedPromo.code}</p>
+                  </div>
+                  <div className="absolute top-0 right-0 w-36 h-36 bg-emerald-500/10 rounded-full blur-2xl" />
                 </div>
 
-                <div className="p-8 space-y-8 overflow-y-auto max-h-[60vh] custom-scrollbar">
-                   <div className="grid grid-cols-2 gap-4">
-                      <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 text-center">
-                         <p className="text-[10px] font-bold text-indigo-400 uppercase mb-1">ราคาขาย</p>
-                         <p className="text-xl font-black text-indigo-700">฿{(selectedPromo.price || 0).toLocaleString()}</p>
-                      </div>
-                      <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 text-center">
-                         <p className="text-[10px] font-bold text-emerald-400 uppercase mb-1">จำนวนมื้อ</p>
-                         <p className="text-xl font-black text-emerald-700">{selectedPromo.meals_count || 0} มื้อ</p>
-                      </div>
-                   </div>
+                <div className="p-6 space-y-5 overflow-y-auto max-h-[60vh] custom-scrollbar text-xs">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 text-center">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">ราคาขาย</p>
+                      <p className="text-lg font-bold font-mono text-slate-900">฿{(selectedPromo.price || 0).toLocaleString()}</p>
+                    </div>
+                    <div className="p-3.5 bg-emerald-50/60 rounded-2xl border border-emerald-100 text-center">
+                      <p className="text-[10px] font-bold text-emerald-700 uppercase mb-0.5">จำนวนมื้อ</p>
+                      <p className="text-lg font-bold font-mono text-emerald-800">{selectedPromo.meals_count || 0} มื้อ</p>
+                    </div>
+                  </div>
 
-                   <div className="space-y-3">
-                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                         <MessageSquare size={14} className="text-indigo-500" /> บทพูดเสนอขาย (Sales Script)
-                      </h4>
-                      <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 relative group">
-                         <p className="text-sm text-slate-700 leading-relaxed italic">
-                           "{selectedPromo.sales_script || 'ไม่มีบทพูดเสนอขาย'}"
-                         </p>
-                         <button 
-                            onClick={() => handleCopyText('modal-script', selectedPromo.sales_script)}
-                            className="absolute top-3 right-3 p-2 bg-white border border-slate-200 rounded-lg text-slate-400 hover:text-indigo-600 hover:border-indigo-200 shadow-sm transition-all opacity-0 group-hover:opacity-100"
-                         >
-                            <Copy size={14} />
-                         </button>
-                      </div>
-                   </div>
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <MessageSquare size={13} className="text-emerald-600" /> บทพูดเสนอขาย (Sales Script)
+                    </span>
+                    <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100 relative group">
+                      <p className="text-xs text-slate-700 leading-relaxed italic">
+                        "{selectedPromo.sales_script || 'ไม่มีบทพูดเสนอขาย'}"
+                      </p>
+                      {selectedPromo.sales_script && (
+                        <button 
+                          onClick={() => handleCopyText('modal-script', selectedPromo.sales_script)}
+                          className="mt-2 text-[10px] font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1"
+                        >
+                          <Copy size={11} /> คัดลอกข้อความ
+                        </button>
+                      )}
+                    </div>
+                  </div>
 
-                   <div className="space-y-3">
-                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                         <Info size={14} className="text-emerald-500" /> เงื่อนไขและรายละเอียด
-                      </h4>
-                      <div className="p-5 bg-emerald-50/30 rounded-2xl border border-emerald-500/10">
-                         <p className="text-sm text-slate-600 whitespace-pre-line">
-                           {selectedPromo.conditions || 'ไม่มีเงื่อนไขเพิ่มเติม'}
-                         </p>
-                      </div>
-                   </div>
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <Info size={13} className="text-emerald-600" /> เงื่อนไขและรายละเอียด
+                    </span>
+                    <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
+                      <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-line">
+                        {selectedPromo.conditions || 'ไม่มีเงื่อนไขเพิ่มเติม'}
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="p-8 bg-slate-50 border-t border-slate-100">
-                   <button 
-                     onClick={() => setSelectedPromo(null)}
-                     className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10"
-                   >
-                     ปิดหน้าต่างนี้
-                   </button>
+                <div className="p-4 bg-slate-50 border-t border-slate-100">
+                  <button 
+                    onClick={() => setSelectedPromo(null)}
+                    className="w-full py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-all shadow-xs"
+                  >
+                    ปิดหน้าต่าง
+                  </button>
                 </div>
               </motion.div>
             </div>
@@ -1412,21 +1438,6 @@ ${customerInfo.googleMapsUrl ? `📍 พิกัด: ${customerInfo.googleMapsU
         </AnimatePresence>
       </div>
 
-      <style>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 5px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(255, 255, 255, 0.1);
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(255, 255, 255, 0.2);
-        }
-      `}</style>
     </div>
   );
 };

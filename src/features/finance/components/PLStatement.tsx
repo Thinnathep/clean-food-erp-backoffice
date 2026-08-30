@@ -137,6 +137,18 @@ export const PLStatement: React.FC = () => {
         </div>
       </motion.div>
 
+      {/* 💡 Helper Guide Banner */}
+      <motion.div variants={fadeUp} className="p-3.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-xs space-y-1.5">
+        <div className="flex items-center gap-2 text-indigo-800 font-bold">
+          <FileBarChart size={14} className="text-indigo-700 shrink-0" />
+          <span>โครงสร้างงบกำไรขาดทุน Clean Food CR (P&L Structure)</span>
+        </div>
+        <p className="text-slate-600 text-[11px] leading-relaxed">
+          • <strong>กำไรขั้นต้น (Gross Profit)</strong> = รายได้รวม - ต้นทุนขาย COGS (วัตถุดิบ + ค่าแรงครัว)<br />
+          • <strong>กำไรสุทธิ (Net Profit)</strong> = กำไรขั้นต้น - ค่าใช้จ่ายดำเนินงาน OPEX (ค่าน้ำ ค่าไฟ ค่าเช่า การตลาด)
+        </p>
+      </motion.div>
+
       {/* Summary Cards */}
       <motion.div variants={fadeUp} className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
         <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4">

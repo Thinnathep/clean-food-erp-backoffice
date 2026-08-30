@@ -88,10 +88,64 @@ export interface ExpenseCategory {
 
 export type PoolType = 'MATERIAL' | 'LABOR' | 'OPS' | 'PROFIT' | 'DELIVERY';
 
-export const POOL_CONFIG: Record<PoolType, { label: string; labelPublic: string; color: string; bgColor: string; borderColor: string; icon: string }> = {
-  MATERIAL: { label: 'ทุนวัตถุดิบ', labelPublic: 'ต้นทุนการผลิต', color: '#22c55e', bgColor: 'rgba(34,197,94,0.1)', borderColor: 'rgba(34,197,94,0.3)', icon: '🟢' },
-  LABOR:    { label: 'ค่าแรง/สวัสดิการ', labelPublic: 'สวัสดิการทีม', color: '#3b82f6', bgColor: 'rgba(59,130,246,0.1)', borderColor: 'rgba(59,130,246,0.3)', icon: '🔵' },
-  OPS:      { label: 'ค่าบิล', labelPublic: 'ค่าบิล', color: '#eab308', bgColor: 'rgba(234,179,8,0.1)', borderColor: 'rgba(234,179,8,0.3)', icon: '🟡' },
-  PROFIT:   { label: 'กำไรสุทธิ', labelPublic: 'สำรองธุรกิจ', color: '#ef4444', bgColor: 'rgba(239,68,68,0.1)', borderColor: 'rgba(239,68,68,0.3)', icon: '🔴' },
-  DELIVERY: { label: 'ค่าจัดส่ง', labelPublic: 'ค่าจัดส่ง', color: '#f97316', bgColor: 'rgba(249,115,22,0.1)', borderColor: 'rgba(249,115,22,0.3)', icon: '🛵' },
+export const POOL_CONFIG: Record<PoolType, { 
+  label: string; 
+  labelPublic: string; 
+  color: string; 
+  bgColor: string; 
+  borderColor: string; 
+  icon: string;
+  defaultPct: number;
+  description: string;
+}> = {
+  MATERIAL: { 
+    label: 'ทุนวัตถุดิบ & บรรจุภัณฑ์', 
+    labelPublic: 'ต้นทุนการผลิต', 
+    color: '#10b981', 
+    bgColor: 'rgba(16,185,129,0.08)', 
+    borderColor: 'rgba(16,185,129,0.25)', 
+    icon: '🥦',
+    defaultPct: 35,
+    description: 'สำรองสำหรับซื้อผัก อกไก่ ข้าวไรซ์เบอร์รี่ และกล่องบรรจุภัณฑ์'
+  },
+  LABOR: { 
+    label: 'ค่าแรง & สวัสดิการ', 
+    labelPublic: 'สวัสดิการทีม', 
+    color: '#3b82f6', 
+    bgColor: 'rgba(59,130,246,0.08)', 
+    borderColor: 'rgba(59,130,246,0.25)', 
+    icon: '👨‍🍳',
+    defaultPct: 15,
+    description: 'สำรองสำหรับจ่ายค่าจ้างเชฟ ผู้ช่วยครัว และสวัสดิการทีมงาน'
+  },
+  OPS: { 
+    label: 'ค่าดำเนินการ & บิล', 
+    labelPublic: 'ค่าบิล', 
+    color: '#f59e0b', 
+    bgColor: 'rgba(245,158,11,0.08)', 
+    borderColor: 'rgba(245,158,11,0.25)', 
+    icon: '⚡',
+    defaultPct: 20,
+    description: 'สำรองสำหรับค่าน้ำ ค่าไฟ ค่าเช่าที่ ค่าแก๊ส และการตลาด'
+  },
+  PROFIT: { 
+    label: 'กำไรสุทธิ & เงินสำรอง', 
+    labelPublic: 'สำรองธุรกิจ', 
+    color: '#ec4899', 
+    bgColor: 'rgba(236,72,153,0.08)', 
+    borderColor: 'rgba(236,72,153,0.25)', 
+    icon: '💎',
+    defaultPct: 30,
+    description: 'กำไรสุทธิสะสม กองทุนขยายสาขา และเงินสำรองฉุกเฉิน'
+  },
+  DELIVERY: { 
+    label: 'กองทุนค่าจัดส่ง', 
+    labelPublic: 'ค่าจัดส่ง', 
+    color: '#f97316', 
+    bgColor: 'rgba(249,115,22,0.08)', 
+    borderColor: 'rgba(249,115,22,0.25)', 
+    icon: '🛵',
+    defaultPct: 100,
+    description: '100% ของค่าจัดส่ง แยกไว้สำหรับจ่ายค่าน้ำมันและไรเดอร์'
+  },
 };

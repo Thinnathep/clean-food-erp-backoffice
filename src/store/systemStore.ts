@@ -283,7 +283,7 @@ export const useSystemStore = create<SystemState>((set) => ({
       console.error("❌ การเชื่อมต่อบลูทูธล้มเหลว:", err);
       set({ isConnectingBluetooth: false });
       if (err.name === 'NotFoundError' || (err.message && err.message.includes('User cancelled'))) {
-        throw new Error("ยกเลิกการเชื่อมต่อ: คุณไม่ได้เลือกเครื่องพิมพ์บลูทูธค่ะ");
+        throw new Error("ยกเลิกการเชื่อมต่อ: คุณไม่ได้เลือกเครื่องพิมพ์บลูทูธค่ะ", { cause: err });
       }
       throw err;
     }
@@ -450,7 +450,7 @@ export const useSystemStore = create<SystemState>((set) => ({
       console.error("❌ การเชื่อมต่อ Serial ล้มเหลว:", err);
       set({ isConnectingSerial: false });
       if (err.name === 'NotFoundError' || (err.message && err.message.includes('No port selected'))) {
-        throw new Error("ยกเลิกการเชื่อมต่อ: คุณไม่ได้เลือกพอร์ตเชื่อมต่อเครื่องพิมพ์ค่ะ");
+        throw new Error("ยกเลิกการเชื่อมต่อ: คุณไม่ได้เลือกพอร์ตเชื่อมต่อเครื่องพิมพ์ค่ะ", { cause: err });
       }
       throw err;
     }
@@ -487,7 +487,7 @@ export const useSystemStore = create<SystemState>((set) => ({
           console.log("🔌 [printToSerial] พอร์ตกำลังทำงานอยู่");
         } else {
           console.error("❌ ไม่สามารถเปิดพอร์ตใหม่ได้:", err);
-          throw new Error("เครื่องพิมพ์ Serial ขัดข้อง: กรุณาถอดสายแล้วเชื่อมต่อใหม่อีกครั้งค่ะ");
+          throw new Error("เครื่องพิมพ์ Serial ขัดข้อง: กรุณาถอดสายแล้วเชื่อมต่อใหม่อีกครั้งค่ะ", { cause: err });
         }
       }
     }
@@ -585,7 +585,9 @@ export const useSystemStore = create<SystemState>((set) => ({
                   targetCharacteristic = writeChar;
                   break;
                 }
-              } catch (e) {}
+              } catch (_e) {
+                // Continue searching other service UUIDs
+              }
             }
             
             if (!targetCharacteristic) {
@@ -599,7 +601,9 @@ export const useSystemStore = create<SystemState>((set) => ({
                     break;
                   }
                 }
-              } catch (e) {}
+              } catch (_e) {
+                // Continue searching primary services
+              }
             }
             
             if (targetCharacteristic) {

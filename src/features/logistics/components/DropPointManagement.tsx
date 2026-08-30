@@ -146,8 +146,8 @@ export const DropPointManagement: React.FC = () => {
 
       const { data: memberData, error: memberErr } = await supabase
         .from('members')
-        .select('id, full_name, nickname, phone, address')
-        .is('is_banned', false)
+        .select('id, full_name, line_display_name, phone, address')
+        .or('is_banned.is.null,is_banned.eq.false')
         .order('full_name');
       if (memberErr) throw memberErr;
       setMembersList(memberData || []);
@@ -335,7 +335,7 @@ export const DropPointManagement: React.FC = () => {
           delivery_address,
           kitchen_status,
           delivery_status,
-          members (id, full_name, nickname),
+          members (id, full_name, line_display_name),
           order_items (
             id,
             order_id,
@@ -395,7 +395,7 @@ export const DropPointManagement: React.FC = () => {
           bonus_meals,
           status,
           phone,
-          members (full_name, nickname)
+          members (full_name, line_display_name)
         `)
         .eq('buddy_group_id', bg.id);
       
@@ -1322,7 +1322,7 @@ export const DropPointManagement: React.FC = () => {
                               <option value="">-- เลือกลูกค้า --</option>
                               {membersList.map(m => (
                                 <option key={m.id} value={m.id}>
-                                  {m.full_name} {m.nickname ? `(${m.nickname})` : ''} - {m.phone}
+                                  {m.full_name} {m.line_display_name ? `(${m.line_display_name})` : m.nickname ? `(${m.nickname})` : ''} - {m.phone}
                                 </option>
                               ))}
                             </select>
@@ -1450,7 +1450,7 @@ export const DropPointManagement: React.FC = () => {
                             <div className="flex justify-between items-start mb-3 border-b border-slate-50 pb-3">
                               <div>
                                 <p className="text-sm font-black text-slate-800">
-                                  คุณ{order.members?.full_name || 'ลูกค้าทั่วไป'} {order.members?.nickname && `(${order.members.nickname})`}
+                                  คุณ{order.members?.full_name || 'ลูกค้าทั่วไป'} {(order.members?.line_display_name || order.members?.nickname) && `(${order.members?.line_display_name || order.members?.nickname})`}
                                 </p>
                                 <p className="text-[10px] text-slate-400 mt-0.5">Order ID: {order.order_id}</p>
                               </div>
@@ -1686,7 +1686,7 @@ export const DropPointManagement: React.FC = () => {
                       <div key={pkg.id} className="border border-slate-100 rounded-2xl p-5 shadow-sm bg-white hover:border-slate-200 transition-all flex flex-col md:flex-row justify-between md:items-center gap-4">
                         <div>
                           <p className="text-sm font-black text-slate-800">
-                            คุณ{pkg.members?.full_name || 'สมาชิกปิ่นโต'} {pkg.members?.nickname && `(${pkg.members.nickname})`}
+                            คุณ{pkg.members?.full_name || 'สมาชิกปิ่นโต'} {(pkg.members?.line_display_name || pkg.members?.nickname) && `(${pkg.members?.line_display_name || pkg.members?.nickname})`}
                           </p>
                           <p className="text-xs font-bold text-indigo-600 mt-0.5">{pkg.package_name}</p>
                           <p className="text-[10px] text-slate-400">เบอร์โทร: {pkg.phone || '-'}</p>

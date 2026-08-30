@@ -134,6 +134,18 @@ export const DemandForecastView: React.FC = () => {
           </button>
         </motion.div>
 
+        {/* 💡 Helper Guide Banner */}
+        <motion.div variants={fadeUp} className="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-xs space-y-1.5">
+          <div className="flex items-center gap-2 text-blue-800 font-bold">
+            <TrendingUp size={14} className="text-blue-700 shrink-0" />
+            <span>ระบบพยากรณ์ความต้องการวัตถุดิบล่วงหน้า 7 วัน (Demand Forecasting)</span>
+          </div>
+          <p className="text-slate-600 text-[11px] leading-relaxed">
+            • <strong>สูตรคำนวณ</strong>: จำนวนกล่องแพ็กเกจปิ่นโตใน 7 วันข้างหน้า × ปริมาณวัตถุดิบตามสูตรอาหาร (BOM) ÷ Yield %<br />
+            • <strong>สถานะขาดแน่นอน (Critical)</strong>: ปริมาณสต็อกปัจจุบันน้อยกว่าความต้องการผลิต ควรรีบกดออกใบสั่งซื้อ (PO) ในหมวดจัดซื้อ
+          </p>
+        </motion.div>
+
         {/* Summary */}
         <motion.div variants={fadeUp} className="grid grid-cols-3 gap-2 sm:gap-4">
           <div className="bg-white rounded-xl border border-red-200 p-3 sm:p-4 text-center">

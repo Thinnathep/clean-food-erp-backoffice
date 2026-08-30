@@ -136,6 +136,19 @@ export const InvoiceManager: React.FC = () => {
         </button>
       </motion.div>
 
+      {/* 💡 Helper Guide Banner */}
+      <motion.div variants={fadeUp} className="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-xs space-y-1.5">
+        <div className="flex items-center gap-2 text-blue-800 font-bold">
+          <Receipt size={14} className="text-blue-700 shrink-0" />
+          <span>คู่มือการออกเอกสาร & ภาษีมูลค่าเพิ่ม (VAT 7%)</span>
+        </div>
+        <p className="text-slate-600 text-[11px] leading-relaxed">
+          • <strong>ใบเสร็จรับเงิน (Receipt)</strong>: สำหรับลูกค้าทั่วไปที่ชำระค่าอาหารแล้ว<br />
+          • <strong>ใบกำกับภาษีเต็มรูป (Full Tax Invoice)</strong>: สำหรับลูกค้านิติบุคคล ระบุเลขผู้เสียภาษีและที่อยู่บริษัท<br />
+          • <strong>ภาษี 7% รวมในยอด (VAT Included)</strong>: ระบบคำนวณฐานภาษี = ยอดรวม × 7 ÷ 107 ให้อัตโนมัติ
+        </p>
+      </motion.div>
+
       {/* Filters */}
       <motion.div variants={fadeUp} className="flex flex-col sm:flex-row gap-2 sm:gap-3">
         <div className="relative flex-1">

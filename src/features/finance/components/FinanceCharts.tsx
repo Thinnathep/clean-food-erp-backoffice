@@ -67,8 +67,8 @@ export const FinanceCharts: React.FC<Props> = ({ transactions, buckets, isDarkMo
         <h3 className={`text-sm font-bold mb-6 ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
           📈 แนวโน้มกระแสเงินสด ({dayjs(selectedMonth).format('MMMM YYYY')})
         </h3>
-        <div className="h-[280px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="h-[280px] w-full min-w-0">
+          <ResponsiveContainer width="100%" height={280} minWidth={0} minHeight={0}>
             <AreaChart data={dailyData}>
               <defs>
                 <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
@@ -136,8 +136,8 @@ export const FinanceCharts: React.FC<Props> = ({ transactions, buckets, isDarkMo
         <h3 className={`text-sm font-bold mb-6 ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
           🍕 สัดส่วนรายจ่ายรายหมวด
         </h3>
-        <div className="h-[220px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
+        <div className="h-[220px] w-full min-w-0">
+          <ResponsiveContainer width="100%" height={220} minWidth={0} minHeight={0}>
             <PieChart>
               <Pie
                 data={pieData}

@@ -16,12 +16,13 @@ import { PromotionBuilder } from './PromotionBuilder.tsx';
 import { PLStatement } from './PLStatement.tsx';
 import { InvoiceManager } from './InvoiceManager.tsx';
 import { CashReconciliation } from './CashReconciliation.tsx';
+import { FinanceGuideCard } from './FinanceGuideCard.tsx';
 import dayjs from 'dayjs';
 import { toast } from 'sonner';
 import Swal from 'sweetalert2';
 import {
   TrendingUp, TrendingDown, RefreshCw, Sun, Moon, Package, AlertTriangle, Download,
-  ChevronLeft, ChevronRight, PiggyBank, Wallet, Receipt, CheckCircle2
+  ChevronLeft, ChevronRight, PiggyBank, Wallet, Receipt
 } from 'lucide-react';
 
 type TabKey = 'overview' | 'income' | 'expense' | 'history' | 'simulator' | 'promotions' | 'customers' | 'settings' | 'pl' | 'invoices' | 'cash_recon';
@@ -86,9 +87,7 @@ export const FinanceDashboard: React.FC<{ initialTab?: TabKey }> = ({ initialTab
     return true;
   });
 
-
-
-  // Monthly stats (Already filtered by query, but double checking locally)
+  // Monthly stats
   const monthBuckets = buckets;
   const monthTx = transactions;
   const monthIncome = monthBuckets.reduce((s, b) => s + b.gross_amount, 0);
@@ -99,8 +98,6 @@ export const FinanceDashboard: React.FC<{ initialTab?: TabKey }> = ({ initialTab
   // New Stats
   const activePackages = monthBuckets.filter(b => b.source_type === 'PACKAGE' || b.source_type === 'MUSCLE_CUSTOM').length;
   const netProfit = monthIncome - monthExpense;
-
-
 
   const handleSyncBalances = async () => {
     const result = await Swal.fire({
@@ -176,121 +173,142 @@ export const FinanceDashboard: React.FC<{ initialTab?: TabKey }> = ({ initialTab
   };
 
   return (
-    <div className={`flex-1 flex flex-col h-full transition-colors duration-300 overflow-hidden ${
+    <div className={`flex-1 flex flex-col min-h-screen transition-colors duration-300 font-sans ${
       isDarkMode ? 'bg-[#0c0f1a]' : 'bg-[#F8FAFC]'
     }`}>
-      {/* Header */}
-      <div className="px-6 pt-6 pb-0 flex-shrink-0">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-500/20 flex-shrink-0">
-              <PiggyBank size={26} className="text-white" />
+      
+      {/* ─── Top Header Bar ─── */}
+      <div className={`border-b px-4 sm:px-6 lg:px-8 py-5 sticky top-0 z-30 backdrop-blur-md ${
+        isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white/95 border-slate-200/80'
+      }`}>
+        <div className="max-w-[1600px] mx-auto space-y-4">
+          
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white flex items-center justify-center shadow-md shadow-emerald-500/20 shrink-0">
+                <PiggyBank size={22} className="text-white" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className={`text-xl sm:text-2xl font-black tracking-tight font-display ${
+                    isDarkMode ? 'text-white' : 'text-slate-900'
+                  }`}>
+                    ระบบบัญชี & 4 กองทุน
+                  </h1>
+                  <span className="hidden sm:inline-block text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                    4-Fund System
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 font-medium">จัดการแยกกองทุน 35/15/20/30, บันทึกรายรับ-รายจ่าย, กระทบยอดเงินสด และงบ P&L</p>
+              </div>
             </div>
-            <div>
-              <h1 className={`text-xl md:text-2xl font-bold transition-colors ${
-                isDarkMode ? 'text-white' : 'text-slate-800'
+
+            {/* Controls: Month Selector, Sync, Export, Dark Mode */}
+            <div className="flex flex-wrap items-center gap-2">
+              
+              {/* Month Switcher */}
+              <div className={`flex items-center rounded-xl border overflow-hidden shadow-xs ${
+                isDarkMode ? 'border-slate-700 bg-slate-800/80' : 'border-slate-200 bg-white'
               }`}>
-                ระบบบัญชีและกองทุน
-              </h1>
-              <p className="text-emerald-500 text-xs font-bold uppercase tracking-wider">
-                {dayjs(selectedMonth).format('MMMM YYYY')}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <button type="button"
-              onClick={() => setIsDarkMode(!isDarkMode)}
-              className={`p-2.5 rounded-xl border transition-all ${
-                isDarkMode 
-                  ? 'bg-slate-800/60 border-slate-700 text-amber-400 hover:text-amber-300' 
-                  : 'bg-white border-slate-200 text-slate-500 hover:text-emerald-500 shadow-sm'
-              }`}
-              title={isDarkMode ? 'เปลี่ยนเป็นโหมดสว่าง' : 'เปลี่ยนเป็นโหมดมืด'}
-            >
-              {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
-            <div className={`flex items-center rounded-xl border overflow-hidden ${
-              isDarkMode ? 'border-slate-700 bg-slate-800/60' : 'border-slate-200 bg-white shadow-sm'
-            }`}>
-              <button title="Button" type="button"
-                onClick={() => setSelectedMonth(m => dayjs(m).subtract(1, 'month').format('YYYY-MM'))}
-                className={`p-2.5 transition-colors ${isDarkMode ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-50 text-slate-500'}`}
-              >
-                <ChevronLeft size={18} />
-              </button>
-              <input title="Input field"
-                type="month"
-                value={selectedMonth}
-                onChange={e => setSelectedMonth(e.target.value)}
-                className={`text-sm px-2 py-2 outline-none transition-all text-center border-x ${
+                <button
+                  type="button"
+                  onClick={() => setSelectedMonth(m => dayjs(m).subtract(1, 'month').format('YYYY-MM'))}
+                  className={`p-2 transition-colors ${isDarkMode ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-50 text-slate-500'}`}
+                  title="เดือนก่อนหน้า"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <input
+                  type="month"
+                  value={selectedMonth}
+                  onChange={e => setSelectedMonth(e.target.value)}
+                  className={`text-xs font-bold px-2 py-1.5 outline-none text-center border-x font-mono ${
+                    isDarkMode 
+                      ? 'bg-transparent border-slate-700 text-slate-200' 
+                      : 'bg-transparent border-slate-200 text-slate-800'
+                  }`}
+                  style={{ minWidth: '120px' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setSelectedMonth(m => dayjs(m).add(1, 'month').format('YYYY-MM'))}
+                  className={`p-2 transition-colors ${isDarkMode ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-50 text-slate-500'}`}
+                  title="เดือนถัดไป"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+
+              {/* Sync Balances */}
+              <button 
+                type="button"
+                onClick={handleSyncBalances}
+                className={`px-3 py-1.5 border rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 ${
                   isDarkMode 
-                    ? 'bg-transparent border-slate-700 text-slate-300 focus:text-emerald-500' 
-                    : 'bg-transparent border-slate-200 text-slate-600 focus:text-emerald-500'
+                    ? 'bg-emerald-950/60 hover:bg-emerald-900/60 border-emerald-500/40 text-emerald-400' 
+                    : 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-800'
                 }`}
-                style={{ minWidth: '130px' }}
-              />
-              <button title="Button" type="button"
-                onClick={() => setSelectedMonth(m => dayjs(m).add(1, 'month').format('YYYY-MM'))}
-                className={`p-2.5 transition-colors ${isDarkMode ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-50 text-slate-500'}`}
+                title="คำนวณยอดเงินใหม่จากประวัติทั้งหมด"
               >
-                <ChevronRight size={18} />
+                <RefreshCw size={13} className={isLoading ? 'animate-spin' : ''} />
+                <span className="hidden sm:inline">Sync ยอดเงิน</span>
+              </button>
+
+              {/* Export CSV */}
+              <button 
+                type="button"
+                onClick={exportCSV}
+                className={`p-2 border rounded-xl transition-all shadow-xs ${
+                  isDarkMode 
+                    ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200' 
+                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                }`}
+                title="ส่งออกรายงาน CSV"
+              >
+                <Download size={15} />
+              </button>
+
+              {/* Dark Mode Toggle */}
+              <button 
+                type="button"
+                onClick={() => setIsDarkMode(!isDarkMode)}
+                className={`p-2 rounded-xl border transition-all shadow-xs ${
+                  isDarkMode 
+                    ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-amber-400' 
+                    : 'bg-white border-slate-200 text-slate-500 hover:text-emerald-600'
+                }`}
+                title={isDarkMode ? 'เปลี่ยนเป็นโหมดสว่าง' : 'เปลี่ยนเป็นโหมดมืด'}
+              >
+                {isDarkMode ? <Sun size={15} /> : <Moon size={15} />}
               </button>
             </div>
-            <button type="button"
-              onClick={exportCSV}
-              className={`p-2.5 border rounded-xl transition-all ${
-                isDarkMode
-                  ? 'bg-slate-800/60 border-slate-700 text-slate-400 hover:text-emerald-400 hover:border-emerald-500/50'
-                  : 'bg-white border-slate-200 text-slate-400 hover:text-emerald-500 hover:border-emerald-500 shadow-sm'
-              }`}
-              title="Export CSV"
-            >
-              <Download size={18} />
-            </button>
-            <button type="button"
-              onClick={handleSyncBalances}
-              className={`flex items-center gap-2 px-3 py-2.5 border rounded-xl transition-all ${
-                isDarkMode
-                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
-                  : 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100 shadow-sm'
-              }`}
-              title="คำนวณยอดเงินใหม่จากประวัติทั้งหมด"
-            >
-              <RefreshCw size={18} />
-              <span className="hidden lg:inline text-xs font-bold">Sync ยอดเงิน</span>
-            </button>
-            <button title="Button" type="button"
-              onClick={fetchAll}
-              className={`p-2.5 border rounded-xl transition-all ${
-                isDarkMode
-                  ? 'bg-slate-800/60 border-slate-700 text-slate-400 hover:text-emerald-400 hover:border-emerald-500/50'
-                  : 'bg-white border-slate-200 text-slate-400 hover:text-emerald-500 hover:border-emerald-500 shadow-sm'
-              }`}
-            >
-              <RefreshCw size={18} className={isLoading ? 'animate-spin' : ''} />
-            </button>
           </div>
+
         </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar overflow-x-hidden">
+      {/* ─── Main Content Area ─── */}
+      <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto w-full space-y-6 flex-1">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.25, ease: "easeOut" }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-6"
           >
             {activeTab === 'overview' && (
               <>
+                {/* 💡 Financial Constitution & 4-Fund Guide */}
+                <FinanceGuideCard />
+
                 {/* Fund Depletion Alerts */}
                 {visiblePools.filter(p => p.target_amount > 0 && p.current_balance < (p.target_amount * 0.2)).length > 0 && (
-                  <div className={`p-4.5 rounded-2xl border transition-all flex items-start gap-4 mb-6 shadow-sm ${
+                  <div className={`p-4.5 rounded-2xl border transition-all flex items-start gap-4 shadow-xs ${
                     isDarkMode ? 'bg-rose-500/5 border-rose-500/20' : 'bg-rose-50/60 border-rose-100'
                   }`}>
-                    <div className={`p-2.5 rounded-xl shrink-0 shadow-sm ${
+                    <div className={`p-2.5 rounded-xl shrink-0 shadow-xs ${
                       isDarkMode ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : 'bg-rose-600 text-white'
                     }`}>
                       <AlertTriangle size={20} />
@@ -314,7 +332,7 @@ export const FinanceDashboard: React.FC<{ initialTab?: TabKey }> = ({ initialTab
                             return (
                               <span 
                                 key={p.id} 
-                                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl border text-xs shadow-sm transition-all ${
+                                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl border text-xs shadow-xs transition-all ${
                                   isDarkMode ? 'bg-slate-900/80 border-rose-950/50' : 'bg-white border-rose-100'
                                 }`}
                               >
@@ -332,230 +350,130 @@ export const FinanceDashboard: React.FC<{ initialTab?: TabKey }> = ({ initialTab
                 )}
 
                 {/* Summary Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                  <SummaryCard label="รายรับเดือนนี้" value={monthIncome} color="#22c55e" icon={<TrendingUp size={18} />} isDarkMode={isDarkMode} />
-                  <SummaryCard label="รายจ่ายเดือนนี้" value={monthExpense} color="#ef4444" icon={<TrendingDown size={18} />} isDarkMode={isDarkMode} />
-                  <SummaryCard label="กำไรสุทธิ" value={netProfit} color={netProfit >= 0 ? "#10b981" : "#f43f5e"} icon={<PiggyBank size={18} />} isDarkMode={isDarkMode} />
-                  <SummaryCard label="แพ็กเกจ Active" value={activePackages} color="#3b82f6" icon={<Package size={18} />} isDarkMode={isDarkMode} isCount />
-                  <SummaryCard label="ค่าจัดส่งรวม" value={monthDeliveryFees} color="#8b5cf6" icon={<Receipt size={18} />} isDarkMode={isDarkMode} />
-                  <SummaryCard label="ยอดคงเหลือรวม" value={totalBalance} color="#06b6d4" icon={<Wallet size={18} />} isDarkMode={isDarkMode} />
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
+                  <SummaryCard label="รายรับเดือนนี้" value={monthIncome} color="#22c55e" icon={<TrendingUp size={16} />} isDarkMode={isDarkMode} />
+                  <SummaryCard label="รายจ่ายเดือนนี้" value={monthExpense} color="#ef4444" icon={<TrendingDown size={16} />} isDarkMode={isDarkMode} />
+                  <SummaryCard label="กำไรสุทธิ" value={netProfit} color={netProfit >= 0 ? "#10b981" : "#f43f5e"} icon={<PiggyBank size={16} />} isDarkMode={isDarkMode} />
+                  <SummaryCard label="แพ็กเกจ Active" value={activePackages} color="#3b82f6" icon={<Package size={16} />} isDarkMode={isDarkMode} isCount />
+                  <SummaryCard label="ค่าจัดส่งรวม" value={monthDeliveryFees} color="#8b5cf6" icon={<Receipt size={16} />} isDarkMode={isDarkMode} />
+                  <SummaryCard label="ยอดคงเหลือรวม" value={totalBalance} color="#06b6d4" icon={<Wallet size={16} />} isDarkMode={isDarkMode} />
+                </div>
+
+                {/* 5 Fund Pools Cards */}
+                <div>
+                  <h3 className={`text-xs font-bold uppercase tracking-wider mb-3 ${isDarkMode ? 'text-slate-400' : 'text-slate-700'}`}>
+                    สถานะยอดเงิน 4 กองทุน & กองทุนจัดส่ง
+                  </h3>
+                  <FundPoolCards pools={visiblePools} isCEO={isCEO} transactions={transactions} isDarkMode={isDarkMode} onRefresh={fetchAll} />
                 </div>
 
                 {/* Charts Section */}
-                <div className="mt-10">
+                <div className="mt-8">
                    <FinanceCharts transactions={transactions} buckets={buckets} isDarkMode={isDarkMode} selectedMonth={selectedMonth} />
                 </div>
 
                 {/* Split Bar */}
-                <div className={`rounded-2xl border p-5 transition-all mt-6 ${
-                  isDarkMode ? 'bg-slate-800/50 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'
+                <div className={`rounded-3xl border p-5 transition-all mt-6 shadow-xs ${
+                  isDarkMode ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-slate-200/80'
                 }`}>
-                  <h3 className={`text-sm font-medium mb-3 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>สัดส่วนการแยกเงิน (เดือนนี้)</h3>
-                  <div className="flex h-8 rounded-xl overflow-hidden gap-0.5 shadow-inner bg-slate-100 dark:bg-slate-900">
+                  <h3 className={`text-xs font-bold uppercase tracking-wider mb-3 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                    สัดส่วนรายรับแยกกองทุนประจำเดือน ({dayjs(selectedMonth).format('MMMM YYYY')})
+                  </h3>
+                  <div className="w-full h-4 rounded-full overflow-hidden flex bg-slate-200/50 shadow-inner">
                     {(['MATERIAL', 'LABOR', 'OPS', 'PROFIT'] as PoolType[]).map(pt => {
-                      const total = monthBuckets.reduce((s, b) => s + b.net_amount, 0);
-                      const poolAmount = monthBuckets.reduce((s, b) => {
-                        if (pt === 'MATERIAL') return s + b.material_amount;
-                        if (pt === 'LABOR') return s + b.labor_amount;
-                        if (pt === 'OPS') return s + b.ops_amount;
-                        return s + b.profit_amount;
-                      }, 0);
-                      const pct = total > 0 ? (poolAmount / total * 100) : (pt === 'MATERIAL' ? 35 : pt === 'LABOR' ? 15 : pt === 'OPS' ? 20 : 30);
+                      const pool = pools.find(p => p.pool_type === pt);
                       const cfg = POOL_CONFIG[pt];
-                      const showPool = isCEO || (pt !== 'LABOR' && pt !== 'PROFIT');
-                      if (!showPool) return null;
+                      const totalIn = buckets.reduce((sum, b) => {
+                        if (pt === 'MATERIAL') return sum + b.material_amount;
+                        if (pt === 'LABOR') return sum + b.labor_amount;
+                        if (pt === 'OPS') return sum + b.ops_amount;
+                        if (pt === 'PROFIT') return sum + b.profit_amount;
+                        return sum;
+                      }, 0);
+                      const netRev = monthIncome - monthDeliveryFees;
+                      const pct = netRev > 0 ? (totalIn / netRev) * 100 : cfg.defaultPct;
                       return (
                         <div
                           key={pt}
-                          className="flex items-center justify-center text-xs font-bold text-white transition-all"
-                          style={{ width: `${pct}%`, backgroundColor: cfg.color, minWidth: 40 }}
-                          title={`${cfg.label}: ฿${poolAmount.toLocaleString()} (${pct.toFixed(0)}%)`}
-                        >
-                          {cfg.icon} {pct.toFixed(0)}%
-                        </div>
+                          className="h-full transition-all duration-500 relative group"
+                          style={{ width: `${pct}%`, backgroundColor: cfg.color }}
+                          title={`${pool?.display_name || cfg.label}: ฿${totalIn.toLocaleString()} (${pct.toFixed(1)}%)`}
+                        />
                       );
                     })}
                   </div>
-                  <div className="flex gap-4 mt-3 flex-wrap">
+                  <div className="flex flex-wrap gap-4 mt-3 text-xs">
                     {(['MATERIAL', 'LABOR', 'OPS', 'PROFIT'] as PoolType[]).map(pt => {
                       const cfg = POOL_CONFIG[pt];
-                      const showPool = isCEO || (pt !== 'LABOR' && pt !== 'PROFIT');
-                      if (!showPool) return null;
                       return (
-                        <span key={pt} className="text-xs flex items-center gap-1.5 transition-colors"
-                          style={{ color: isDarkMode ? '#94a3b8' : '#475569' }}>
-                          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cfg.color }} />
-                          {isCEO ? cfg.label : cfg.labelPublic}
-                        </span>
+                        <div key={pt} className="flex items-center gap-1.5">
+                          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cfg.color }} />
+                          <span className={`text-[11px] font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>{cfg.label} ({cfg.defaultPct}%)</span>
+                        </div>
                       );
                     })}
                   </div>
-                </div>
-
-                {/* Total Cash Reconcile Summary */}
-                <div className={`p-6 rounded-3xl border mb-6 transition-all shadow-xl shadow-emerald-500/5 ${
-                  isDarkMode ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-emerald-50 border-emerald-100'
-                }`}>
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 rounded-2xl bg-emerald-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
-                        <Wallet size={32} />
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600 mb-1">ยอดเงินสดรวมในระบบ (System Cash)</p>
-                        <h2 className={`text-4xl font-black ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-                          ฿{pools.reduce((s, p) => s + (p.current_balance || 0), 0).toLocaleString()}
-                        </h2>
-                      </div>
-                    </div>
-                    <div className={`p-4 rounded-2xl border flex items-center gap-4 ${
-                      isDarkMode ? 'bg-slate-900/60 border-slate-700' : 'bg-white border-slate-200'
-                    }`}>
-                      <div className="text-right">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase mb-1">เทียบกับเงินจริงในธนาคาร</p>
-                        <div className="flex items-center gap-2 justify-end">
-                           <CheckCircle2 size={14} className="text-emerald-500" />
-                           <span className="text-xs font-bold text-slate-400">อัปเดตจากยอดกองทุนรายย่อย</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Fund Pool Cards */}
-                <div className="mt-6">
-                  <FundPoolCards 
-                    pools={visiblePools} 
-                    isCEO={isCEO} 
-                    transactions={monthTx} 
-                    isDarkMode={isDarkMode} 
-                    onRefresh={fetchAll}
-                  />
-                </div>
-
-                {/* Recent Revenue Buckets */}
-                <div className={`rounded-2xl border p-5 transition-all mt-6 ${
-                  isDarkMode ? 'bg-slate-800/50 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm'
-                }`}>
-                  <h3 className={`text-sm font-medium mb-4 flex items-center gap-2 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                    <Receipt size={16} /> รายรับล่าสุด
-                  </h3>
-                  {monthBuckets.length === 0 ? (
-                    <p className="text-slate-500 text-sm text-center py-8">ยังไม่มีรายรับในเดือนนี้</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {monthBuckets.slice(0, 10).map(b => (
-                        <div key={b.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
-                          isDarkMode 
-                            ? 'bg-slate-900/40 border-slate-700/30 hover:border-emerald-500/30' 
-                            : 'bg-slate-50 border-slate-100 hover:border-emerald-300 hover:bg-white'
-                        }`}>
-                          <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
-                              isDarkMode ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-emerald-50 border border-emerald-100 text-emerald-600'
-                            }`}>
-                              <TrendingUp size={18} />
-                            </div>
-                            <div>
-                              <p className={`text-sm font-medium ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>{b.description || b.source_type}</p>
-                              <p className="text-xs text-slate-500">{b.members?.full_name || '—'} · {dayjs(b.created_at).format('DD/MM/YY HH:mm')}</p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className={`text-sm font-bold ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>+฿{b.gross_amount.toLocaleString()}</p>
-                            {b.delivery_fee > 0 && (
-                              <p className="text-xs text-slate-500">ค่าส่ง ฿{b.delivery_fee.toLocaleString()}</p>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
               </>
             )}
 
-            {activeTab === 'income' && (
-              <RevenueRecorder
-                configs={configs}
-                onSaved={fetchAll}
-                isDarkMode={isDarkMode}
-              />
-            )}
-
-            {activeTab === 'expense' && (
-              <ExpenseRecorder
-                onSaved={fetchAll}
-                isDarkMode={isDarkMode}
-              />
-            )}
-
+            {activeTab === 'income' && <RevenueRecorder configs={configs} onSaved={fetchAll} isDarkMode={isDarkMode} />}
+            {activeTab === 'expense' && <ExpenseRecorder onSaved={fetchAll} isDarkMode={isDarkMode} />}
+            {activeTab === 'cash_recon' && <CashReconciliation />}
+            {activeTab === 'invoices' && <InvoiceManager />}
+            {activeTab === 'pl' && <PLStatement />}
             {activeTab === 'history' && (
-              <TransactionHistory
-                transactions={transactions}
-                buckets={buckets}
-                isCEO={isCEO}
-                selectedMonth={selectedMonth}
-                isDarkMode={isDarkMode}
-                onRefresh={fetchAll}
+              <TransactionHistory 
+                transactions={transactions} 
+                buckets={buckets} 
+                isCEO={isCEO} 
+                selectedMonth={selectedMonth} 
+                isDarkMode={isDarkMode} 
+                onRefresh={fetchAll} 
               />
             )}
-
-            {activeTab === 'simulator' && (
-              <SplitSimulator configs={configs} isDarkMode={isDarkMode} />
-            )}
-
-            {activeTab === 'promotions' && (
-              <PromotionBuilder isDarkMode={isDarkMode} />
-            )}
-
-            {activeTab === 'customers' && (
-              <LTVAnalysis isDarkMode={isDarkMode} />
-            )}
-
-            {activeTab === 'settings' && (
-              <FinanceSettings configs={configs} onRefresh={fetchAll} isDarkMode={isDarkMode} />
-            )}
-
-            {activeTab === 'pl' && (
-              <PLStatement />
-            )}
-
-            {activeTab === 'invoices' && (
-              <InvoiceManager />
-            )}
-
-            {activeTab === 'cash_recon' && (
-              <CashReconciliation />
-            )}
+            {activeTab === 'simulator' && <SplitSimulator configs={configs} isDarkMode={isDarkMode} />}
+            {activeTab === 'customers' && <LTVAnalysis isDarkMode={isDarkMode} />}
+            {activeTab === 'promotions' && <PromotionBuilder isDarkMode={isDarkMode} />}
+            {activeTab === 'settings' && <FinanceSettings configs={configs} onRefresh={fetchAll} isDarkMode={isDarkMode} />}
           </motion.div>
         </AnimatePresence>
       </div>
+
     </div>
   );
 };
 
-// --- Summary Card ---
-const SummaryCard: React.FC<{
+// Summary Card Sub-component
+function SummaryCard({ label, value, color, icon, isDarkMode, isCount = false }: {
   label: string;
   value: number;
   color: string;
   icon: React.ReactNode;
   isDarkMode: boolean;
   isCount?: boolean;
-}> = ({ label, value, color, icon, isDarkMode, isCount }) => (
-  <div className={`rounded-2xl border p-5 transition-all group ${
-    isDarkMode ? 'bg-slate-800/50 border-slate-700/50 hover:border-slate-600' : 'bg-white border-slate-200 hover:border-emerald-300 shadow-sm'
-  }`}>
-    <div className="flex items-center justify-between mb-2">
-      <span className="text-xs text-slate-500 font-medium">{label}</span>
-      <div className={`w-8 h-8 rounded-lg flex items-center justify-center opacity-60 group-hover:opacity-100 transition-opacity`}
-        style={{ backgroundColor: `${color}20`, color }}>
-        {icon}
+}) {
+  const isFloatingValue = !isCount && value % 1 !== 0;
+  return (
+    <div className={`p-4 rounded-3xl border transition-all shadow-xs flex flex-col justify-between ${
+      isDarkMode 
+        ? 'bg-slate-900/60 border-slate-800' 
+        : 'bg-white border-slate-200/80 hover:border-slate-300'
+    }`}>
+      <div className="flex items-center justify-between mb-2">
+        <span className={`text-[10px] sm:text-[11px] font-bold uppercase tracking-wider ${
+          isDarkMode ? 'text-slate-400' : 'text-slate-500'
+        }`}>{label}</span>
+        <div className="p-1.5 rounded-xl bg-slate-500/10" style={{ color }}>
+          {icon}
+        </div>
+      </div>
+      <div className="font-mono text-base sm:text-lg font-bold" style={{ color }}>
+        {isCount ? value : `฿${value.toLocaleString(undefined, { 
+          minimumFractionDigits: isFloatingValue ? 2 : 0, 
+          maximumFractionDigits: 2 
+        })}`}
       </div>
     </div>
-    <p className={`text-xl font-bold`} style={{ color }}>
-      {!isCount && '฿'}{value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-    </p>
-  </div>
-);
+  );
+}

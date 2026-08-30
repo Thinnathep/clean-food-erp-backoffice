@@ -208,6 +208,19 @@ export const FoodSafetyLog: React.FC = () => {
           </div>
         </motion.div>
 
+        {/* 💡 Helper Guide Banner */}
+        <motion.div variants={fadeUp} className="p-3.5 rounded-2xl bg-teal-500/10 border border-teal-500/20 text-xs space-y-1.5">
+          <div className="flex items-center gap-2 text-teal-800 font-bold">
+            <ShieldCheck size={14} className="text-teal-700 shrink-0" />
+            <span>เกณฑ์มาตรฐานความปลอดภัยอาหาร (HACCP Food Safety Standards)</span>
+          </div>
+          <p className="text-slate-600 text-[11px] leading-relaxed">
+            • <strong>ตู้เย็น (Chilled Storage)</strong>: อุณหภูมิมาตรฐาน 0°C ถึง 4°C<br />
+            • <strong>ตู้แช่แข็ง (Frozen Storage)</strong>: อุณหภูมิมาตรฐาน -25°C ถึง -18°C<br />
+            • <strong>อาหารปรุงสุก (Cooked Foods)</strong>: อุณหภูมิใจกลางอาหารต้องไม่ต่ำกว่า 75°C ก่อนตักเสิร์ฟ
+          </p>
+        </motion.div>
+
         {/* Stats */}
         <motion.div variants={fadeUp} className="grid grid-cols-4 gap-2 sm:gap-4">
           {[

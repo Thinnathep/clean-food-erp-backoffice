@@ -275,10 +275,24 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Main Form */}
       <div className={`lg:col-span-2 rounded-2xl border p-6 transition-all ${card}`}>
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4">
           <h3 className={`text-lg font-bold flex items-center gap-2 ${heading}`}>
             <TrendingDown size={20} className="text-red-500" /> บันทึกรายจ่าย
           </h3>
+        </div>
+
+        {/* 💡 Helper Guide Banner */}
+        <div className="mb-5 p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-xs space-y-1.5">
+          <div className="flex items-center gap-2 text-rose-800 font-bold">
+            <TrendingDown size={14} className="text-rose-700 shrink-0" />
+            <span>คำแนะนำ: เลือกระบุกองทุนที่ต้องการตัดเงินอย่างถูกต้อง</span>
+          </div>
+          <p className="text-slate-600 text-[11px] leading-relaxed">
+            • <strong>วัตถุดิบ (35%)</strong>: ซื้อเนื้อสัตว์ ผักสด เครื่องปรุง ซอส บรรจุภัณฑ์กล่องใส่อาหาร<br />
+            • <strong>แรงงาน (15%)</strong>: ค่าจ้างเชฟ ทีมครัว R&D วิจัยสูตรอาหาร<br />
+            • <strong>ดำเนินงาน (20%)</strong>: ค่าน้ำ ค่าไฟ แก๊สหุงต้ม ค่าเช่าที่ ค่าการตลาด<br />
+            • <strong>ค่าจัดส่ง (100%)</strong>: จ่ายค่ารอบส่งให้ไรเดอร์ (มาตรฐาน ฿45/จุด)
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -513,7 +527,7 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
                 <div className="relative w-full flex items-center justify-between">
                    <div className="flex items-center gap-3">
                       <div className="w-12 h-12 rounded-lg bg-white border border-emerald-100 flex items-center justify-center overflow-hidden">
-                         <img src={receiptUrl} alt="Receipt" className="object-cover w-full h-full" />
+                         <img src={receiptUrl || undefined} alt="Receipt" className="object-cover w-full h-full" />
                       </div>
                       <div>
                          <p className="text-xs font-bold text-emerald-700">อัปโหลดใบเสร็จแล้ว</p>

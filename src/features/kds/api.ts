@@ -709,9 +709,40 @@ export interface KdsDailyProductionRow {
 
 export async function fetchKdsDailyProduction(deliveryDate: string): Promise<KdsDailyProductionRow[]> {
   const { data, error } = await supabase
-    .from('kds_daily_production')
-    .select('*')
+    .from('erp_member_meal_schedules')
+    .select(`
+      id,
+      delivery_date,
+      menu_item_id,
+      quantity,
+      kitchen_status,
+      menu_item:menu_items(id, name, category)
+    `)
     .eq('delivery_date', deliveryDate);
+
   if (error) throw error;
-  return data as KdsDailyProductionRow[];
+
+  const map: Record<string, KdsDailyProductionRow> = {};
+  (data || []).forEach((row: any) => {
+    if (!row.menu_item_id) return;
+    const menuItem = Array.isArray(row.menu_item) ? row.menu_item[0] : row.menu_item;
+    const key = row.menu_item_id;
+    if (!map[key]) {
+      map[key] = {
+        delivery_date: row.delivery_date,
+        menu_item_id: key,
+        menu_name: menuItem?.name || 'ไม่ระบุเมนู',
+        category: menuItem?.category || 'อาหารหลัก',
+        kitchen_status: row.kitchen_status || 'pending',
+        total_quantity: 0,
+        schedule_count: 0,
+        schedule_ids: []
+      };
+    }
+    map[key].total_quantity += Number(row.quantity) || 1;
+    map[key].schedule_count += 1;
+    map[key].schedule_ids.push(row.id);
+  });
+
+  return Object.values(map);
 }
