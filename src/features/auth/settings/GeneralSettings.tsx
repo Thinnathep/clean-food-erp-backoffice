@@ -240,6 +240,32 @@ export const GeneralSettings: React.FC<GeneralSettingsProps> = ({
         </div>
       </section>
 
+      {/* ─── System Build & Version Info ─── */}
+      <section className="bg-slate-900 text-white p-6 rounded-3xl relative overflow-hidden shadow-xl border border-slate-800">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 blur-3xl rounded-full"></div>
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-2xl flex items-center justify-center font-bold text-lg shrink-0">
+              ✨
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="text-sm font-black text-white">Clean Food Chiang Rai ERP Backoffice</h4>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500 text-white shadow-xs">
+                  V.2.1.6
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                สถาปัตยกรรมระบบบริหารจัดการร้านอาหารสุขภาพและครัว คลีนฟู้ด เชียงราย
+              </p>
+            </div>
+          </div>
+          <div className="text-left sm:text-right text-xs text-slate-400">
+            <span className="font-mono text-emerald-400 font-bold">Stable Release</span> • 84 Tables Connected
+          </div>
+        </div>
+      </section>
+
     </motion.div>
   );
 };

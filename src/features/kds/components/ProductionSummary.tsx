@@ -181,72 +181,68 @@ function KpiCard({ label, value, icon: Icon, color }: {
 /** Single production card */
 function ProductionCard({ item, idx }: { item: any; idx: number }) {
   const [showAll, setShowAll] = useState(false);
-  const displayMembers = showAll ? item.members : item.members.slice(0, 5);
-  const hasMore = item.members.length > 5;
+  const displayMembers = showAll ? item.members : item.members.slice(0, 6);
+  const hasMore = item.members.length > 6;
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 16 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: idx * 0.06 }}
-      className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden flex flex-col hover:shadow-md transition-shadow group"
+      transition={{ delay: idx * 0.04 }}
+      className="bg-white rounded-2xl border border-slate-200/80 shadow-2xs overflow-hidden flex flex-col hover:shadow-sm hover:border-slate-300 transition-all duration-200"
     >
       {/* Card header */}
-      {/* Enhanced Header */}
-      <div className="p-3 bg-white border-b border-slate-100 flex items-center justify-between gap-3">
+      <div className="p-3.5 bg-white border-b border-slate-100 flex items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 mb-0.5">
-            <span className={`px-1.5 py-0.5 rounded text-white text-[8px] font-black uppercase tracking-widest ${
+          <div className="flex items-center gap-1.5 mb-1">
+            <span className={`px-2 py-0.5 rounded-md text-white text-[8px] font-black uppercase tracking-wider ${
               item.category === 'ของหวาน' ? 'bg-rose-500' :
               item.category === 'เส้น' ? 'bg-amber-500' :
               item.category === 'ผัด' ? 'bg-orange-500' :
               item.category === 'สลัด' ? 'bg-emerald-500' :
               item.category === 'ซูวี' ? 'bg-indigo-500' :
               item.category === 'ซุป/แกง' ? 'bg-teal-500' :
-              'bg-slate-700'
+              'bg-slate-800'
             }`}>{item.category}</span>
-            <h4 className="font-bold text-sm text-slate-900 leading-tight truncate">{item.name}</h4>
+            <h4 className="font-black text-sm text-slate-900 leading-tight truncate">{item.name}</h4>
           </div>
-          <div className="flex gap-1.5 mt-1 overflow-x-auto no-scrollbar">
+          <div className="flex gap-1 mt-1 overflow-x-auto no-scrollbar">
             {Object.entries(item.rounds).map(([round, count]: [string, any]) => {
               const displayRound = 
-                round === 'รอบเช้า' ? '11:00 - 13:00' :
-                round === 'รอบเย็น' ? '15:00 - 17:00' :
+                round === 'รอบเช้า' ? 'เช้า (11:00)' :
+                round === 'รอบเย็น' ? 'เย็น (15:00)' :
                 round;
               return (
-                <span key={round} className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 whitespace-nowrap">
-                  {displayRound}: {count}
+                <span key={round} className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 whitespace-nowrap">
+                  {displayRound}: <strong className="text-slate-900">{count}</strong>
                 </span>
               );
             })}
           </div>
         </div>
-        <div className="bg-emerald-50 text-emerald-600 border border-emerald-100 px-3 py-1 rounded-xl shadow-sm shrink-0 flex flex-col items-center justify-center min-w-[50px]">
-          <span className="text-xl font-black leading-none">{item.total}</span>
-          <div className="flex flex-col items-center -mt-0.5">
-            <span className="text-[8px] font-black uppercase opacity-60">BOX</span>
-            <span className="text-[7px] font-bold text-slate-400">({item.members.length} ท่าน)</span>
-          </div>
+        <div className="bg-slate-900 text-white px-3 py-1.5 rounded-xl shadow-2xs shrink-0 flex flex-col items-center justify-center min-w-[52px]">
+          <span className="text-lg font-black leading-none">{item.total}</span>
+          <span className="text-[7px] font-bold uppercase opacity-60 mt-0.5">BOX</span>
         </div>
       </div>
 
-      {/* Member List (Filling space) */}
-      <div className="p-3 flex-1 flex flex-col bg-slate-50/20">
+      {/* Member List */}
+      <div className="p-3 flex-1 flex flex-col bg-slate-50/40">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
           {displayMembers.map((m: any, i: number) => {
             const displayRound = 
-              m.round === 'รอบเช้า' ? '11:00 - 13:00' :
-              m.round === 'รอบเย็น' ? '15:00 - 17:00' :
+              m.round === 'รอบเช้า' ? 'เช้า' :
+              m.round === 'รอบเย็น' ? 'เย็น' :
               m.round;
             return (
-              <div key={i} className={`flex items-center justify-between px-3 py-1.5 bg-white border rounded-lg shadow-sm transition-colors ${m.note ? 'border-amber-100 bg-amber-50/20' : 'border-slate-100'}`}>
+              <div key={i} className={`flex items-center justify-between px-2.5 py-1.5 bg-white border rounded-xl shadow-2xs transition-colors ${m.note ? 'border-amber-200 bg-amber-50/30' : 'border-slate-200/70'}`}>
                 <div className="min-w-0 flex-1 mr-2">
-                  <p className={`text-[13px] font-semibold truncate ${m.note ? 'text-amber-900' : 'text-slate-800'}`}>{m.name}</p>
-                  <p className="text-[9px] text-slate-400 font-medium">{displayRound}</p>
+                  <p className={`text-xs font-bold truncate ${m.note ? 'text-amber-900' : 'text-slate-800'}`}>{m.name}</p>
+                  <p className="text-[9px] text-slate-400 font-medium">รอบ {displayRound}</p>
                 </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {m.note && <AlertCircle size={11} className="text-amber-500 animate-pulse" />}
-                  <span className="text-[13px] font-black text-slate-900">x{m.qty}</span>
+                <div className="flex items-center gap-1 shrink-0">
+                  {m.note && <AlertCircle size={11} className="text-rose-500 animate-pulse" />}
+                  <span className="text-xs font-black text-slate-900 bg-slate-100 px-1.5 py-0.5 rounded">x{m.qty}</span>
                 </div>
               </div>
             );
@@ -256,9 +252,9 @@ function ProductionCard({ item, idx }: { item: any; idx: number }) {
         {hasMore && (
           <button 
             onClick={() => setShowAll(!showAll)}
-            className="w-full py-1.5 text-[10px] font-bold text-blue-500 hover:bg-blue-50 border border-dashed border-blue-200 rounded-lg mt-2 transition-colors"
+            className="w-full py-1.5 text-[10px] font-bold text-indigo-600 hover:bg-indigo-50 border border-dashed border-indigo-200 rounded-xl mt-2 transition-colors cursor-pointer"
           >
-            {showAll ? 'ย่อรายการ' : `ดูเพิ่มอีก ${item.members.length - 5} ท่าน`}
+            {showAll ? 'ย่อรายการ' : `ดูเพิ่มอีก ${item.members.length - 6} ท่าน`}
           </button>
         )}
 
@@ -953,25 +949,25 @@ export const ProductionSummary: React.FC = () => {
   return (
     <div className="flex flex-col bg-slate-50 min-h-full relative">
       {/* ── Header ── */}
-      <div className="bg-white border-b border-slate-100 px-4 md:px-6 py-4 flex flex-col xl:flex-row xl:items-center justify-between gap-4 shadow-sm relative z-20">
-        <div className="flex items-center gap-3 md:gap-4 min-w-0">
-          <div className="w-10 h-10 md:w-12 md:h-12 bg-slate-900 text-white rounded-xl md:rounded-2xl flex items-center justify-center shrink-0 shadow-lg shadow-slate-900/10">
-            {activeTab === 'dashboard' ? <BarChart3 size={20} className="md:w-6 md:h-6" /> : activeTab === 'calendar' ? <CalendarIcon size={20} className="md:w-6 md:h-6" /> : <ChefHat size={20} className="md:w-6 md:h-6" />}
+      <div className="bg-white border-b border-slate-200/60 px-4 md:px-6 py-2.5 flex flex-col xl:flex-row xl:items-center justify-between gap-3 shadow-2xs relative z-20">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-8 h-8 bg-slate-900 text-white rounded-xl flex items-center justify-center shrink-0 shadow-sm">
+            {activeTab === 'dashboard' ? <BarChart3 size={16} className="text-emerald-400" /> : activeTab === 'calendar' ? <CalendarIcon size={16} className="text-emerald-400" /> : <ChefHat size={16} className="text-emerald-400" />}
           </div>
           <div className="min-w-0">
-            <div className="flex items-center gap-2 mb-1 md:mb-1.5">
-              <h2 className="text-base md:text-lg font-bold text-slate-900 leading-tight">
-                {activeTab === 'dashboard' ? 'วิเคราะห์การผลิต' : activeTab === 'production' ? 'สรุปยอดผลิตรายวัน' : 'ปฏิทินแผนงาน'}
-              </h2>
-              {activeTab === 'dashboard' && <Sparkles size={14} className="text-emerald-500 shrink-0" />}
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-black text-slate-900 leading-tight">
+                {activeTab === 'dashboard' ? 'วิเคราะห์การผลิต' : activeTab === 'production' ? 'สรุปยอดผลิตรายวัน' : activeTab === 'prep' ? 'รายการซื้อของ (Prep List)' : 'ปฏิทินแผนงาน'}
+              </h3>
+              {activeTab === 'dashboard' && <Sparkles size={13} className="text-emerald-500 shrink-0" />}
             </div>
-            <div className="overflow-x-auto scrollbar-hide -mx-1 px-1">
+            <div className="overflow-x-auto scrollbar-hide mt-1">
                <TabNav active={activeTab} onChange={setActiveTab} canViewDashboard={canViewDashboard} />
             </div>
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 md:gap-3">
+        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2">
           <DateNav
             label={navLabel}
             value={navValue}

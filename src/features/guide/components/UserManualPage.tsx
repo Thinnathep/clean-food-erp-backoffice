@@ -1,0 +1,948 @@
+import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { 
+  BookOpen, Search, ChefHat, Users, Warehouse, 
+  Wallet, Truck, Settings, Sparkles,
+  CheckCircle2, AlertTriangle, ExternalLink,
+  Clock, HelpCircle, Lightbulb
+} from 'lucide-react';
+import { motion } from 'framer-motion';
+
+interface ManualSection {
+  id: string;
+  title: string;
+  pagePath: string;
+  badge: string;
+  badgeColor: string;
+  summary: string;
+  keyFeatures: string[];
+  steps: { title: string; desc: string; tip?: string }[];
+  cautions?: string[];
+  tags: string[];
+}
+
+interface ManualCategory {
+  id: string;
+  title: string;
+  icon: any;
+  color: string;
+  description: string;
+  sections: ManualSection[];
+}
+
+export const UserManualPage: React.FC = () => {
+  const navigate = useNavigate();
+  const [activeCategory, setActiveCategory] = useState<string>('kds');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
+  const categories: ManualCategory[] = [
+    {
+      id: 'kds',
+      title: 'งานครัว & ปรุงอาหาร (KDS)',
+      icon: ChefHat,
+      color: 'from-emerald-600 to-teal-700',
+      description: 'ระบบจัดการกระบวนการผลิตอาหาร วางแผนเมนูรายสัปดาห์ ใบสั่งงาน และพิมพ์สลิปบลูทูธ 80mm',
+      sections: [
+        {
+          id: 'kds-today',
+          title: 'หน้าวันนี้ / จอครัวรวม (Today View)',
+          pagePath: '/kds',
+          badge: 'หน้าหลักประจำวัน',
+          badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+          summary: 'ศูนย์บัญชาการครัวแบบเรียลไทม์ ใช้ดูยอดผลิตอาหารประจำวัน สรุปจำนวนกล่องที่ต้องปรุง และสั่งพิมพ์สลิปติดกล่อง',
+          keyFeatures: [
+            'สรุปยอดผลิตรวม (Batch Summary) คำนวณจำนวนชุดของแต่ละเมนูที่ต้องปรุงในแต่ละรอบ',
+            'สลิปมื้ออาหาร 🖨️ ยิงพิมพ์ตรงเข้าเครื่องพิมพ์บลูทูธความร้อน 80mm (ESC/POS) อัตโนมัติ พร้อมข้อมูลโภชนาการ (Cal/P/C/F)',
+            'ปุ่มคัดลอกส่ง LINE ครัว 📋 สร้างข้อความสรุปเมนูและจำนวนกล่องทั้งหมดในคลิกเดียวเพื่อส่งให้ทีมครัว',
+            'สลับโหมดจอครัว KDS (Kitchen Mode) ขยายตัวหนังสือและสถานะขนาดใหญ่สำหรับแขวนจอในครัว',
+            'จำแนกออเดอร์ปิ่นโตสมาชิกและออเดอร์สั่งแยกออกจากกันชัดเจน'
+          ],
+          steps: [
+            {
+              title: '1. ตรวจสอบรอบวันและยอดผลิตรวม',
+              desc: 'เปิดหน้าวันนี้ ตรวจสอบวันที่ด้านบน ระบบจะดึงรายการอาหารที่ต้องจัดส่งในวันนั้นขึ้นมาสรุปเป็นจำนวนกล่องของแต่ละเมนู'
+            },
+            {
+              title: '2. กดคัดลอกสรุปส่ง LINE ให้ทีมแม่ครัว',
+              desc: 'กดปุ่ม [คัดลอกส่ง LINE 📋] เพื่อนำข้อความสรุปยอดผลิตไปวางในกลุ่มแชทครัวให้เริ่มเตรียมวัตถุดิบ'
+            },
+            {
+              title: '3. สั่งพิมพ์สลิปอาหารสำหรับติดกล่อง',
+              desc: 'เมื่อปรุงอาหารเสร็จ ให้กดปุ่ม [สลิป 🖨️] ที่กล่องลูกค้าแต่ละราย ระบบจะเชื่อมต่อเครื่องพิมพ์บลูทูธ 80mm และพิมพ์สลิปพร้อมคุณค่าทางโภชนาการออกมาทันที'
+            }
+          ],
+          cautions: [
+            'การพิมพ์สลิปจะทำงานผ่านเครื่องพิมพ์ความร้อนบลูทูธ/USB 80mm เท่านั้น ไม่มีการเปิดหน้าต่างพิมพ์เบราว์เซอร์ Ctrl+P',
+            'ควรเปิดบลูทูธที่อุปกรณ์และเปิดเครื่องพิมพ์ 80mm ก่อนกดสั่งพิมพ์'
+          ],
+          tags: ['kds', 'today', 'สลิป', 'บลูทูธ', '80mm', 'line', 'ยอดผลิต', 'หน้าวันนี้']
+        },
+        {
+          id: 'kds-planner',
+          title: 'แผนจัดมื้อลูกค้า (Member Weekly Planner)',
+          pagePath: '/kds',
+          badge: 'จัดการตาราง 7 วัน',
+          badgeColor: 'bg-blue-100 text-blue-800 border-blue-200',
+          summary: 'เครื่องมือจัดตารางเมนูอาหาร 7 วันรายบุคคล สำหรับลูกค้าสมาชิกปิ่นโต (Pinto Subscription)',
+          keyFeatures: [
+            'ตาราง 7 วันแบบ Matrix สอดคล้องกับรอบจัดส่งของร้าน (จันทร์ และ พฤหัสบดี)',
+            'รองรับประเภทออเดอร์: [ในแพ็กเกจ] หักโควต้ามื้อปกติ, [สั่งแยก] ไม่หักโควต้าแพ็กเกจ',
+            'มื้อชดเชย / แถมพิเศษ 🎁 บันทึกมื้อแถมโดยไม่นำไปหักออกจากยอดมื้อรวม',
+            'ไม่รับข้าว (Nutritional Adjustment) 🍚 ระบบจะหักลบแคลอรี่และคาร์บให้อัตโนมัติในสรุปโภชนาการ',
+            'เครื่องมือช่วยงานเร็ว: คัดลอกแผนวัน (Copy Day), วางแผนวัน (Paste Day), ล้างแผนทั้งวัน (Clear Day)',
+            'ระบบตรวจสอบและซิงค์ยอดคงเหลือ (Quota Auto-Sync & Audit) ตรวจนับจำนวนมื้อจริงทั้งแพ็กเกจและอัปเดตยอดคงเหลืออัตโนมัติ'
+          ],
+          steps: [
+            {
+              title: '1. เลือกลูกค้าและแพ็กเกจที่ต้องการจัดแผน',
+              desc: 'คลิกเลือกรายชื่อลูกค้าจากแถบด้านซ้าย ระบบจะแสดงโปรไฟล์ จำนวนมื้อคงเหลือ และตารางสัปดาห์'
+            },
+            {
+              title: '2. กดเพิ่มเมนูในแต่ละวัน (+ เพิ่มเมนู)',
+              desc: 'คลิกที่ปุ่ม [+ เพิ่มเมนู] ในวันจัดส่ง (จันทร์ หรือ พฤหัสบดี) ค้นหาชื่อเมนู เลือกรอบเวลา และระบุโน้ตพิเศษ (เช่น ไม่เผ็ด, แพ้ถั่ว)'
+            },
+            {
+              title: '3. บันทึกการเปลี่ยนแปลง (Floating Save Bar)',
+              desc: 'เมื่อลงเมนูเรียบร้อย ให้กดปุ่ม [บันทึกการเปลี่ยนแปลง] ที่แถบแจ้งเตือนด้านบน เพื่อบันทึกข้อมูลลงฐานข้อมูลและตัดยอดโควต้า'
+            }
+          ],
+          cautions: [
+            'ระบบจะบล็อกไม่อนุญาตให้ลงมื้ออาหารปกติเกินจำนวนโควต้าคงเหลือ (ป้องกันยอดติดลบ)',
+            'หากลูกค้าต้องการสั่งเพิ่มเกินแพ็กเกจ ให้เลือกประเภทออเดอร์เป็น [สั่งแยก] หรือ [มื้อชดเชย 🎁]'
+          ],
+          tags: ['planner', 'ตาราง 7 วัน', 'ปิ่นโต', 'ไม่รับข้าว', 'สั่งแยก', 'ชดเชย', 'ซิงค์โควต้า']
+        },
+        {
+          id: 'kds-production',
+          title: 'ใบสั่งผลิตอาหาร & โรดแมป (Production Order & Roadmap)',
+          pagePath: '/kds/production',
+          badge: 'คิวปรุงอาหาร',
+          badgeColor: 'bg-amber-100 text-amber-800 border-amber-200',
+          summary: 'จัดการสถานะการปรุงอาหารในครัวแบบเป็นขั้นตอน ติดตามว่าเมนูใดกำลังปรุง เมนูใดปรุงเสร็จแล้ว',
+          keyFeatures: [
+            'คิวสถานะ 3 ระดับ: [รอดำเนินการ (Pending)] ➡️ [กำลังปรุง (Cooking)] ➡️ [เสร็จสิ้น (Ready)]',
+            'ระบบจับเวลาและแจ้งเตือนออเดอร์ที่ล่าช้า (Late Alert) ด้วยกรอบสีแดงกะพริบ',
+            'ดูสูตรและส่วนผสมของแต่ละเมนูได้โดยตรงจากกล่องออเดอร์'
+          ],
+          steps: [
+            {
+              title: '1. เริ่มปรุงอาหาร',
+              desc: 'เมื่อเริ่มทำเมนู ให้กดเปลี่ยนสถานะเป็น [กำลังปรุง] เพื่อให้ทีมงานคนอื่นทราบ'
+            },
+            {
+              title: '2. ปรุงเสร็จสิ้น',
+              desc: 'เมื่อทำเสร็จ ให้กดยืนยัน [เสร็จสิ้น] สถานะจะเปลี่ยนเป็นพร้อมสำหรับสถานีจัดถุงและแพ็กเกจ'
+            }
+          ],
+          tags: ['production', 'ใบสั่งผลิต', 'ปรุงอาหาร', 'สถานะครัว', 'คิวงาน']
+        },
+        {
+          id: 'kds-recipes',
+          title: 'จัดการสูตรอาหาร & BOM (Recipe & BOM Management)',
+          pagePath: '/kds',
+          badge: 'สูตรมาตรฐาน 32 เมนู',
+          badgeColor: 'bg-purple-100 text-purple-800 border-purple-200',
+          summary: 'ฐานข้อมูลสูตรอาหารมาตรฐาน คำนวณปริมาณวัตถุดิบที่ต้องใช้ (Bill of Materials) และคำนวณต้นทุนต่อจาน',
+          keyFeatures: [
+            'กำหนดรายการวัตถุดิบและปริมาณที่ต้องใช้ต่อ 1 กล่อง (เช่น อกไก่ 150g, ข้าวไรซ์เบอร์รี่ 100g)',
+            'ระบบชดเชยการสูญเสียจากการตัดแต่งและปรุง (% Yield Loss) เพื่อคำนวณวัตถุดิบสดที่ต้องซื้อจริง',
+            'คำนวณต้นทุนอาหารต่อกล่อง (Food Cost) เฉลี่ยเป้าหมาย 20–21 บาท/กล่อง (~25–35% ของราคาขาย)',
+            'บันทึกขั้นตอนการปรุงอาหารมาตรฐาน (SOP Cooking Steps)'
+          ],
+          steps: [
+            {
+              title: '1. เปิดแท็บสูตรอาหาร (Recipes)',
+              desc: 'เข้าสู่หน้า KDS แล้วสลับไปที่แท็บ [สูตรอาหาร & BOM]'
+            },
+            {
+              title: '2. เพิ่มหรือแก้ไขส่วนผสม',
+              desc: 'เลือกเมนูที่ต้องการ เพิ่มวัตถุดิบจากคลังวัตถุดิบ ระบุปริมาณ และตรวจสอบต้นทุนรวม'
+            }
+          ],
+          tags: ['recipe', 'bom', 'สูตรอาหาร', 'ต้นทุน', 'yield', 'food cost']
+        },
+        {
+          id: 'kds-checklist',
+          title: 'เช็คลิสต์เตรียมของ & ความปลอดภัย HACCP',
+          pagePath: '/kds/checklist',
+          badge: 'มาตรฐานสุขอนามัย',
+          badgeColor: 'bg-rose-100 text-rose-800 border-rose-200',
+          summary: 'บันทึกการตรวจสอบคุณภาพ ความสะอาด และอุณหภูมิห้องครัวตามมาตรฐานความปลอดภัยอาหารสากล',
+          keyFeatures: [
+            'เช็คลิสต์เปิดร้านรอบเช้า (Opening Checklist) และปิดร้านรอบค่ำ (Closing Checklist)',
+            'บันทึกอุณหภูมิตู้แช่เย็น (0–4 °C) และตู้แช่แข็ง (-18 °C หรือต่ำกว่า)',
+            'บันทึกการทำความสะอาดและฆ่าเชื้ออุปกรณ์ปรุงอาหาร (Sanitation Logs)'
+          ],
+          steps: [
+            {
+              title: '1. ตรวจสอบและบันทึกอุณหภูมิ',
+              desc: 'ทุกเช้าให้พนักงานอ่านค่าอุณหภูมิตู้เย็นแล้วกรอกลงในระบบ'
+            },
+            {
+              title: '2. ติ๊กถูกรายการเช็คลิสต์',
+              desc: 'ตรวจสอบความสะอาดของสถานีปรุงอาหารและติ๊กบันทึกยืนยัน'
+            }
+          ],
+          tags: ['haccp', 'checklist', 'อุณหภูมิ', 'ความสะอาด', 'สุขอนามัย', 'เช็คลิสต์']
+        }
+      ]
+    },
+    {
+      id: 'members',
+      title: 'สมาชิก & แพ็กเกจ (CRM & Pinto)',
+      icon: Users,
+      color: 'from-blue-600 to-indigo-700',
+      description: 'ระบบบริหารสมาชิกลูกค้าปิ่นโต จัดการแพ็กเกจสุขภาพ บันทึกข้อมูลแพ้อาหาร และระบบเรดาร์เตือนลูกค้าเลิกสั่ง',
+      sections: [
+        {
+          id: 'member-management',
+          title: 'จัดการข้อมูลสมาชิก (Member 360° Profile)',
+          pagePath: '/members',
+          badge: 'ข้อมูลลูกค้า 360°',
+          badgeColor: 'bg-blue-100 text-blue-800 border-blue-200',
+          summary: 'ศูนย์รวมข้อมูลลูกค้า ทั้งประวัติการสั่งซื้อ ข้อมูลสุขภาพ ข้อมูลการแพ้อาหาร ที่อยู่จัดส่ง และสถานะแพ็กเกจ',
+          keyFeatures: [
+            'บันทึกเป้าหมายสุขภาพ: [ลดน้ำหนัก], [เพิ่มกล้ามเนื้อ], [เพื่อสุขภาพ], [คุมอาหาร]',
+            'บันทึกสิ่งที่แพ้ / ไม่ทานอย่างละเอียด (ระบบจะแสดงป้ายเตือนสีแดงในทุกหน้าจอ)',
+            'จัดการแพ็กเกจปิ่นโต: เปิดแพ็กเกจใหม่, เพิ่มมื้อ, ปรับสถานะ (Active, Expired, Paused)',
+            'ระบบ Buddy Group: จัดกลุ่มเพื่อนร่วมงานหรือครอบครัวที่สั่งส่งจุดเดียวกัน เพื่อรับสิทธิ์ส่งฟรี',
+            'เรดาร์ตรวจจับความเสี่ยงลูกค้าเลิกสั่ง (Churn Risk Radar) วิเคราะห์ความถี่การสั่งและแจ้งเตือนให้แอดมินดูแล'
+          ],
+          steps: [
+            {
+              title: '1. ค้นหาหรือเพิ่มสมาชิกใหม่',
+              desc: 'ใช้ช่องค้นหาชื่อ/เบอร์โทร หรือกดปุ่ม [+ เพิ่มสมาชิกใหม่] เพื่อกรอกชื่อ เบอร์โทร ที่อยู่ และสิ่งที่แพ้'
+            },
+            {
+              title: '2. ผูกแพ็กเกจปิ่นโต (Pinto Package)',
+              desc: 'กดที่ปุ่ม [เปิดแพ็กเกจใหม่] เลือกโปรโมชั่น (เช่น 14 มื้อ, 20 มื้อ, 30 มื้อ) ระบุวันที่เริ่มสัญญา ระบบจะคำนวณวันหมดอายุให้อัตโนมัติ'
+            },
+            {
+              title: '3. อัปเดตข้อมูลส่วนตัว',
+              desc: 'สามารถคลิกแก้ไขที่อยู่จัดส่ง เบอร์โทร และรอบเวลาส่งได้ตลอดเวลา'
+            }
+          ],
+          tags: ['members', 'crm', 'สมาชิก', 'แพ้อาหาร', 'ปิ่นโต', 'buddy', 'churn']
+        },
+        {
+          id: 'promotion-management',
+          title: 'โปรโมชั่น & เซลล์เดสก์ (Promotions & Packages)',
+          pagePath: '/promotions',
+          badge: 'แพ็กเกจราคาพิเศษ',
+          badgeColor: 'bg-purple-100 text-purple-800 border-purple-200',
+          summary: 'สร้างและจัดการโปรโมชั่นปิ่นโต คูปองส่วนลด และโครงสร้างส่วนลดสำหรับการสั่งอาหารแบบกลุ่ม',
+          keyFeatures: [
+            'โปรโมชั่นมาตรฐาน: 4 กล่อง (299.- เฉลี่ย 74.75 บ./กล่อง), 6 กล่อง (399.- เฉลี่ย 66.50 บ./กล่อง), 7 กล่อง (459.- เฉลี่ย 65.57 บ./กล่อง)',
+            'ระบบส่วนลดออเดอร์กลุ่ม (Tiered Group Discounts): สั่ง 5–9 กล่องลด 5%, สั่ง 10 กล่องขึ้นไปลด 10%',
+            'สร้างโค้ดคูปองส่วนลดแบบจำกัดจำนวนครั้งและวันหมดอายุ',
+            'คำนวณและจำลองผลกำไรต่อโปรโมชั่น'
+          ],
+          steps: [
+            {
+              title: '1. สร้างโปรโมชั่นใหม่',
+              desc: 'กดปุ่ม [+ สร้างโปรโมชั่น] กำหนดชื่อ จำนวนกล่อง ราคาขาย และระยะเวลาใช้งาน'
+            },
+            {
+              title: '2. นำไปใช้งานกับลูกค้า',
+              desc: 'เมื่อลูกค้าสมัครแพ็กเกจ ให้เลือกโปรโมชั่นที่สร้างไว้ในหน้าจัดการสมาชิกหรือหน้า Member Planner'
+            }
+          ],
+          tags: ['promotions', 'โปรโมชั่น', 'คูปอง', 'ส่วนลดกลุ่ม', 'ราคาปิ่นโต']
+        }
+      ]
+    },
+    {
+      id: 'inventory',
+      title: 'คลังวัตถุดิบ & จัดซื้อ (Inventory & Purchasing)',
+      icon: Warehouse,
+      color: 'from-amber-600 to-orange-700',
+      description: 'ระบบควบคุมคลังวัตถุดิบสด เครื่องปรุง บรรจุภัณฑ์ การรับของเข้าสต็อก และระบบจัดซื้อซัพพลายเออร์',
+      sections: [
+        {
+          id: 'inventory-stock',
+          title: 'เช็คสต็อก & รับของเข้า (Stock & Receiving)',
+          pagePath: '/inventory/stock',
+          badge: 'สต็อกคงเหลือจริง',
+          badgeColor: 'bg-amber-100 text-amber-800 border-amber-200',
+          summary: 'ตรวจนับสต็อกวัตถุดิบคงเหลือ บันทึกรับสินค้าเข้าคลัง (Stock In) และติดตามการหมดอายุ',
+          keyFeatures: [
+            'บันทึกรับวัตถุดิบเข้าคลังพร้อมระบุ ล็อต (Lot Number) และวันหมดอายุ (Expiry Date)',
+            'ระบบแจ้งเตือนสต็อกใกล้หมด (Low Stock Alert) เมื่อปริมาณต่ำกว่าระดับเกณฑ์ขั้นต่ำ (Min Stock Level)',
+            'แปลงหน่วยนับอัตโนมัติ (เช่น สั่งซื้อเป็นกิโลกรัม ตัดใช้เป็นกรัม, ลิตร เป็น มิลลิลิตร)'
+          ],
+          steps: [
+            {
+              title: '1. บันทึกรับของเข้าคลัง (Stock In)',
+              desc: 'เมื่อได้รับวัตถุดิบจากตลาด/ซัพพลายเออร์ ให้กดปุ่ม [+ รับของเข้า] กรอกจำนวนและราคาต้นทุน'
+            },
+            {
+              title: '2. ตรวจเช็คสต็อกก่อนเริ่มปรุง',
+              desc: 'ตรวจดูแถบสีแจ้งเตือน หากวัตถุดิบใดขึ้นสีส้ม/แดง แสดงว่าต้องสั่งซื้อเพิ่ม'
+            }
+          ],
+          tags: ['inventory', 'stock', 'สต็อก', 'รับของเข้า', 'วันหมดอายุ', 'วัตถุดิบ']
+        },
+        {
+          id: 'inventory-items',
+          title: 'จัดการทะเบียนวัตถุดิบ (Ingredient Master)',
+          pagePath: '/inventory/items',
+          badge: 'ทะเบียน Master',
+          badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+          summary: 'ฐานข้อมูลแม่บทของวัตถุดิบทุกชนิด ผูกกับราคาซื้อ ซัพพลายเออร์ และสัดส่วน Yield',
+          keyFeatures: [
+            'กำหนดหมวดหมู่วัตถุดิบ: [เนื้อสัตว์], [ผักสด], [เครื่องปรุง/ซอส], [ข้าว/ธัญพืช], [บรรจุภัณฑ์]',
+            'ระบุราคาซื้อมาตรฐานและซัพพลายเออร์เจ้าประจำ',
+            'คำนวณ % Yield (อัตราเนื้อวัตถุดิบที่ใช้ได้จริงหลังตัดแต่ง)'
+          ],
+          steps: [
+            {
+              title: '1. เพิ่มวัตถุดิบใหม่เข้าระบบ',
+              desc: 'กดปุ่ม [+ เพิ่มวัตถุดิบ] กรอกชื่อ หมวดหมู่ หน่วยนับ ราคา และระดับเตือนสต็อกต่ำ'
+            }
+          ],
+          tags: ['ingredients', 'master', 'ทะเบียนวัตถุดิบ', 'ซัพพลายเออร์']
+        },
+        {
+          id: 'procurement-dashboard',
+          title: 'จัดซื้อ & รับสินค้า (Procurement & Supplier PO)',
+          pagePath: '/procurement',
+          badge: 'ใบสั่งซื้อ PO/GR',
+          badgeColor: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+          summary: 'สร้างใบสั่งซื้อวัตถุดิบ (PO) ส่งให้ซัพพลายเออร์ และตรวจรับสินค้า (GR) เข้าสู่ระบบบัญชี',
+          keyFeatures: [
+            'ออกใบสั่งซื้อ (Purchase Order) ระบุรายการวัตถุดิบและยอดเงินที่ต้องชำระ',
+            'บันทึกใบตรวจรับของ (Goods Receipt) เมื่อของมาส่ง',
+            'เปรียบเทียบราคาวัตถุดิบจากซัพพลายเออร์แต่ละเจ้าเพื่อคุมต้นทุน'
+          ],
+          steps: [
+            {
+              title: '1. เปิดใบสั่งซื้อ (PO)',
+              desc: 'เลือกซัพพลายเออร์ เพิ่มรายการวัตถุดิบที่ต้องสั่ง และกดยืนยันออก PO'
+            },
+            {
+              title: '2. ตรวจรับสินค้า (GR)',
+              desc: 'เมื่อสินค้ามาส่ง ตรวจสอบจำนวนจริงแล้วกดรับของเข้าคลัง ข้อมูลจะวิ่งเข้าสู่ระบบสต็อกทันที'
+            }
+          ],
+          tags: ['procurement', 'po', 'gr', 'จัดซื้อ', 'ซัพพลายเออร์']
+        }
+      ]
+    },
+    {
+      id: 'finance',
+      title: 'การเงิน & 4 กองทุน (Finance & Split Engine)',
+      icon: Wallet,
+      color: 'from-purple-600 to-pink-700',
+      description: 'ระบบบริหารการเงินตามโมเดล 4 กองทุนของ Clean Food CR กระทบยอดเงินสดรายวัน และงบกำไรขาดทุน P&L',
+      sections: [
+        {
+          id: 'finance-overview',
+          title: 'แดชบอร์ด 4 กองทุน (4-Fund Pool Allocation)',
+          pagePath: '/finance',
+          badge: 'โครงสร้างการเงิน Clean Food CR',
+          badgeColor: 'bg-purple-100 text-purple-800 border-purple-200',
+          summary: 'ระบบแยกรายได้ทุกบาทเข้า 4 กองทุนหลัก + 1 กองทุนค่าจัดส่ง 100% เพื่อความมั่นคงทางการเงิน',
+          keyFeatures: [
+            'สูตรคำนวณ Net Revenue: [รายได้รวม - ค่าจัดส่ง 100%]',
+            '🥦 กองทุนวัตถุดิบ (Material Fund 35%): สำรองไว้สำหรับซื้อเนื้อสัตว์ ผักสด เครื่องปรุง และกล่องอาหาร',
+            '👥 กองทุนแรงงาน & พัฒนา (Labor Fund 15%): สำรองสำหรับค่าจ้างทีมครัว เชฟ และการพัฒนาสูตร R&D',
+            '⚡ กองทุนดำเนินงาน & บิล (Ops Fund 20%): สำรองสำหรับค่าน้ำ ค่าไฟ ค่าแก๊ส ค่าเช่าสถานที่ และการตลาด',
+            '💰 กองทุนกำไร & สำรอง (Profit Fund 30%): กำไรสุทธิของร้าน และเงินทุนสำรองฉุกเฉิน',
+            '🛵 กองทุนจัดส่ง (Delivery Pool 100%): แยกค่าส่งออกเต็มจำนวนเพื่อจ่ายค่ารอบไรเดอร์ (฿45/จุด)'
+          ],
+          steps: [
+            {
+              title: '1. ดูยอดสะสมในแต่ละกองทุน',
+              desc: 'เข้าสู่หน้าการเงิน ตรวจสอบยอดเงินคงเหลือของทั้ง 4 กองทุน'
+            },
+            {
+              title: '2. บันทึกรายจ่ายโดยระบุกองทุน',
+              desc: 'เมื่อมีค่าใช้จ่ายเกิดขึ้น ให้เลือกตัดเงินออกจากกองทุนที่เกี่ยวข้อง เช่น ซื้ออกไก่ ➡️ ตัดจากกองทุนวัตถุดิบ 35%'
+            }
+          ],
+          tags: ['finance', '4-fund', 'แยกเงิน 4 กอง', 'วัตถุดิบ 35%', 'กำไร 30%', 'ค่าส่ง 100%']
+        },
+        {
+          id: 'finance-cash-recon',
+          title: 'กระทบยอดเงินสดลิ้นชัก (Daily Cash Reconciliation)',
+          pagePath: '/finance/cash_recon',
+          badge: 'ปิดกะประจำวัน',
+          badgeColor: 'bg-amber-100 text-amber-800 border-amber-200',
+          summary: 'การนับเงินสดจริงในลิ้นชักเทียบกับยอดเงินที่ระบบบันทึก เพื่อความโปร่งใสและป้องกันเงินตกหล่น',
+          keyFeatures: [
+            'กรอกจำนวนธนบัตรและเหรียญจริงที่นับได้ในลิ้นชักตอนสิ้นวัน',
+            'ระบบคำนวณผลต่าง (Variance = เงินจริง - ยอดในระบบ) ให้อัตโนมัติ',
+            'บันทึกหมายเหตุการปิดกะและบันทึกประวัติย้อนหลัง'
+          ],
+          steps: [
+            {
+              title: '1. นับเงินสดจริงในลิ้นชัก',
+              desc: 'กรอกจำนวนธนบัตร (1000, 500, 100, 50, 20) และเหรียญ'
+            },
+            {
+              title: '2. ตรวจสอบผลต่าง (Variance)',
+              desc: 'หากยอดตรงกัน ผลต่างจะเป็น ฿0.00 หากมีส่วนต่างให้ระบุสาเหตุแล้วกดยืนยันปิดกะ'
+            }
+          ],
+          tags: ['cash', 'reconciliation', 'กระทบยอด', 'เงินสด', 'ปิดกะ']
+        },
+        {
+          id: 'finance-pl',
+          title: 'งบกำไรขาดทุน (P&L Statements & Invoices)',
+          pagePath: '/finance/pl',
+          badge: 'รายงานบัญชี',
+          badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+          summary: 'สรุปภาพรวมรายได้ ค่าใช้จ่าย และกำไรสุทธิประจำเดือน พร้อมระบบออกใบเสร็จ/ใบกำกับภาษี VAT 7%',
+          keyFeatures: [
+            'สรุปรายได้รวม (Gross Revenue), ต้นทุนวัตถุดิบ (COGS), ค่าใช้จ่ายดำเนินการ และกำไรสุทธิ (Net Profit)',
+            'ออกใบเสร็จรับเงิน / ใบกำกับภาษี e-Tax Invoice ที่มีโครงสร้างภาษีมูลค่าเพิ่ม 7% ถูกต้องตามกฎหมาย',
+            'ส่งออกรายงาน (Export Data) เป็น Excel/PDF'
+          ],
+          steps: [
+            {
+              title: '1. เลือกช่วงเวลาที่ต้องการดูรายงาน',
+              desc: 'เลือกดูแบบรายวัน รายสัปดาห์ หรือรายเดือน เพื่อประเมินผลกำไรของร้าน'
+            }
+          ],
+          tags: ['pl', 'invoices', 'vat 7%', 'กำไรขาดทุน', 'ใบเสร็จ']
+        },
+        {
+          id: 'order-calculator',
+          title: 'เครื่องคำนวณออเดอร์ & POS (Order & Pricing Calculator)',
+          pagePath: '/calculator',
+          badge: 'คิดเงินหน้าร้าน',
+          badgeColor: 'bg-blue-100 text-blue-800 border-blue-200',
+          summary: 'เครื่องมือช่วยคำนวณยอดเงินออเดอร์ปิ่นโต รวมค่าจัดส่งตามระยะทาง และส่วนลดกลุ่มอัตโนมัติ',
+          keyFeatures: [
+            'คำนวณราคาปิ่นโตตามโปรโมชั่นที่เลือก',
+            'คำนวณค่าจัดส่งตามระยะทาง (รัศมี 5 กม. ส่งฟรี เกิน 5 กม. คิดกิโลเมตรละ 15 บาท)',
+            'คำนวณส่วนลดสั่งกลุ่ม (Group Order Discount) อัตโนมัติ'
+          ],
+          steps: [
+            {
+              title: '1. เลือกแพ็กเกจและจำนวนกล่อง',
+              desc: 'เลือกว่าเป็นแพ็กเกจใด ระบุจำนวนกล่อง และระบุระยะทางจัดส่ง'
+            },
+            {
+              title: '2. ดูยอดสรุปและแจ้งลูกค้า',
+              desc: 'ระบบจะสรุปยอดรวมที่ลูกค้าต้องชำระ พร้อมแจกแจงสัดส่วนเงิน 4 กองทุน'
+            }
+          ],
+          tags: ['calculator', 'pos', 'คำนวณราคา', 'ค่าส่ง', 'ส่วนลด']
+        }
+      ]
+    },
+    {
+      id: 'logistics',
+      title: 'การจัดส่ง & โลจิสติกส์ (Logistics & Dispatch)',
+      icon: Truck,
+      color: 'from-teal-600 to-emerald-700',
+      description: 'ระบบวางแผนเส้นทางจัดส่ง จุดส่งกลุ่ม (Drop Point) ค่ารอบไรเดอร์ และการตั้งค่ารอบจัดส่ง',
+      sections: [
+        {
+          id: 'logistics-packing',
+          title: 'สถานีจัดถุง & แยกแพ็กเกจ (Packing Station)',
+          pagePath: '/logistics/packing',
+          badge: 'จัดของลงถุง',
+          badgeColor: 'bg-teal-100 text-teal-800 border-teal-200',
+          summary: 'สถานีตรวจสอบความถูกต้องของกล่องอาหาร จัดอาหารลงถุงปิ่นโตตามจุดจัดส่งและลูกค้ารายบุคคล',
+          keyFeatures: [
+            'ตรวจสอบจำนวนกล่องอาหารว่าครบตามที่ลูกค้าสั่งหรือไม่',
+            'แยกถุงตามจุดส่งกลุ่ม (Drop Point Hubs) หรือที่อยู่จัดส่งส่วนตัว',
+            'ติดสลิป 80mm บนถุงอาหารเพื่อความถูกต้องในการส่งมอบ'
+          ],
+          steps: [
+            {
+              title: '1. ตรวจสอบรายการมื้ออาหาร',
+              desc: 'ดูรายการมื้อที่ต้องจัดส่งของลูกค้ารายนั้น นำกล่องอาหารที่ปรุงเสร็จมาใส่ถุง'
+            },
+            {
+              title: '2. ติ๊กยืนยันการจัดถุง',
+              desc: 'เมื่อครบแล้วให้กดยืนยัน ออเดอร์จะย้ายไปยังสถานะพร้อมส่งมอบให้ไรเดอร์'
+            }
+          ],
+          tags: ['packing', 'จัดถุง', 'แพ็กเกจ', 'ตรวจนับ']
+        },
+        {
+          id: 'logistics-drop-points',
+          title: 'จุดส่งกลุ่ม & Drop Points (Hub Network)',
+          pagePath: '/logistics/drop-points',
+          badge: 'จุดนัดรับอาหาร',
+          badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+          summary: 'จัดการเครือข่ายจุดส่งกลุ่ม เช่น อาคารสำนักงาน โรงพยาบาล หรือฟิตเนส เพื่อส่งฟรีและประหยัดค่ารอบ',
+          keyFeatures: [
+            'ปักหมุดพิกัด GPS ของจุดส่งกลุ่มบนแผนที่',
+            'กำหนดเวลาจัดส่งประจำจุด (เช่น 11:30 น.)',
+            'จัดกลุ่มสมาชิกลูกค้าที่รับอาหารที่จุดเดียวกัน'
+          ],
+          steps: [
+            {
+              title: '1. เพิ่มจุดส่งกลุ่มใหม่',
+              desc: 'กดปุ่ม [+ เพิ่มจุด Drop Point] ปักหมุดบนแผนที่ ระบุชื่อสถานที่ และเบอร์ติดต่อผู้ประสานงาน'
+            }
+          ],
+          tags: ['drop-points', 'จุดส่งกลุ่ม', 'hub', 'แผนที่', 'ส่งฟรี']
+        },
+        {
+          id: 'logistics-routes',
+          title: 'จัดการเส้นทาง & คนขับ (Route & Rider Management)',
+          pagePath: '/logistics/routes',
+          badge: 'เส้นทางวิ่งส่ง',
+          badgeColor: 'bg-blue-100 text-blue-800 border-blue-200',
+          summary: 'จัดลำดับเส้นทางการวิ่งส่งของไรเดอร์ คำนวณค่ารอบมาตรฐาน ฿45/จุด และระบบเคลมค่าน้ำมัน',
+          keyFeatures: [
+            'จัดลำดับจุดส่ง (Route Sequence) เพื่อให้ไรเดอร์วิ่งส่งได้เร็วและสั้นที่สุด',
+            'คำนวณค่ารอบไรเดอร์มาตรฐาน ฿45 ต่อจุดจัดส่ง',
+            'ระบบบันทึกระยะทางและเคลมค่าน้ำมัน'
+          ],
+          steps: [
+            {
+              title: '1. มอบหมายออเดอร์ให้ไรเดอร์',
+              desc: 'เลือกรายชื่อไรเดอร์และจัดสรรถุงอาหารตามเส้นทาง'
+            }
+          ],
+          tags: ['routes', 'riders', 'คนขับ', 'เส้นทาง', 'ค่ารอบ 45 บาท']
+        },
+        {
+          id: 'logistics-settings',
+          title: 'ตั้งค่ารอบจัดส่ง & รัศมี (Delivery Settings)',
+          pagePath: '/logistics/delivery-settings',
+          badge: 'กฎการจัดส่ง',
+          badgeColor: 'bg-slate-100 text-slate-800 border-slate-200',
+          summary: 'กำหนดวันจัดส่งหลักของร้าน (จันทร์ และ พฤหัสบดี) และตั้งค่าอัตราค่าจัดส่งตามระยะทาง',
+          keyFeatures: [
+            'รอบจัดส่งหลักของร้าน: วันจันทร์ และ วันพฤหัสบดี (ตาราง 7 วันใน KDS จะไฮไลต์และสัมพันธ์กับรอบนี้อัตโนมัติ)',
+            'กำหนดช่วงเวลาส่งอาหาร (Time Window) เช่น 11:00 - 13:00 น.',
+            'กำหนดโซนรัศมีส่งฟรี 5 กม. จากค่ายเม็งราย เชียงราย'
+          ],
+          steps: [
+            {
+              title: '1. ตั้งค่ารอบวันจัดส่ง',
+              desc: 'เลือกวันส่งหลักของร้าน และบันทึกการตั้งค่า ข้อมูลจะซิงค์ไปยังหน้า KDS และ Member Planner ทันที'
+            }
+          ],
+          tags: ['delivery-settings', 'รอบส่ง', 'จันทร์ พฤหัสบดี', 'รัศมี 5km']
+        }
+      ]
+    },
+    {
+      id: 'settings',
+      title: 'การตั้งค่า & ฮาร์ดแวร์ (Settings & Hardware)',
+      icon: Settings,
+      color: 'from-slate-700 to-slate-900',
+      description: 'การเชื่อมต่อเครื่องพิมพ์สลิปบลูทูธ 80mm การติดตั้งแอป PWA และการตั้งค่าสิทธิ์ผู้ใช้งาน',
+      sections: [
+        {
+          id: 'printer-settings',
+          title: 'ตั้งค่าเครื่องพิมพ์สลิปบลูทูธ 80mm (Bluetooth Thermal Printer)',
+          pagePath: '/settings',
+          badge: 'เครื่องพิมพ์ 80mm',
+          badgeColor: 'bg-teal-100 text-teal-800 border-teal-200',
+          summary: 'เชื่อมต่อและปรับแต่งเครื่องพิมพ์สลิปความร้อนบลูทูธ 80mm สำหรับพิมพ์สลิปติดกล่องในครัว',
+          keyFeatures: [
+            'เชื่อมต่อเครื่องพิมพ์บลูทูธ 80mm ผ่าน Web Bluetooth API',
+            'โหมดพิมพ์ภาษาไทยคมชัด (Graphic Mode Canvas) สระและวรรณยุกต์ภาษาไทยสวยงาม ชัดเจน ไม่ลอย ไม่ซ้อน',
+            'คำสั่งตัดกระดาษอัตโนมัติ (ESC/POS Auto-Cut)',
+            'ปุ่มทดสอบการพิมพ์ (Test Print) เพื่อเช็คความพร้อมก่อนเปิดร้าน'
+          ],
+          steps: [
+            {
+              title: '1. เปิดเครื่องพิมพ์บลูทูธ 80mm',
+              desc: 'เปิดสวิตช์เครื่องพิมพ์และตรวจสอบว่ามีกระดาษความร้อน 80mm พร้อมใช้งาน'
+            },
+            {
+              title: '2. กดเชื่อมต่อบลูทูธในระบบ',
+              desc: 'เข้าสู่หน้าตั้งค่าระบบ หรือกดพิมพ์สลิปในหน้า TodayView เลือกชื่อเครื่องพิมพ์บลูทูธในหน้าต่างที่ปรากฏขึ้น'
+            },
+            {
+              title: '3. ทดสอบการพิมพ์',
+              desc: 'กดปุ่ม [ทดสอบพิมพ์สลิป 🖨️] เครื่องพิมพ์จะพิมพ์ใบสั่งงานทดสอบออกมาพร้อมตัดกระดาษ'
+            }
+          ],
+          cautions: [
+            'ระบบนี้ออกแบบมาเพื่อเครื่องพิมพ์ความร้อนบลูทูธ 80mm โดยเฉพาะ ห้ามใช้คำสั่งพิมพ์เบราว์เซอร์ปกติ (Ctrl+P) เพราะจะทำให้ขนาดกระดาษผิดเพี้ยน'
+          ],
+          tags: ['printer', 'bluetooth', '80mm', 'เครื่องพิมพ์', 'สลิป', 'กระดาษความร้อน']
+        },
+        {
+          id: 'pwa-settings',
+          title: 'ติดตั้งแอปบนแท็บเล็ต/มือถือ (PWA Mobile Install)',
+          pagePath: '/settings',
+          badge: 'ใช้งานบนแท็บเล็ต',
+          badgeColor: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+          summary: 'ติดตั้งเว็บแอปพลิเคชัน Clean Food CR ERP ลงบนหน้าจอโฮมของแท็บเล็ตและมือถือเพื่อเปิดใช้งานได้เต็มหน้าจอ',
+          keyFeatures: [
+            'ติดตั้งแบบ Progressive Web App (PWA) ไม่ต้องโหลดผ่าน App Store',
+            'แสดงผลแบบเต็มหน้าจอ (Full Screen Mode) เสมือนแอปแท็บเล็ต',
+            'ทำงานได้รวดเร็วและอัปเดตระบบอัตโนมัติ'
+          ],
+          steps: [
+            {
+              title: '1. กดปุ่มติดตั้งแอป',
+              desc: 'กดปุ่ม [ติดตั้งแอป] ที่แถบเมนูด้านล่างซ้าย หรือเลือก Add to Home Screen ในเบราว์เซอร์'
+            }
+          ],
+          tags: ['pwa', 'install', 'แท็บเล็ต', 'มือถือ', 'แอปพลิเคชัน']
+        }
+      ]
+    }
+  ];
+
+  // Flattened search index
+  const filteredSections = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return null;
+    }
+    const query = searchQuery.toLowerCase().trim();
+    const matches: { category: ManualCategory; section: ManualSection }[] = [];
+
+    categories.forEach(cat => {
+      cat.sections.forEach(sec => {
+        const inTitle = sec.title.toLowerCase().includes(query);
+        const inSummary = sec.summary.toLowerCase().includes(query);
+        const inFeatures = sec.keyFeatures.some(f => f.toLowerCase().includes(query));
+        const inSteps = sec.steps.some(s => s.title.toLowerCase().includes(query) || s.desc.toLowerCase().includes(query));
+        const inTags = sec.tags.some(t => t.toLowerCase().includes(query));
+
+        if (inTitle || inSummary || inFeatures || inSteps || inTags) {
+          matches.push({ category: cat, section: sec });
+        }
+      });
+    });
+
+    return matches;
+  }, [searchQuery, categories]);
+
+  const currentCategoryData = categories.find(c => c.id === activeCategory) || categories[0];
+
+  return (
+    <div className="flex-1 bg-[#F8FAFC] min-h-[calc(100vh-4rem)] p-4 sm:p-6 md:p-8 font-prompt">
+      
+      {/* ─── Hero Header Banner ─── */}
+      <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-emerald-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-xl mb-8 border border-emerald-500/20">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-1/3 w-64 h-64 bg-teal-500/10 rounded-full blur-2xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-semibold uppercase tracking-wider">
+              <BookOpen size={14} className="text-emerald-400" />
+              <span>Clean Food CR ERP Knowledge Base</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">
+              คู่มือการใช้งานระบบฉบับสมบูรณ์
+            </h1>
+            <p className="text-sm sm:text-base text-slate-300 font-normal leading-relaxed">
+              รวมขั้นตอนการปฏิบัติงาน กฎธุรกิจ 4 กองทุน ระบบจัดมื้ออาหาร KDS การจัดการสต็อก และวิธีใช้เครื่องพิมพ์บลูทูธ 80mm ทุกหน้าจอ
+            </p>
+          </div>
+
+          {/* Quick Search Input */}
+          <div className="w-full md:w-80 relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <input
+              type="text"
+              placeholder="ค้นหาฟีเจอร์, ปุ่ม, คำสำคัญ..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-11 pr-4 py-3 bg-white/10 border border-white/20 rounded-2xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:bg-white/15 transition-all text-sm font-normal backdrop-blur-md"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-300 hover:text-white bg-white/20 px-2 py-0.5 rounded-md"
+              >
+                ล้าง
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ─── Search Results View (If search query exists) ─── */}
+      {filteredSections !== null ? (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <Search size={20} className="text-emerald-600" />
+              <span>ผลการค้นหาสำหรับ "{searchQuery}" ({filteredSections.length} รายการ)</span>
+            </h2>
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 underline"
+            >
+              กลับไปดูตามหมวดหมู่
+            </button>
+          </div>
+
+          {filteredSections.length === 0 ? (
+            <div className="p-12 text-center bg-white rounded-3xl border border-slate-200">
+              <HelpCircle size={48} className="mx-auto text-slate-300 mb-3" />
+              <h3 className="text-base font-bold text-slate-800">ไม่พบหัวข้อที่ตรงกับคำค้นหา</h3>
+              <p className="text-xs text-slate-500 font-normal mt-1">
+                ลองค้นหาด้วยคำอื่น เช่น "สลิป", "ปิ่นโต", "บลูทูธ", "4 กองทุน", "ชดเชย", "BOM", "Drop Point"
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-6">
+              {filteredSections.map(({ category, section }) => (
+                <div key={section.id} className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs hover:border-emerald-300 transition-all space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                    <div className="flex items-center gap-2.5">
+                      <span className={`px-2.5 py-1 rounded-xl text-xs font-semibold border ${section.badgeColor}`}>
+                        {section.badge}
+                      </span>
+                      <span className="text-xs text-slate-400 font-normal">
+                        หมวด: {category.title}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => navigate(section.pagePath)}
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl transition-all"
+                    >
+                      <span>ไปยังหน้านี้</span>
+                      <ExternalLink size={12} />
+                    </button>
+                  </div>
+
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">{section.title}</h3>
+                    <p className="text-sm text-slate-600 font-normal mt-1 leading-relaxed">{section.summary}</p>
+                  </div>
+
+                  {/* Key Features */}
+                  <div className="space-y-2 bg-slate-50/70 p-4 rounded-2xl border border-slate-100">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                      <Sparkles size={14} className="text-amber-500" />
+                      <span>จุดเด่นและฟังก์ชันสำคัญ</span>
+                    </h4>
+                    <ul className="space-y-1.5 text-xs text-slate-700 font-normal">
+                      {section.keyFeatures.map((f, i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <CheckCircle2 size={14} className="text-emerald-500 mt-0.5 shrink-0" />
+                          <span className="leading-relaxed">{f}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Steps */}
+                  <div className="space-y-2 pt-2">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">ขั้นตอนการใช้งานจริง:</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {section.steps.map((st, i) => (
+                        <div key={i} className="p-3 bg-white rounded-xl border border-slate-200/80 space-y-1 shadow-2xs">
+                          <p className="text-xs font-semibold text-emerald-800">{st.title}</p>
+                          <p className="text-xs text-slate-600 font-normal leading-relaxed">{st.desc}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        /* ─── Categorized Navigation View ─── */
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          
+          {/* Left Column: Category Tabs Switcher */}
+          <div className="lg:col-span-4 space-y-2">
+            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest px-2 mb-3">
+              หมวดหมู่คู่มือการใช้งาน
+            </h2>
+
+            <div className="space-y-1.5">
+              {categories.map((cat) => {
+                const isActive = activeCategory === cat.id;
+                const IconComponent = cat.icon;
+
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveCategory(cat.id);
+                    }}
+                    className={`w-full flex items-start gap-3.5 p-3.5 rounded-2xl text-left transition-all cursor-pointer ${
+                      isActive
+                        ? 'bg-white shadow-md border border-emerald-200 ring-2 ring-emerald-500/10'
+                        : 'bg-white/60 hover:bg-white border border-slate-200/60 text-slate-600'
+                    }`}
+                  >
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                      isActive ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20' : 'bg-slate-100 text-slate-500'
+                    }`}>
+                      <IconComponent size={20} />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between">
+                        <h3 className={`text-sm font-bold truncate ${isActive ? 'text-slate-900' : 'text-slate-700'}`}>
+                          {cat.title}
+                        </h3>
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
+                          {cat.sections.length} หัวข้อ
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 font-normal mt-0.5 line-clamp-1">
+                        {cat.description}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Quick Operational Routine Card */}
+            <div className="p-4 rounded-3xl bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200/80 mt-6 space-y-2.5">
+              <h3 className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+                <Lightbulb size={16} className="text-emerald-600" />
+                <span>ลำดับขั้นตอนการทำงานประจำวัน (Daily Routine)</span>
+              </h3>
+              <div className="space-y-1.5 text-xs text-emerald-900 font-normal">
+                <div className="flex items-start gap-2">
+                  <span className="px-1.5 py-0.5 rounded bg-emerald-200/70 font-semibold text-[10px]">1. เช้า</span>
+                  <span className="leading-snug">เปิดหน้า [วันนี้ 🍳] กดคัดลอกสรุปยอดส่ง LINE ให้แม่ครัวเตรียมของ</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="px-1.5 py-0.5 rounded bg-blue-200/70 font-semibold text-[10px]">2. ปรุง</span>
+                  <span className="leading-snug">ปรุงอาหารตามสูตร BOM 32 เมนู และเช็คอุณหภูมิตู้แช่ใน [เช็คลิสต์ HACCP]</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="px-1.5 py-0.5 rounded bg-teal-200/70 font-semibold text-[10px]">3. แพ็ก</span>
+                  <span className="leading-snug">กดพิมพ์ [สลิป 🖨️] ออกเครื่องบลูทูธ 80mm นำมาติดกล่องและจัดใส่ถุงตามจุดส่ง</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="px-1.5 py-0.5 rounded bg-purple-200/70 font-semibold text-[10px]">4. ค่ำ</span>
+                  <span className="leading-snug">ปิดรอบ 21:00 น. ลงบัญชีแยก 4 กองทุน และ [กระทบยอดเงินสด 💰]</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Detailed Sections in Active Category */}
+          <div className="lg:col-span-8 space-y-6">
+            
+            {/* Category Header */}
+            <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 flex items-center justify-center shrink-0">
+                  <currentCategoryData.icon size={24} />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900">{currentCategoryData.title}</h2>
+                  <p className="text-xs text-slate-500 font-normal mt-0.5">{currentCategoryData.description}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Sections Accordion / Cards List */}
+            <div className="space-y-6">
+              {currentCategoryData.sections.map((section, idx) => (
+                <motion.div
+                  key={section.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.05 }}
+                  className="bg-white rounded-3xl p-6 border border-slate-200/90 shadow-xs space-y-5"
+                >
+                  {/* Card Header */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`px-2.5 py-0.5 rounded-lg text-xs font-semibold border ${section.badgeColor}`}>
+                          {section.badge}
+                        </span>
+                      </div>
+                      <h3 className="text-lg font-bold text-slate-900">{section.title}</h3>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => navigate(section.pagePath)}
+                      className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-xl transition-all self-start sm:self-auto shrink-0 border border-emerald-200 cursor-pointer active:scale-95"
+                      title="เปิดไปยังหน้าจริงของระบบ"
+                    >
+                      <span>เปิดหน้านี้ในระบบ</span>
+                      <ExternalLink size={14} />
+                    </button>
+                  </div>
+
+                  {/* Summary */}
+                  <p className="text-sm text-slate-700 font-normal leading-relaxed">
+                    {section.summary}
+                  </p>
+
+                  {/* Key Features Grid */}
+                  <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-100 space-y-2.5">
+                    <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                      <Sparkles size={14} className="text-amber-500" />
+                      <span>จุดเด่นและฟังก์ชันการทำงานที่ต้องรู้</span>
+                    </h4>
+                    <ul className="space-y-2 text-xs text-slate-700 font-normal">
+                      {section.keyFeatures.map((feat, fIdx) => (
+                        <li key={fIdx} className="flex items-start gap-2.5">
+                          <CheckCircle2 size={15} className="text-emerald-600 mt-0.5 shrink-0" />
+                          <span className="leading-relaxed">{feat}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Step-by-Step Instructions */}
+                  <div className="space-y-2.5 pt-1">
+                    <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                      <Clock size={14} className="text-blue-500" />
+                      <span>ขั้นตอนการใช้งานจริงทีละสเต็ป (Step-by-Step)</span>
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      {section.steps.map((st, sIdx) => (
+                        <div key={sIdx} className="p-3.5 bg-white rounded-2xl border border-slate-200/80 shadow-2xs space-y-1.5 flex flex-col">
+                          <h5 className="text-xs font-semibold text-emerald-900">{st.title}</h5>
+                          <p className="text-xs text-slate-600 font-normal leading-relaxed flex-1">{st.desc}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Caution Box (If any) */}
+                  {section.cautions && section.cautions.length > 0 && (
+                    <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 space-y-1.5 text-xs text-rose-900 font-normal">
+                      <div className="flex items-center gap-1.5 font-semibold text-rose-800">
+                        <AlertTriangle size={14} className="text-rose-600 shrink-0" />
+                        <span>ข้อควรระวังสำคัญ (Do Not Miss):</span>
+                      </div>
+                      <ul className="list-disc list-inside space-y-1 pl-1 text-[11px] text-rose-800">
+                        {section.cautions.map((c, cIdx) => (
+                          <li key={cIdx}>{c}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Tag Chips */}
+                  <div className="flex flex-wrap gap-1.5 pt-2 border-t border-slate-100">
+                    {section.tags.map((tag, tIdx) => (
+                      <span key={tIdx} className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 text-[10px] font-normal">
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+
+                </motion.div>
+              ))}
+            </div>
+
+          </div>
+
+        </div>
+      )}
+
+    </div>
+  );
+};

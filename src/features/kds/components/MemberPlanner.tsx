@@ -17,12 +17,17 @@ import {
   MapPin,
   Pin,
   Wand2,
-  Info,
+  Truck,
   Sparkles,
+  Calendar,
+  Check,
+  CheckCircle2,
+  Tag,
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import dayjs from "dayjs";
 import Swal from "sweetalert2";
+import { toast } from "sonner";
 import { supabase } from "../../../config/supabase";
 import { usePlannerStore } from "../../../store/plannerStore";
 import { useMemberStore } from "../../../store/memberStore";
@@ -78,16 +83,44 @@ export const MemberPlanner: React.FC = () => {
     meals_total: number;
   } | null>(null);
 
+  // Delivery Schedule Configuration State
+  interface DeliveryScheduleConfig {
+    active_days: number[]; // 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat, 7=Sun
+    delivery_time_slot: string;
+    mode: "mon_thu" | "mon_wed_fri" | "everyday" | "custom";
+  }
+
+  const [deliveryConfig, setDeliveryConfig] = useState<DeliveryScheduleConfig>({
+    active_days: [1, 4], // Monday (1) & Thursday (4) - Clean Food CR store schedule
+    delivery_time_slot: "11:00 - 13:00",
+    mode: "mon_thu",
+  });
+  const [promotionsList, setPromotionsList] = useState<any[]>([]);
+  const [selectedPromoPresetId, setSelectedPromoPresetId] = useState<string>("pinto_14d_28m");
+
+  const STANDARD_PINTO_PRESETS = [
+    { id: 'pinto_14d_28m', name: 'ผูกปิ่นโต 14 วัน (28 มื้อ)', meals_count: 28, days_count: 14, price: 1899, popular: true, tag: 'ยอดนิยม 🔥', desc: 'ทานวันละ 2 มื้อ (กลางวัน + เย็น)' },
+    { id: 'pinto_7d_14m', name: 'ผูกปิ่นโต 7 วัน (14 มื้อ)', meals_count: 14, days_count: 7, price: 990, popular: false, tag: 'ทดลองทาน', desc: 'คอร์สสั้น 1 สัปดาห์' },
+    { id: 'pinto_30d_60m', name: 'ผูกปิ่นโต 30 วัน (60 มื้อ)', meals_count: 60, days_count: 30, price: 3799, popular: false, tag: 'สุดคุ้ม ⭐️', desc: 'คอร์สรายเดือนประหยัดสูงสุด' },
+    { id: 'promo_4box', name: 'โปรโมชั่น 4 กล่อง (299 บ.)', meals_count: 4, days_count: 1, price: 299, popular: false, tag: 'โปร 4 กล่อง', desc: 'เฉลี่ยกล่องละ ฿74.75' },
+    { id: 'promo_6box', name: 'โปรโมชั่น 6 กล่อง (399 บ.)', meals_count: 6, days_count: 1, price: 399, popular: false, tag: 'โปร 6 กล่อง', desc: 'เฉลี่ยกล่องละ ฿66.50' },
+    { id: 'promo_7box', name: 'โปรโมชั่น 7 กล่อง (459 บ.)', meals_count: 7, days_count: 1, price: 459, popular: false, tag: 'โปร 7 กล่อง', desc: 'เฉลี่ยกล่องละ ฿65.57' },
+    { id: 'custom', name: 'กำหนดเอง (Custom Plan)', meals_count: 14, days_count: 14, price: 0, popular: false, tag: 'กำหนดเอง', desc: 'ระบุชื่อและจำนวนมื้อเอง' },
+  ];
+
   // Modal State: New Package
   const [isAddPackageModalOpen, setIsAddPackageModalOpen] = useState(false);
   const [isSmartImportOpen, setIsSmartImportOpen] = useState(false);
   const [isAdvancedTemplateModalOpen, setIsAdvancedTemplateModalOpen] = useState(false);
   const [newPackage, setNewPackage] = useState({
     member_id: "",
-    package_name: "",
-    meals_total: 14,
+    package_name: "ผูกปิ่นโต 14 วัน (28 มื้อ)",
+    meals_total: 28,
+    price: 1899,
+    promotion_id: "",
     start_date: dayjs().format("YYYY-MM-DD"),
-    end_date: dayjs().add(7, "day").format("YYYY-MM-DD"),
+    end_date: dayjs().add(14, "day").format("YYYY-MM-DD"),
+    is_custom: false,
   });
 
   // Search & Filter State
@@ -125,6 +158,48 @@ export const MemberPlanner: React.FC = () => {
     isLoading,
     initialWeekSubscriptionQty,
   } = usePlannerStore();
+
+  // Fetch Delivery Schedule Config
+  useEffect(() => {
+    let isMounted = true;
+    const fetchDeliverySchedule = async () => {
+      try {
+        const { data } = await supabase
+          .from('erp_system_configs')
+          .select('value')
+          .eq('key', 'DELIVERY_SCHEDULE')
+          .maybeSingle();
+        if (data && data.value && isMounted) {
+          setDeliveryConfig(data.value as DeliveryScheduleConfig);
+        }
+      } catch (err) {
+        console.warn("Could not load delivery schedule config:", err);
+      }
+    };
+    fetchDeliverySchedule();
+    return () => { isMounted = false; };
+  }, []);
+
+  // Fetch Active Promotions from Database
+  useEffect(() => {
+    let isMounted = true;
+    const fetchPromos = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('promotions')
+          .select('*')
+          .eq('is_active', true)
+          .order('price', { ascending: true });
+        if (data && !error && isMounted) {
+          setPromotionsList(data);
+        }
+      } catch (err) {
+        console.warn("Could not load promotions:", err);
+      }
+    };
+    fetchPromos();
+    return () => { isMounted = false; };
+  }, []);
 
   // Fetch template categories
   useEffect(() => {
@@ -368,13 +443,7 @@ export const MemberPlanner: React.FC = () => {
       : null;
     if (selectedPackageId && member?.is_banned) {
       setSelectedPackageId(null);
-      Swal.fire({
-        icon: "info",
-        title: "สมาชิกถูกระงับ",
-        text: "สมาชิกคนนี้ถูกแบนแล้ว ระบบจะย้ายคุณออกจากหน้านี้",
-        timer: 2000,
-        showConfirmButton: false,
-      });
+      toast.info("สมาชิกคนนี้ถูกระงับ ระบบจะย้ายคุณออกจากหน้านี้");
     }
   }, [selectedPackage, selectedPackageId, setSelectedPackageId]);
 
@@ -488,15 +557,7 @@ export const MemberPlanner: React.FC = () => {
     );
 
     setIsModalOpen(false);
-
-    Swal.fire({
-      icon: "success",
-      title: "บันทึกสำเร็จ",
-      toast: true,
-      position: "top-end",
-      showConfirmButton: false,
-      timer: 2000,
-    });
+    toast.success(editingSlot.scheduleId ? "บันทึกการแก้ไขเมนูเรียบร้อย ✨" : "เพิ่มเมนูอาหารเรียบร้อย ✨");
   };
 
   const handleClearDay = async (date: string, packageId: string) => {
@@ -513,14 +574,7 @@ export const MemberPlanner: React.FC = () => {
 
     if (result.isConfirmed) {
       await clearDayPlan(date, packageId);
-      Swal.fire({
-        icon: "success",
-        title: "ล้างแผนเรียบร้อย",
-        toast: true,
-        position: "top-end",
-        showConfirmButton: false,
-        timer: 2000,
-      });
+      toast.success("ล้างแผนอาหารของวันนี้เรียบร้อย ✨");
     }
   };
 
@@ -551,14 +605,6 @@ export const MemberPlanner: React.FC = () => {
     if (!confirmResult.isConfirmed) return;
 
     try {
-      Swal.fire({
-        title: "กำลังบันทึกข้อมูล...",
-        allowOutsideClick: false,
-        didOpen: () => {
-          Swal.showLoading();
-        },
-      });
-
       // 1. Update Member Profile
       await updateProfile(selectedPackage.members.id, memberUpdates);
 
@@ -593,61 +639,68 @@ export const MemberPlanner: React.FC = () => {
       await loadMemberData();
 
       setIsProfileModalOpen(false);
-
-      Swal.fire({
-        icon: "success",
-        title: "บันทึกสำเร็จ",
-        text: "ข้อมูลสมาชิกและแพ็กเกจได้รับการอัปเดตแล้ว",
-        timer: 1500,
-        showConfirmButton: false,
-      });
+      toast.success("บันทึกข้อมูลสมาชิกและแพ็กเกจเรียบร้อย ✨");
     } catch (error: any) {
-      Swal.fire({
-        icon: "error",
-        title: "เกิดข้อผิดพลาด",
-        text: error.message,
-      });
+      toast.error("เกิดข้อผิดพลาด: " + error.message);
+    }
+  };
+
+  const handleSelectPreset = (preset: any) => {
+    setSelectedPromoPresetId(preset.id);
+    if (preset.id === 'custom') {
+      setNewPackage(prev => ({
+        ...prev,
+        is_custom: true,
+        promotion_id: '',
+      }));
+    } else {
+      setNewPackage(prev => ({
+        ...prev,
+        package_name: preset.name,
+        meals_total: preset.meals_count || 14,
+        price: preset.price || 0,
+        promotion_id: preset.id && !preset.id.startsWith('pinto_') && !preset.id.startsWith('promo_') ? preset.id : '',
+        is_custom: false,
+        end_date: dayjs(prev.start_date).add(preset.days_count || 14, 'day').format('YYYY-MM-DD'),
+      }));
     }
   };
 
   const handleAddPackage = async () => {
-    if (!newPackage.member_id || !newPackage.package_name) {
-      Swal.fire({
-        icon: "warning",
-        title: "ข้อมูลไม่ครบ",
-        text: "กรุณาเลือกชื่อลูกค้าและระบุชื่อแพ็กเกจ",
-      });
+    if (!newPackage.member_id) {
+      toast.warning("กรุณาเลือกชื่อลูกค้าที่จะเปิดแพ็กเกจ");
+      return;
+    }
+
+    if (!newPackage.package_name) {
+      toast.warning("กรุณาระบุชื่อแพ็กเกจหรือเลือกโปรโมชั่น");
       return;
     }
 
     try {
+      const daysCount = Math.max(
+        1,
+        dayjs(newPackage.end_date).diff(dayjs(newPackage.start_date), "day")
+      );
+
       await addPackage({
-        ...newPackage,
-        meals_remaining: newPackage.meals_total,
-        days_total: dayjs(newPackage.end_date).diff(
-          dayjs(newPackage.start_date),
-          "day",
-        ),
-        days_remaining: dayjs(newPackage.end_date).diff(
-          dayjs(newPackage.start_date),
-          "day",
-        ),
+        member_id: newPackage.member_id,
+        package_name: newPackage.package_name,
+        meals_total: Number(newPackage.meals_total) || 14,
+        meals_remaining: Number(newPackage.meals_total) || 14,
+        days_total: daysCount,
+        days_remaining: daysCount,
+        start_date: newPackage.start_date,
+        end_date: newPackage.end_date,
+        price_paid: Number(newPackage.price) || 0,
+        promotion_id: newPackage.promotion_id || undefined,
         status: "active",
       });
 
       setIsAddPackageModalOpen(false);
-      Swal.fire({
-        icon: "success",
-        title: "เปิดแพ็กเกจสำเร็จ",
-        timer: 1500,
-        showConfirmButton: false,
-      });
+      toast.success(`เปิดแพ็กเกจ "${newPackage.package_name}" เรียบร้อยแล้ว ✨`);
     } catch (error: any) {
-      Swal.fire({
-        icon: "error",
-        title: "เกิดข้อผิดพลาด",
-        text: error.message,
-      });
+      toast.error("เกิดข้อผิดพลาด: " + error.message);
     }
   };
 
@@ -668,63 +721,31 @@ export const MemberPlanner: React.FC = () => {
     if (result.isConfirmed) {
       await removeMemberSlot(scheduleId);
       setIsModalOpen(false);
-      Swal.fire({
-        title: "ลบแล้ว!",
-        icon: "success",
-        timer: 1000,
-        showConfirmButton: false,
-      });
+      toast.success("ลบรายการมื้อนี้เรียบร้อย ✨");
     }
   };
 
   return (
     <div className="flex-1 flex flex-col bg-[#F8FAFC] overflow-hidden relative">
-      {/* ยังไม่ไม่ได้ใช้งาน มันกินพื้นที่มากเกินไป คิดว่าจะทำเป็น popup แทนในอนาคต */}
-      <div className={`px-4 md:px-6 py-3 border-b border-slate-200 bg-white flex-col md:flex-row justify-between items-start md:items-center gap-4 relative z-50 shadow-sm shrink-0 ${selectedPackage ? 'hidden md:flex' : 'flex'}`}>
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white shadow-md shadow-emerald-500/20 shrink-0">
-            <User size={20} strokeWidth={2.5} />
-          </div>
-          <div>
+      {/* Floating Unsaved Changes Alert Action Bar */}
+      <AnimatePresence>
+        {hasUnsavedChanges && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="px-4 py-2.5 bg-gradient-to-r from-rose-600 to-amber-600 text-white flex items-center justify-between gap-4 z-50 shadow-lg shrink-0"
+          >
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-black text-slate-900 tracking-tight leading-none">
-                แผนลูกค้า
-              </h2>
-              <div className="group relative flex items-center">
-                <button className="text-slate-400 hover:text-emerald-500 transition-colors p-1.5 rounded-full hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20">
-                  <Info size={18} strokeWidth={2.5} />
-                </button>
-                
-                {/* Redesigned Tooltip / Popover */}
-                <div className="absolute left-full top-0 ml-3 w-72 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-[9999] pointer-events-none origin-top-left scale-95 group-hover:scale-100">
-                  <div className="bg-white/90 backdrop-blur-xl border border-slate-200/60 p-5 rounded-2xl shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] relative overflow-hidden">
-                    {/* Decorative accent */}
-                    <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-emerald-400 to-teal-500"></div>
-                    
-                    <h4 className="text-slate-800 font-bold text-sm tracking-tight mb-2 flex items-center gap-2">
-                      <Sparkles size={14} className="text-emerald-500" />
-                      ระบบจัดการแผนลูกค้า
-                    </h4>
-                    <p className="text-slate-500 text-[11px] leading-relaxed">
-                      จัดเมนูได้สูงสุด <strong className="text-slate-700 font-semibold">20 มื้อต่อวัน</strong> 
-                      ระบุรอบส่ง โน้ตพิเศษเฉพาะมื้อ และมีระบบ <strong className="text-emerald-600 font-semibold">ดึงเมนูอัตโนมัติ</strong> จากแม่แบบเพื่อความรวดเร็ว
-                    </p>
-                    
-                    {/* Tooltip arrow */}
-                    <div className="absolute top-3 -left-1.5 w-3 h-3 bg-white/90 backdrop-blur-xl border-l border-b border-slate-200/60 rotate-45 rounded-sm"></div>
-                  </div>
-                </div>
-              </div>
+              <span className="text-base animate-bounce">⚠️</span>
+              <p className="text-xs sm:text-sm font-bold">
+                มีการเปลี่ยนแปลงแผนอาหารที่ยังไม่ได้บันทึก
+              </p>
             </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 w-full lg:w-auto">
-          {hasUnsavedChanges && (
-            <button title="Button" type="button"
+            <button
+              type="button"
               onClick={async () => {
                 await saveChanges();
-                // Refresh the current view to get real IDs from DB
                 const startStr = dayjs(currentWeekStart).format("YYYY-MM-DD");
                 const endStr = dayjs(currentWeekStart)
                   .add(6, "day")
@@ -737,18 +758,18 @@ export const MemberPlanner: React.FC = () => {
                 );
               }}
               disabled={isSaving}
-              className="flex items-center gap-2 px-6 py-2.5 bg-red-500 text-white rounded-xl text-base font-bold shadow-lg shadow-red-500/30 hover:bg-red-600 transition-all animate-bounce-subtle w-full lg:w-auto justify-center"
+              className="flex items-center gap-2 px-4 py-1.5 bg-white text-rose-700 hover:bg-rose-50 rounded-xl text-xs font-black shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer shrink-0"
             >
               {isSaving ? (
-                <Clock className="animate-spin" size={18} />
+                <Clock className="animate-spin" size={14} />
               ) : (
-                <Save size={18} />
+                <Save size={14} />
               )}
-              ยืนยันบันทึกแผนงานทั้งหมด
+              <span>{isSaving ? "กำลังบันทึก..." : "บันทึกแผนงานทั้งหมด 💾"}</span>
             </button>
-          )}
-        </div>
-      </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="flex-1 flex overflow-hidden relative">
         <div
@@ -844,9 +865,10 @@ export const MemberPlanner: React.FC = () => {
               }, {}),
             ).map((group: any) => (
               <div key={group.member.id} className="mb-3">
-                <div className="px-3 py-1.5 text-base font-medium text-slate-900 flex items-center gap-2 border-b border-slate-100 mb-1">
-                  <User size={16} className="text-emerald-500" />{" "}
-                  {group.member.full_name} {group.member.phone && <span className="text-xs text-slate-400 font-normal ml-1">({group.member.phone})</span>}
+                <div className="px-3 py-1.5 text-sm font-bold text-slate-900 flex items-center gap-2 border-b border-slate-100 mb-1">
+                  <User size={15} className="text-emerald-600 shrink-0" />{" "}
+                  <span className="truncate">{group.member.full_name}</span>
+                  {group.member.phone && <span className="text-[11px] text-slate-400 font-normal ml-auto shrink-0">({group.member.phone})</span>}
                 </div>
                 <div className="space-y-1">
                   {group.packages.map((pkg: any) => {
@@ -917,19 +939,19 @@ export const MemberPlanner: React.FC = () => {
                       pkg.meals_total === 15
                     ) {
                       statusBadgeClass =
-                        "bg-emerald-50 text-emerald-600 border border-emerald-100";
+                        "bg-emerald-50 text-emerald-700 border border-emerald-200";
                     } else if (
                       pkg.meals_total === 28 ||
                       pkg.meals_total === 30
                     ) {
                       statusBadgeClass =
-                        "bg-blue-50 text-blue-600 border border-blue-100";
+                        "bg-blue-50 text-blue-700 border border-blue-200";
                     } else if (
                       pkg.meals_total === 60 ||
                       pkg.meals_total === 62
                     ) {
                       statusBadgeClass =
-                        "bg-purple-50 text-purple-600 border border-purple-100";
+                        "bg-purple-50 text-purple-700 border border-purple-200";
                     }
 
                     return (
@@ -962,15 +984,15 @@ export const MemberPlanner: React.FC = () => {
                                 </motion.div>
                               )}
                               <p
-                                className={`text-[15px] font-medium truncate ${selectedPackageId === pkg.id ? "text-emerald-700" : "text-slate-800"}`}
+                                className={`text-sm font-semibold truncate ${selectedPackageId === pkg.id ? "text-emerald-800" : "text-slate-800"}`}
                               >
                                 {pkg.package_name}
                               </p>
                             </div>
                             {rem > 0 && subSchedules.length > 0 && (
-                              <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
+                              <p className="text-[11px] text-slate-500 mt-1 flex items-center gap-1">
                                 <span>สิ้นสุดประมาณ:</span>
-                                <span className="text-blue-500 font-bold">
+                                <span className="text-blue-600 font-semibold">
                                   {(() => {
                                     const lastPlannedDate = subSchedules.reduce(
                                       (max, s) =>
@@ -993,7 +1015,7 @@ export const MemberPlanner: React.FC = () => {
                             )}
                           </div>
                           <span
-                            className={`text-[13px] font-medium px-2.5 py-1.5 rounded-lg whitespace-nowrap shadow-sm border ${statusBadgeClass}`}
+                            className={`text-xs font-semibold px-2 py-1 rounded-lg whitespace-nowrap shadow-xs border ${statusBadgeClass}`}
                           >
                             {statusText}
                           </span>
@@ -1011,7 +1033,7 @@ export const MemberPlanner: React.FC = () => {
           <div
             className={`flex-1 flex flex-col overflow-y-auto overflow-x-hidden bg-[#F8FAFC] absolute md:relative inset-0 z-20 transition-transform ${selectedPackage ? "translate-x-0" : "translate-x-full md:translate-x-0"}`}
           >
-            <div className="px-3 md:px-6 py-1.5 md:py-2 flex flex-col xl:flex-row justify-between items-stretch xl:items-center gap-2 border-b border-slate-200 bg-white shadow-sm shrink-0 md:sticky md:top-0 z-30">
+            <div className="px-3 md:px-6 py-2.5 flex flex-col xl:flex-row justify-between items-stretch xl:items-center gap-2 border-b border-slate-200 bg-white shadow-xs shrink-0 md:sticky md:top-0 z-30">
               {(() => {
                 const member = Array.isArray(selectedPackage.members)
                   ? selectedPackage.members[0]
@@ -1031,7 +1053,7 @@ export const MemberPlanner: React.FC = () => {
                   <div className="flex flex-col xl:flex-row flex-1 justify-between items-start xl:items-center gap-4 min-w-0">
                     {/* Left Group: Info + Stats */}
                     <div className="flex flex-col md:flex-row items-start md:items-center gap-4 min-w-0">
-                      <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <div className="flex items-center gap-2.5 w-full sm:w-auto">
                         <button title="Button" type="button"
                           onClick={() => setSelectedPackageId(null)}
                           className="md:hidden bg-slate-100 p-2 rounded-xl text-slate-600 shrink-0"
@@ -1046,56 +1068,56 @@ export const MemberPlanner: React.FC = () => {
                           {isSidebarCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
                         </button>
 
-                        <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center text-emerald-600 shrink-0 shadow-sm">
-                          <User size={16} />
+                        <div className="w-9 h-9 bg-emerald-100 rounded-xl flex items-center justify-center text-emerald-700 shrink-0 shadow-xs">
+                          <User size={18} />
                         </div>
                         
                         <div className="min-w-0 flex-1 sm:flex-initial">
                           <div className="flex items-center gap-2">
                             <h3
                               onClick={handleOpenProfile}
-                              className="text-base md:text-lg font-normal text-black truncate cursor-pointer hover:text-emerald-600 tracking-tight"
+                              className="text-lg md:text-xl font-bold text-slate-900 truncate cursor-pointer hover:text-emerald-600 tracking-tight"
                             >
                               {member?.full_name}
                             </h3>
                             {member?.health_goal && (
-                              <span className="hidden sm:inline-block text-[11px] font-normal px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-100 uppercase">
+                              <span className="hidden sm:inline-block text-xs font-semibold px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 uppercase">
                                 {member?.health_goal}
                               </span>
                             )}
                           </div>
                           <div className="flex items-center flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
-                            <span className="text-xs md:text-sm font-normal text-slate-700 truncate max-w-[100px] md:max-w-none">{selectedPackage.package_name}</span>
-                            <div className="flex items-center gap-1 text-xs md:text-sm text-slate-700">
-                               <Clock size={12} className="text-slate-400" />
+                            <span className="text-xs md:text-sm font-semibold text-slate-700 truncate max-w-[120px] md:max-w-none">{selectedPackage.package_name}</span>
+                            <div className="flex items-center gap-1 text-xs md:text-sm text-slate-600 font-medium">
+                               <Clock size={13} className="text-slate-400" />
                                <span>{member?.delivery_time || "ไม่ระบุรอบส่ง"}</span>
                             </div>
-                            <div className="hidden md:flex items-center gap-1 text-xs md:text-sm text-slate-700">
-                               <MapPin size={12} className="text-slate-400" />
-                               <span className="truncate max-w-[150px]">{member?.address || "ไม่ระบุที่อยู่"}</span>
+                            <div className="hidden md:flex items-center gap-1 text-xs md:text-sm text-slate-600 font-normal">
+                               <MapPin size={13} className="text-slate-400" />
+                               <span className="truncate max-w-[160px]">{member?.address || "ไม่ระบุที่อยู่"}</span>
                             </div>
-                            <button title="Button" type="button" onClick={handleOpenProfile} className="text-xs md:text-sm text-emerald-600 font-normal hover:underline">รายละเอียด</button>
+                            <button title="Button" type="button" onClick={handleOpenProfile} className="text-xs md:text-sm text-emerald-600 font-semibold hover:underline">รายละเอียด</button>
                           </div>
                         </div>
                       </div>
 
                       <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
                         <span
-                          className={`text-xs md:text-sm font-normal px-2.5 py-1 rounded-lg border shadow-sm ${
+                          className={`text-xs md:text-sm font-bold px-3 py-1.5 rounded-xl border shadow-xs ${
                             isRetail
                               ? "bg-orange-500 text-white border-orange-600"
                               : projectedRemaining < 0
                                 ? "bg-red-500 text-white border-red-600"
                                 : projectedRemaining < 3
-                                  ? "bg-red-50 text-red-600 border-red-100"
-                                  : "bg-white text-black border-slate-300"
+                                  ? "bg-red-50 text-red-600 border-red-200"
+                                  : "bg-slate-900 text-white border-slate-900"
                           }`}
                         >
                           {isRetail ? `สั่งไว้ ${totalSubscriptionOrdered} มื้อ` : isLoading ? "..." : `ลงแล้ว ${(selectedPackage.meals_total || 0) - projectedRemaining} / ${selectedPackage.meals_total || 0} มื้อ`}
                         </span>
 
                         {packageSchedules.some(s => s.is_compensatory) && (
-                          <span className="text-[10px] font-normal px-2.5 py-1.5 rounded-xl bg-orange-50 text-orange-600 border border-orange-200 shadow-sm flex items-center gap-1">
+                          <span className="text-xs font-semibold px-2.5 py-1 rounded-xl bg-orange-50 text-orange-600 border border-orange-200 shadow-xs flex items-center gap-1">
                             🎁 ชดเชย {packageSchedules.filter(s => s.is_compensatory).reduce((sum, s) => sum + (s.quantity || 1), 0)}
                           </span>
                         )}
@@ -1118,9 +1140,9 @@ export const MemberPlanner: React.FC = () => {
                               setIsAuditLoading(false);
                             }
                           }}
-                          className="px-2.5 py-1 bg-white text-black hover:text-indigo-600 border border-slate-300 rounded-lg text-xs md:text-sm font-normal transition-all shadow-sm flex items-center gap-1 active:scale-95 whitespace-nowrap"
+                          className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-800 hover:text-indigo-600 border border-slate-200 rounded-xl text-xs md:text-sm font-semibold transition-all shadow-xs flex items-center gap-1.5 active:scale-95 whitespace-nowrap"
                         >
-                          <Search size={12} className="text-slate-400" /> ตรวจสอบข้อมูลมื้ออาหาร
+                          <Search size={13} className="text-slate-400" /> ตรวจสอบมื้ออาหาร
                         </button>
                       </div>
                     </div>
@@ -1131,7 +1153,7 @@ export const MemberPlanner: React.FC = () => {
               <div className="flex flex-wrap items-center gap-2 w-full xl:w-auto mt-1 xl:mt-0">
                 <button title="Button" type="button"
                   onClick={() => setCurrentWeekStart(dayjs().startOf("isoWeek" as any).toDate())}
-                  className="px-4 py-2 bg-white border border-slate-300 text-slate-900 rounded-xl text-xs font-normal transition-all hover:bg-slate-50 active:scale-95 shadow-sm"
+                  className="px-4 py-2 bg-white border border-slate-200 hover:border-slate-300 text-slate-700 hover:text-slate-900 rounded-xl text-xs font-semibold transition-all hover:bg-slate-50 active:scale-95 shadow-xs"
                 >
                   วันนี้
                 </button>
@@ -1140,18 +1162,18 @@ export const MemberPlanner: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setIsAdvancedTemplateModalOpen(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-xl text-xs font-semibold transition-all hover:bg-indigo-100 active:scale-95 shadow-sm"
+                    className="flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-xl text-xs font-semibold transition-all hover:bg-indigo-100 active:scale-95 shadow-xs"
                   >
                     <Wand2 size={14} /> ดึงเมนูจากแม่แบบ...
                   </button>
                 </div>
 
-                <div className="flex items-center bg-white border border-slate-200 rounded-lg p-0.5 shadow-sm shrink-0">
-                  <button title="Button" type="button" onClick={handlePrevWeek} className="p-1.5 text-slate-500 hover:text-black transition-colors"><ChevronLeft size={16} /></button>
-                  <span className="px-3 text-sm font-normal text-slate-900 min-w-[110px] text-center border-x border-slate-100">
+                <div className="flex items-center bg-white border border-slate-200 rounded-xl p-0.5 shadow-xs shrink-0">
+                  <button title="Button" type="button" onClick={handlePrevWeek} className="p-1.5 text-slate-500 hover:text-slate-900 transition-colors"><ChevronLeft size={16} /></button>
+                  <span className="px-3 text-xs md:text-sm font-semibold text-slate-900 min-w-[110px] text-center border-x border-slate-100">
                     {formatDisplayDate(weekDays[0].date)}
                   </span>
-                  <button title="Button" type="button" onClick={handleNextWeek} className="p-1.5 text-slate-500 hover:text-black transition-colors"><ChevronRight size={16} /></button>
+                  <button title="Button" type="button" onClick={handleNextWeek} className="p-1.5 text-slate-500 hover:text-slate-900 transition-colors"><ChevronRight size={16} /></button>
                 </div>
 
                 {copiedDaySlots && (
@@ -1172,22 +1194,51 @@ export const MemberPlanner: React.FC = () => {
               >
                 {weekDays.map((day) => {
                   const daySchedules = getSchedulesForDate(day.date);
+                  const dayOfWeek = dayjs(day.date).isoWeekday(); // 1=Mon ... 7=Sun
+                  const isDeliveryDay = deliveryConfig.active_days.includes(dayOfWeek);
 
                   return (
                     <div key={day.date} className="flex flex-col h-full">
                       <div
-                        className={`bg-white rounded-2xl border ${day.isToday ? "border-blue-400 shadow-md ring-2 ring-blue-500/10" : "border-slate-200 shadow-sm"} overflow-hidden flex flex-col h-full group/card transition-all`}
+                        className={`bg-white rounded-2xl border ${
+                          day.isToday
+                            ? "border-blue-400 shadow-md ring-2 ring-blue-500/10"
+                            : isDeliveryDay
+                              ? "border-emerald-200/90 shadow-sm"
+                              : "border-slate-200/80 shadow-2xs opacity-95"
+                        } overflow-hidden flex flex-col h-full group/card transition-all`}
                       >
                         {/* Card Header with Integrated Actions */}
                         <div
-                          className={`px-4 py-3 border-b flex justify-between items-center transition-colors ${day.isToday ? "bg-blue-600 text-white shadow-inner" : "bg-slate-50 border-slate-100 group-hover/card:bg-slate-100"}`}
+                          className={`px-4 py-3 border-b flex justify-between items-center transition-colors ${
+                            day.isToday
+                              ? "bg-blue-600 text-white shadow-inner"
+                              : isDeliveryDay
+                                ? "bg-emerald-50/60 border-emerald-100 group-hover/card:bg-emerald-50/90"
+                                : "bg-slate-50 border-slate-100 group-hover/card:bg-slate-100"
+                          }`}
                         >
                           <div>
-                            <p
-                              className={`text-[13px] font-bold uppercase tracking-widest ${getDayColorClass(day.dayName, day.isToday)}`}
-                            >
-                              {day.dayName}
-                            </p>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <p
+                                className={`text-[13px] font-bold uppercase tracking-widest ${getDayColorClass(day.dayName, day.isToday)}`}
+                              >
+                                {day.dayName}
+                              </p>
+                              {isDeliveryDay ? (
+                                <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded flex items-center gap-0.5 ${
+                                  day.isToday
+                                    ? "bg-white/20 text-white border border-white/30"
+                                    : "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                }`}>
+                                  <Truck size={10} /> วันส่ง
+                                </span>
+                              ) : (
+                                <span className="text-[9px] font-medium px-1.5 py-0.5 rounded bg-slate-200/70 text-slate-500">
+                                  พักส่ง
+                                </span>
+                              )}
+                            </div>
                             <h3
                               className={`text-base md:text-lg font-bold ${day.isToday ? "text-white" : "text-slate-800"}`}
                             >
@@ -1246,50 +1297,54 @@ export const MemberPlanner: React.FC = () => {
                             <div
                               key={schedule.id}
                               onClick={() => openModal(day.date, schedule)}
-                              className={`relative flex flex-col p-3 rounded-xl border cursor-pointer shadow-sm transition-all group ${
+                              className={`relative flex flex-col p-3 rounded-2xl border cursor-pointer shadow-2xs transition-all duration-200 group ${
                                 schedule.is_extra_order
-                                  ? "bg-orange-50 border-orange-200 hover:border-orange-400 shadow-orange-100/50"
-                                  : "bg-white border-slate-200 hover:border-emerald-500"
+                                  ? "bg-amber-50/80 border-amber-200 hover:border-amber-400 shadow-amber-100/50"
+                                  : "bg-white border-slate-200/80 hover:border-emerald-400 hover:shadow-xs"
                               }`}
                             >
-                              <div className="flex items-center justify-between mb-2">
-                                <div className="flex flex-wrap gap-1">
+                              <div className="flex items-center justify-between mb-1.5">
+                                <div className="flex flex-wrap items-center gap-1">
+                                  <span className="bg-slate-800 text-white text-[10px] font-semibold px-2 py-0.5 rounded-md">
+                                    มื้อ {idx + 1}
+                                  </span>
                                   {schedule.is_extra_order && (
-                                    <span className="bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm">
+                                    <span className="bg-amber-500 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded-md">
                                       สั่งแยก
                                     </span>
                                   )}
-                                  <span className="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded border border-slate-200">
-                                    มื้อที่ {idx + 1}
-                                  </span>
+                                  {schedule.is_compensatory && (
+                                    <span className="bg-pink-500 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded-md">
+                                      ชดเชย 🎁
+                                    </span>
+                                  )}
                                 </div>
-                                <div className="flex items-center gap-1 transition-opacity">
+                                <div className="flex items-center gap-1">
                                   {isAdmin && (
                                     <button type="button"
                                       onClick={(e) =>
                                         handleRemoveClick(e, schedule.id)
                                       }
-                                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 border border-slate-100 hover:border-red-200 rounded-lg transition-all shadow-sm bg-white"
+                                      className="p-1 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-all cursor-pointer"
                                       title="ลบมื้อนี้"
                                     >
-                                      <Trash2 size={13} />
+                                      <Trash2 size={12} />
                                     </button>
                                   )}
                                 </div>
                               </div>
 
-                              <div className="flex-1 min-w-0 mb-2">
-                                <h4 className="text-base font-medium text-slate-800 leading-snug line-clamp-2">
-                                  {schedule.menu_items?.name ||
-                                    "ไม่ได้เลือกเมนู"}
+                              <div className="flex-1 min-w-0 mb-1.5">
+                                <h4 className="text-[13px] sm:text-sm font-normal text-slate-800 leading-relaxed line-clamp-2">
+                                  {schedule.menu_items?.name || "ไม่ได้เลือกเมนู"}
                                 </h4>
                                 {schedule.notes && (
-                                  <div className="mt-2 p-2 bg-red-50 border border-red-100 rounded-lg flex items-start gap-2 shadow-sm">
+                                  <div className="mt-1.5 p-1.5 bg-rose-50 border border-rose-200 rounded-lg flex items-start gap-1.5 shadow-2xs">
                                     <MessageSquare
-                                      size={12}
-                                      className="text-red-500 mt-0.5 shrink-0"
+                                      size={11}
+                                      className="text-rose-600 mt-0.5 shrink-0"
                                     />
-                                    <p className="text-[11px] font-bold text-red-600 leading-tight">
+                                    <p className="text-xs font-normal text-rose-700 leading-normal">
                                       {schedule.notes}
                                     </p>
                                   </div>
@@ -1299,13 +1354,13 @@ export const MemberPlanner: React.FC = () => {
                               <div className="flex justify-between items-center mt-auto pt-2 border-t border-slate-100">
                                 <div className="flex items-center gap-2">
                                   {schedule.delivery_time && (
-                                    <span className="text-[10px] font-medium text-blue-600 flex items-center gap-1">
+                                    <span className="text-[11px] font-normal text-blue-600 flex items-center gap-1">
                                       <Clock size={10} />{" "}
                                       {schedule.delivery_time}
                                     </span>
                                   )}
                                 </div>
-                                <span className="text-[10px] font-bold text-slate-400">
+                                <span className="text-xs font-normal text-slate-400">
                                   x{schedule.quantity || 1}
                                 </span>
                               </div>
@@ -1351,11 +1406,11 @@ export const MemberPlanner: React.FC = () => {
           >
             <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <div>
-                <h3 className="text-xl font-normal text-slate-900 flex items-center gap-2">
+                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                   <FileText className="text-emerald-500" />{" "}
                   รายละเอียดลูกค้าและแพ็กเกจ
                 </h3>
-                <p className="text-slate-500 text-xs font-normal mt-1">
+                <p className="text-slate-500 text-xs font-medium mt-1">
                   อัปเดตข้อมูลส่วนตัวและเป้าหมายสุขภาพ
                 </p>
               </div>
@@ -1369,8 +1424,8 @@ export const MemberPlanner: React.FC = () => {
 
             <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 ml-0.5 block">
                     ชื่อ-นามสกุล
                   </label>
                   <input title="Input field"
@@ -1382,11 +1437,11 @@ export const MemberPlanner: React.FC = () => {
                         full_name: e.target.value,
                       })
                     }
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm font-normal"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm font-medium text-slate-900"
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 ml-0.5 block">
                     เบอร์โทรศัพท์
                   </label>
                   <input title="Input field"
@@ -1398,13 +1453,13 @@ export const MemberPlanner: React.FC = () => {
                         phone: e.target.value,
                       })
                     }
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm font-normal"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm font-medium text-slate-900"
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 ml-0.5 block">
                   ที่อยู่จัดส่ง
                 </label>
                 <textarea
@@ -1416,13 +1471,13 @@ export const MemberPlanner: React.FC = () => {
                       address: e.target.value,
                     })
                   }
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm font-normal resize-none"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm font-medium text-slate-900 resize-none"
                 />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 ml-1">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-emerald-800 ml-0.5 block">
                     ชื่อแพ็กเกจ
                   </label>
                   <input title="Input field"
@@ -1434,11 +1489,11 @@ export const MemberPlanner: React.FC = () => {
                         package_name: e.target.value,
                       })
                     }
-                    className="w-full px-4 py-3 bg-white border border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm font-normal"
+                    className="w-full px-4 py-3 bg-white border border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm font-semibold text-slate-900"
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 ml-1">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-emerald-800 ml-0.5 block">
                     จำนวนมื้อทั้งหมด
                   </label>
                   <input title="Input field"
@@ -1450,14 +1505,14 @@ export const MemberPlanner: React.FC = () => {
                         meals_total: parseInt(e.target.value) || 0,
                       })
                     }
-                    className="w-full px-4 py-3 bg-white border border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm font-normal"
+                    className="w-full px-4 py-3 bg-white border border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm font-semibold text-slate-900"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 ml-0.5 block">
                     เป้าหมายสุขภาพ
                   </label>
                   <select title="Select option"
@@ -1468,7 +1523,7 @@ export const MemberPlanner: React.FC = () => {
                         health_goal: e.target.value,
                       })
                     }
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm font-normal"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all text-sm font-medium text-slate-900"
                   >
                     <option value="">ไม่ระบุ</option>
                     <option value="ลดน้ำหนัก">ลดน้ำหนัก</option>
@@ -1477,8 +1532,8 @@ export const MemberPlanner: React.FC = () => {
                     <option value="คุมอาหาร">คุมอาหาร</option>
                   </select>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 ml-0.5 block">
                     รอบเวลาจัดส่ง
                   </label>
                   <input title="Input field"
@@ -1490,13 +1545,13 @@ export const MemberPlanner: React.FC = () => {
                         delivery_time: e.target.value,
                       })
                     }
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm font-normal"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm font-medium text-slate-900"
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 ml-0.5 block">
                   แพ้อาหาร / สิ่งที่ไม่ทาน
                 </label>
                 <input title="Input field"
@@ -1508,7 +1563,7 @@ export const MemberPlanner: React.FC = () => {
                       allergies: e.target.value,
                     })
                   }
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm font-normal"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm font-medium text-slate-900"
                   placeholder="เช่น ไม่ทานเผ็ด, แพ้ถั่ว"
                 />
               </div>
@@ -1517,13 +1572,13 @@ export const MemberPlanner: React.FC = () => {
             <div className="px-8 py-6 bg-slate-50/50 border-t border-slate-100 flex gap-3">
               <button title="Button" type="button"
                 onClick={() => setIsProfileModalOpen(false)}
-                className="flex-1 px-6 py-3 border border-slate-200 text-slate-600 rounded-xl text-sm font-normal hover:bg-white transition-all shadow-sm"
+                className="flex-1 px-6 py-3 border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-white transition-all shadow-sm"
               >
                 ยกเลิก
               </button>
               <button title="Button" type="button"
                 onClick={handleSaveProfile}
-                className="flex-1 px-6 py-3 bg-emerald-500 text-white rounded-xl text-sm font-normal hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
+                className="flex-1 px-6 py-3 bg-emerald-500 text-white rounded-xl text-sm font-semibold hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
               >
                 บันทึกการเปลี่ยนแปลง
               </button>
@@ -1541,11 +1596,11 @@ export const MemberPlanner: React.FC = () => {
           >
             <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <div>
-                <h3 className="text-xl font-normal text-slate-900 flex items-center gap-2">
+                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                   <Plus className="text-emerald-500" />{" "}
                   {editingSlot.scheduleId ? "แก้ไขเมนูอาหาร" : "เพิ่มเมนูอาหาร"}
                 </h3>
-                <p className="text-slate-500 text-xs font-normal mt-1">
+                <p className="text-slate-500 text-xs font-medium mt-1">
                   วันที่{" "}
                   {dayjs(editingSlot.date).locale("th").format("DD MMMM YYYY")}
                 </p>
@@ -1570,7 +1625,7 @@ export const MemberPlanner: React.FC = () => {
                     placeholder="ค้นหาชื่อเมนู..."
                     value={menuSearch}
                     onChange={(e) => setMenuSearch(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all text-sm font-normal"
+                    className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all text-sm font-medium text-slate-900"
                   />
                 </div>
 
@@ -1598,11 +1653,11 @@ export const MemberPlanner: React.FC = () => {
                         </div>
                         <div className="min-w-0 flex-1">
                           <p
-                            className={`text-sm font-normal truncate ${editingSlot.menuId === menu.id ? "text-emerald-700" : "text-slate-800"}`}
+                            className={`text-sm font-normal truncate ${editingSlot.menuId === menu.id ? "text-emerald-700 font-medium" : "text-slate-800"}`}
                           >
                             {menu.name}
                           </p>
-                          <p className="text-[10px] text-slate-400 uppercase tracking-widest">
+                          <p className="text-[10px] font-normal text-slate-400 uppercase tracking-widest">
                             {menu.category}
                           </p>
                         </div>
@@ -1612,8 +1667,8 @@ export const MemberPlanner: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 ml-0.5 block">
                     มื้อที่
                   </label>
                   <select title="Select option"
@@ -1624,7 +1679,7 @@ export const MemberPlanner: React.FC = () => {
                         mealType: e.target.value,
                       })
                     }
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all text-sm font-normal"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all text-sm font-medium text-slate-900"
                   >
                     {[...Array(20)].map((_, i) => (
                       <option key={i + 1} value={`meal_${i + 1}`}>
@@ -1633,8 +1688,8 @@ export const MemberPlanner: React.FC = () => {
                     ))}
                   </select>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 ml-0.5 block">
                     จำนวน (ชุด)
                   </label>
                   <input title="Input field"
@@ -1647,14 +1702,14 @@ export const MemberPlanner: React.FC = () => {
                         qty: parseInt(e.target.value) || 1,
                       })
                     }
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all text-sm font-normal"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all text-sm font-semibold text-slate-900"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 ml-0.5 block">
                     รอบเวลาส่ง
                   </label>
                   <input title="Input field"
@@ -1667,14 +1722,14 @@ export const MemberPlanner: React.FC = () => {
                         deliveryTime: e.target.value,
                       })
                     }
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all text-sm font-normal"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all text-sm font-medium text-slate-900"
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 ml-0.5 block">
                     ประเภทออเดอร์
                   </label>
-                  <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 gap-1 h-[46px]">
+                  <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 gap-1 h-[42px]">
                     <button title="Button" type="button"
                       onClick={() =>
                         setEditingSlot({
@@ -1683,7 +1738,7 @@ export const MemberPlanner: React.FC = () => {
                           orderType: "subscription",
                         })
                       }
-                      className={`flex-1 rounded-lg text-[10px] font-bold uppercase transition-all ${!editingSlot.isExtraOrder ? "bg-white text-emerald-600 shadow-sm" : "text-slate-400"}`}
+                      className={`flex-1 rounded-lg text-xs font-bold transition-all ${!editingSlot.isExtraOrder ? "bg-white text-emerald-700 shadow-sm" : "text-slate-500"}`}
                     >
                       ในแพ็กเกจ
                     </button>
@@ -1695,7 +1750,7 @@ export const MemberPlanner: React.FC = () => {
                           orderType: "a-la-carte",
                         })
                       }
-                      className={`flex-1 rounded-lg text-[10px] font-bold uppercase transition-all ${editingSlot.isExtraOrder ? "bg-orange-500 text-white shadow-sm" : "text-slate-400"}`}
+                      className={`flex-1 rounded-lg text-xs font-bold transition-all ${editingSlot.isExtraOrder ? "bg-orange-500 text-white shadow-sm" : "text-slate-500"}`}
                     >
                       สั่งแยก
                     </button>
@@ -1703,8 +1758,8 @@ export const MemberPlanner: React.FC = () => {
                 </div>
               </div>
 
-              <div className="space-y-4 pt-2">
-                <label className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-100 rounded-2xl cursor-pointer group hover:bg-blue-100 transition-all">
+              <div className="space-y-3 pt-2">
+                <label className="flex items-center gap-3 p-3.5 bg-blue-50/70 border border-blue-200 rounded-2xl cursor-pointer group hover:bg-blue-100/70 transition-all">
                   <input title="Input field"
                     type="checkbox"
                     checked={editingSlot.isNoRice}
@@ -1787,15 +1842,16 @@ export const MemberPlanner: React.FC = () => {
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden"
+            className="bg-white rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]"
           >
+            {/* Modal Header */}
             <div className="px-8 py-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
               <div>
-                <h3 className="text-xl font-normal text-slate-900 flex items-center gap-2">
-                  <Plus className="text-emerald-500" /> เปิดแพ็กเกจใหม่ให้ลูกค้า
+                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                  <Sparkles className="text-emerald-500" size={22} /> เปิดแพ็กเกจใหม่ให้ลูกค้า
                 </h3>
                 <p className="text-slate-500 text-xs font-normal mt-1">
-                  ระบุรายละเอียดสัญญาและจำนวนมื้ออาหาร
+                  เลือกลูกค้าและโปรโมชั่น ระบบจะคำนวณจำนวนมื้อ ราคา และวันที่สิ้นสุดให้อัตโนมัติ
                 </p>
               </div>
               <button title="Button" type="button"
@@ -1806,98 +1862,290 @@ export const MemberPlanner: React.FC = () => {
               </button>
             </div>
 
-            <div className="p-8 space-y-6">
+            {/* Modal Body */}
+            <div className="p-6 md:p-8 space-y-6 overflow-y-auto custom-scrollbar flex-1">
+              {/* Step 1: Select Member */}
               <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">
-                  เลือกลูกค้า
+                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 ml-1 flex items-center gap-1.5">
+                  <User size={13} className="text-emerald-600" />
+                  <span>1. เลือกลูกค้าที่จะเปิดแพ็กเกจ</span>
                 </label>
                 <select title="Select option"
                   value={newPackage.member_id}
                   onChange={(e) =>
                     setNewPackage({ ...newPackage, member_id: e.target.value })
                   }
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all text-sm font-normal"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all text-sm font-medium text-slate-900"
                 >
-                  <option value="">เลือกชื่อลูกค้า...</option>
+                  <option value="">-- โปรดเลือกชื่อลูกค้า --</option>
                   {members.map((m) => (
                     <option key={m.id} value={m.id}>
-                      {m.full_name} ({m.phone})
+                      {m.full_name} ({m.phone || "ไม่มีเบอร์"}) {m.health_goal ? `[${m.health_goal}]` : ""}
                     </option>
                   ))}
                 </select>
+                {newPackage.member_id && (() => {
+                  const selectedMember = members.find(m => m.id === newPackage.member_id);
+                  if (!selectedMember) return null;
+                  return (
+                    <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                      <MapPin size={13} className="text-slate-400 shrink-0" />
+                      <span className="truncate">{selectedMember.address || "ไม่ระบุที่อยู่"}</span>
+                      <span className="ml-auto text-emerald-600 font-semibold shrink-0">
+                        {selectedMember.delivery_time || "รอบ 11:00-13:00"}
+                      </span>
+                    </div>
+                  );
+                })()}
               </div>
 
+              {/* Step 2: Select Preset / Promotion */}
               <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">
-                  ชื่อแพ็กเกจ
-                </label>
-                <input title="Input field"
-                  type="text"
-                  placeholder="เช่น ผูกปิ่นโต 14 วัน (28 มื้อ)"
-                  value={newPackage.package_name}
-                  onChange={(e) =>
-                    setNewPackage({
-                      ...newPackage,
-                      package_name: e.target.value,
-                    })
-                  }
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all text-sm font-normal"
-                />
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 ml-1 flex items-center gap-1.5">
+                    <Tag size={13} className="text-emerald-600" />
+                    <span>2. เลือกโปรโมชั่น / แพ็กเกจมาตรฐาน (คำนวณอัตโนมัติ)</span>
+                  </label>
+                  <span className="text-[10px] text-slate-400">คลิกเพื่อเลือกทันที</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {/* Database Promotions if available */}
+                  {promotionsList.length > 0 && promotionsList.map((promo) => {
+                    const isSelected = selectedPromoPresetId === promo.id;
+                    const pricePerMeal = promo.meals_count > 0 && promo.price ? (promo.price / promo.meals_count).toFixed(1) : null;
+                    return (
+                      <button
+                        key={promo.id}
+                        type="button"
+                        onClick={() => handleSelectPreset({
+                          id: promo.id,
+                          name: promo.name,
+                          meals_count: promo.meals_count || 14,
+                          days_count: promo.days_count || 14,
+                          price: promo.price || 0,
+                          promotion_id: promo.id,
+                        })}
+                        className={`p-3 rounded-2xl border text-left transition-all relative ${
+                          isSelected
+                            ? "border-emerald-500 bg-emerald-50/70 shadow-sm ring-2 ring-emerald-500/20"
+                            : "border-slate-200 bg-slate-50/50 hover:bg-white hover:border-slate-300"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-1 mb-1">
+                          <span className="text-xs font-bold text-slate-900 truncate">
+                            {promo.name}
+                          </span>
+                          {isSelected && (
+                            <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] text-slate-500">
+                          <span className="font-semibold text-emerald-700">
+                            {promo.meals_count || 14} มื้อ ({promo.days_count || 14} วัน)
+                          </span>
+                          <span className="font-bold text-slate-900">
+                            ฿{Number(promo.price || 0).toLocaleString()}
+                          </span>
+                        </div>
+                        {pricePerMeal && (
+                          <div className="text-[10px] text-slate-400 mt-0.5">
+                            เฉลี่ยมื้อละ ฿{pricePerMeal}
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+
+                  {/* Standard Presets */}
+                  {STANDARD_PINTO_PRESETS.map((preset) => {
+                    const isSelected = selectedPromoPresetId === preset.id;
+                    const pricePerMeal = preset.meals_count > 0 && preset.price > 0 ? (preset.price / preset.meals_count).toFixed(1) : null;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => handleSelectPreset(preset)}
+                        className={`p-3 rounded-2xl border text-left transition-all relative ${
+                          isSelected
+                            ? "border-emerald-500 bg-emerald-50/70 shadow-sm ring-2 ring-emerald-500/20"
+                            : "border-slate-200 bg-slate-50/50 hover:bg-white hover:border-slate-300"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-1 mb-1">
+                          <span className="text-xs font-bold text-slate-900 truncate">
+                            {preset.name}
+                          </span>
+                          {preset.tag && (
+                            <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 shrink-0">
+                              {preset.tag}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] text-slate-500">
+                          <span className="font-semibold text-emerald-700">
+                            {preset.meals_count} มื้อ ({preset.days_count} วัน)
+                          </span>
+                          {preset.price > 0 ? (
+                            <span className="font-bold text-slate-900">
+                              ฿{preset.price.toLocaleString()}
+                            </span>
+                          ) : (
+                            <span className="text-slate-400">กรอกเอง</span>
+                          )}
+                        </div>
+                        {pricePerMeal && (
+                          <div className="text-[10px] text-slate-400 mt-0.5">
+                            เฉลี่ยมื้อละ ฿{pricePerMeal}
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">
-                    จำนวนมื้อทั้งหมด
-                  </label>
-                  <input title="Input field"
-                    type="number"
-                    value={newPackage.meals_total}
-                    onChange={(e) =>
-                      setNewPackage({
-                        ...newPackage,
-                        meals_total: parseInt(e.target.value) || 0,
-                      })
-                    }
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all text-sm font-normal"
-                  />
+              {/* Custom fields if Custom mode selected */}
+              {newPackage.is_custom && (
+                <div className="p-4 bg-amber-50/60 rounded-2xl border border-amber-200 space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-amber-800">
+                      ชื่อแพ็กเกจ (กำหนดเอง)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="เช่น ผูกปิ่นโตพิเศษ 20 มื้อ"
+                      value={newPackage.package_name}
+                      onChange={(e) => setNewPackage({ ...newPackage, package_name: e.target.value })}
+                      className="w-full px-4 py-2.5 bg-white border border-amber-300 rounded-xl focus:ring-2 focus:ring-amber-500/20 outline-none text-sm"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-amber-800">
+                        จำนวนมื้อรวม
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={newPackage.meals_total}
+                        onChange={(e) => setNewPackage({ ...newPackage, meals_total: parseInt(e.target.value) || 1 })}
+                        className="w-full px-4 py-2.5 bg-white border border-amber-300 rounded-xl text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-amber-800">
+                        ราคาแพ็กเกจ (บาท)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={newPackage.price}
+                        onChange={(e) => setNewPackage({ ...newPackage, price: parseFloat(e.target.value) || 0 })}
+                        className="w-full px-4 py-2.5 bg-white border border-amber-300 rounded-xl text-sm"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 ml-1">
-                    วันที่เริ่มแพ็กเกจ
+              )}
+
+              {/* Step 3: Date Range */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 ml-1 flex items-center gap-1">
+                    <Calendar size={12} className="text-emerald-600" /> วันที่เริ่มสัญญา
                   </label>
                   <input title="Input field"
                     type="date"
                     value={newPackage.start_date}
+                    onChange={(e) => {
+                      const newStart = e.target.value;
+                      const currentDays = dayjs(newPackage.end_date).diff(dayjs(newPackage.start_date), "day") || 14;
+                      setNewPackage({
+                        ...newPackage,
+                        start_date: newStart,
+                        end_date: dayjs(newStart).add(currentDays, "day").format("YYYY-MM-DD"),
+                      });
+                    }}
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 outline-none text-sm font-medium text-slate-800"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-slate-500 ml-1 flex items-center gap-1">
+                    <Calendar size={12} className="text-emerald-600" /> วันที่สิ้นสุดสัญญา (โดยประมาณ)
+                  </label>
+                  <input title="Input field"
+                    type="date"
+                    value={newPackage.end_date}
                     onChange={(e) =>
                       setNewPackage({
                         ...newPackage,
-                        start_date: e.target.value,
+                        end_date: e.target.value,
                       })
                     }
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all text-sm font-normal"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 outline-none text-sm font-medium text-slate-800"
                   />
+                </div>
+              </div>
+
+              {/* Step 4: Summary Card */}
+              <div className="p-4 bg-emerald-950 text-white rounded-2xl shadow-sm space-y-2">
+                <div className="flex items-center justify-between text-xs text-emerald-300">
+                  <span className="flex items-center gap-1">
+                    <Check size={14} /> สรุปข้อมูลแพ็กเกจที่จะบันทึก
+                  </span>
+                  <span className="font-semibold bg-emerald-800/80 text-emerald-100 px-2 py-0.5 rounded-full text-[10px]">
+                    คำนวณเรียบร้อย
+                  </span>
+                </div>
+                <div className="flex items-baseline justify-between pt-1">
+                  <h4 className="text-base font-bold text-white truncate">
+                    {newPackage.package_name || "ยังไม่ได้เลือกแพ็กเกจ"}
+                  </h4>
+                  <span className="text-lg font-bold text-emerald-400 shrink-0 ml-2">
+                    ฿{Number(newPackage.price || 0).toLocaleString()}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-emerald-800/60 text-xs text-emerald-200">
+                  <div>
+                    <span className="text-emerald-400 block text-[10px]">จำนวนมื้อรวม</span>
+                    <strong className="text-white text-sm font-semibold">{newPackage.meals_total} มื้อ</strong>
+                  </div>
+                  <div>
+                    <span className="text-emerald-400 block text-[10px]">เฉลี่ยต่อมื้อ</span>
+                    <strong className="text-white text-sm font-semibold">
+                      ฿{newPackage.meals_total > 0 && newPackage.price > 0 ? (newPackage.price / newPackage.meals_total).toFixed(1) : "0"}
+                    </strong>
+                  </div>
+                  <div>
+                    <span className="text-emerald-400 block text-[10px]">ระยะเวลา</span>
+                    <strong className="text-white text-sm font-semibold">
+                      {Math.max(1, dayjs(newPackage.end_date).diff(dayjs(newPackage.start_date), "day"))} วัน
+                    </strong>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="px-8 py-6 bg-slate-50/50 border-t border-slate-100 flex gap-3">
+            {/* Modal Footer */}
+            <div className="px-8 py-5 bg-slate-50/80 border-t border-slate-100 flex gap-3">
               <button title="Button" type="button"
                 onClick={() => setIsAddPackageModalOpen(false)}
-                className="flex-1 px-6 py-3 border border-slate-200 text-slate-600 rounded-xl text-sm font-normal hover:bg-white transition-all shadow-sm"
+                className="flex-1 px-6 py-3 border border-slate-200 text-slate-600 rounded-xl text-sm font-medium hover:bg-white transition-all shadow-sm"
               >
                 ยกเลิก
               </button>
               <button title="Button" type="button"
                 onClick={handleAddPackage}
-                className="flex-1 px-6 py-3 bg-emerald-500 text-white rounded-xl text-sm font-normal hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
+                className="flex-1 px-6 py-3 bg-emerald-500 text-white rounded-xl text-sm font-semibold hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 active:scale-95 flex items-center justify-center gap-2"
               >
-                ยืนยันเปิดแพ็กเกจ
+                <Plus size={16} /> ยืนยันเปิดแพ็กเกจ
               </button>
             </div>
           </motion.div>
         </div>
       )}
+
       {/* Audit Modal */}
       {isAuditModalOpen && selectedPackage && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
@@ -1942,36 +2190,36 @@ export const MemberPlanner: React.FC = () => {
                     className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100 hover:border-emerald-200 hover:bg-emerald-50/30 transition-all"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-500 shadow-sm">
+                      <div className="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-700 shadow-xs">
                         {idx + 1}
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-slate-700">
+                          <span className="text-xs font-semibold text-slate-800">
                             {dayjs(s.delivery_date).format("DD/MM/YY")}
                           </span>
-                          <span className="text-[10px] px-1.5 py-0.5 bg-slate-200 text-slate-600 rounded-md font-medium uppercase">
+                          <span className="text-[10px] px-1.5 py-0.5 bg-slate-200 text-slate-700 rounded-md font-semibold uppercase">
                             {s.meal_type.replace("meal_", "มื้อ ")}
                           </span>
                         </div>
-                        <div className="text-xs text-slate-600 mt-0.5 truncate max-w-[200px]">
+                        <div className="text-sm font-normal text-slate-850 mt-0.5 truncate max-w-[240px]">
                           {s.menu_items?.name || "ไม่ได้เลือกเมนู"}
                         </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       {s.is_compensatory && (
-                        <span className="px-2 py-0.5 bg-orange-100 text-orange-600 rounded-lg text-[10px] font-bold">
+                        <span className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded-lg text-xs font-bold">
                           🎁 ชดเชย
                         </span>
                       )}
                       {s.is_extra_order && (
-                        <span className="px-2 py-0.5 bg-slate-800 text-white rounded-lg text-[10px] font-bold">
+                        <span className="px-2 py-0.5 bg-slate-900 text-white rounded-lg text-xs font-bold">
                           ➕ สั่งแยก
                         </span>
                       )}
                       {!s.is_compensatory && !s.is_extra_order && (
-                        <span className="px-2 py-0.5 bg-emerald-100 text-emerald-600 rounded-lg text-[10px] font-bold border border-emerald-200">
+                        <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-lg text-xs font-semibold border border-emerald-200">
                           ✅ มื้อปกติ
                         </span>
                       )}
@@ -1983,11 +2231,11 @@ export const MemberPlanner: React.FC = () => {
 
             <div className="p-6 bg-slate-50 border-t border-slate-100">
               <div className="grid grid-cols-2 gap-4 mb-4">
-                <div className="p-3 bg-white rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group">
-                  <div className="text-[10px] text-slate-500 font-medium">
+                <div className="p-3.5 bg-white rounded-2xl border border-slate-200 shadow-xs relative overflow-hidden group">
+                  <div className="text-xs text-slate-500 font-medium">
                     รวมมื้อปกติ (ทั้งแพ็กเกจ)
                   </div>
-                  <div className="text-lg font-bold text-slate-900">
+                  <div className="text-xl font-bold text-slate-900 mt-0.5">
                     {
                       allPackageSchedules.filter(
                         (s) => !s.is_compensatory && !s.is_extra_order,
@@ -2024,15 +2272,9 @@ export const MemberPlanner: React.FC = () => {
                           ),
                         });
 
-                        await Swal.fire({
-                          icon: "success",
-                          title: "ซิงค์ข้อมูลสำเร็จ",
-                          text: `ปรับยอดคงเหลือเป็น ${newRemaining} มื้อ เรียบร้อยแล้ว`,
-                          timer: 1500,
-                          showConfirmButton: false,
-                        });
+                        toast.success(`ปรับยอดคงเหลือเป็น ${newRemaining} มื้อ เรียบร้อยแล้ว ✨`);
                       } catch (err: any) {
-                        Swal.fire("Error", err.message, "error");
+                        toast.error("เกิดข้อผิดพลาด: " + err.message);
                       }
                     }}
                     className="absolute top-2 right-2 p-1.5 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-500 hover:text-white transition-all shadow-sm"

@@ -189,6 +189,7 @@ export const TodayView: React.FC = () => {
     loadSystemSettings,
     printerEnabled,
     bluetoothDevice,
+    connectBluetooth,
     printToBluetooth,
     serialPort,
     printToSerial,
@@ -328,9 +329,26 @@ export const TodayView: React.FC = () => {
     time: string,
     item: any,
   ) => {
-    if (bluetoothDevice || serialPort) {
+    let currentBt = bluetoothDevice;
+    const currentSerial = serialPort;
+
+    if (!currentBt && !currentSerial) {
+      toast.info("กำลังค้นหาเครื่องพิมพ์บลูทูธ 80mm...");
       try {
-        let finalBytes: Uint8Array;
+        await connectBluetooth();
+        currentBt = useSystemStore.getState().bluetoothDevice;
+        if (!currentBt) {
+          toast.warning("ยังไม่ได้เชื่อมต่อเครื่องพิมพ์บลูทูธ 80mm ค่ะ (กดเชื่อมต่อในหน้าตั้งค่าได้)");
+          return;
+        }
+      } catch (err: any) {
+        toast.error("ไม่สามารถเชื่อมต่อบลูทูธได้: " + err.message);
+        return;
+      }
+    }
+
+    try {
+      let finalBytes: Uint8Array;
 
         if (printerMode === "graphic") {
           const { thaiFont } = useSystemStore.getState();
@@ -502,18 +520,15 @@ export const TodayView: React.FC = () => {
           ]);
         }
 
-        if (serialPort) {
-          await printToSerial(finalBytes);
-          toast.success("พิมพ์ใบสั่งสำเร็จผ่าน USB/Serial 🖨️");
-        } else {
-          await printToBluetooth(finalBytes);
-          toast.success("พิมพ์ใบสั่งสำเร็จผ่านบลูทูธ 🖨️");
-        }
-      } catch (err: any) {
-        toast.error("การพิมพ์ล้มเหลว: " + err.message);
+      if (currentSerial) {
+        await printToSerial(finalBytes);
+        toast.success("พิมพ์ใบสั่งสำเร็จผ่าน USB/Serial 🖨️");
+      } else {
+        await printToBluetooth(finalBytes);
+        toast.success("พิมพ์ใบสั่งสำเร็จผ่านเครื่องพิมพ์บลูทูธ 80mm 🖨️");
       }
-    } else {
-      window.print();
+    } catch (err: any) {
+      toast.error("การพิมพ์ล้มเหลว: " + err.message);
     }
   };
 
@@ -2684,9 +2699,9 @@ export const TodayView: React.FC = () => {
                       <div
                         ref={parent}
                         className={cn(
-                          "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4",
+                          "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3.5 sm:gap-4",
                           isKitchenMode &&
-                            "grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-2 gap-10",
+                            "grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-2 gap-8",
                         )}
                       >
                         {Object.entries(group.members)
@@ -2702,9 +2717,9 @@ export const TodayView: React.FC = () => {
                               <div
                                 key={memberName}
                                 className={cn(
-                                  "bg-white rounded-3xl border border-slate-200/80 shadow-xs flex flex-col overflow-hidden hover:shadow-xl transition-all duration-300 group relative",
+                                  "bg-white rounded-3xl border border-slate-200/90 shadow-xs flex flex-col overflow-hidden hover:shadow-md transition-all duration-200 group relative",
                                   isDone &&
-                                    "border-slate-200 bg-slate-50/60 shadow-inner opacity-45 grayscale-[0.4]",
+                                    "border-slate-200/60 bg-slate-50/70 shadow-inner opacity-50 grayscale-[0.3]",
                                   isKitchenMode &&
                                     "border-4 border-slate-800 shadow-2xl",
                                   !isDone &&
@@ -2712,17 +2727,17 @@ export const TodayView: React.FC = () => {
                                     "bg-slate-800 ring-8 ring-emerald-500/10",
                                 )}
                               >
-                                {/* Header Section (Always Prominent) */}
+                                {/* Header Section */}
                                 <div
                                   className={cn(
-                                    "p-4 sm:p-5 pb-0 flex justify-between items-start gap-2 relative z-10",
-                                    isKitchenMode && "p-8",
+                                    "p-3.5 sm:p-4 pb-0 flex justify-between items-start gap-2 relative z-10",
+                                    isKitchenMode && "p-6",
                                   )}
                                 >
-                                  <div className="flex flex-col gap-1.5">
-                                    <div className="flex items-center gap-2">
+                                  <div className="flex flex-col gap-1 min-w-0">
+                                    <div className="flex flex-wrap items-center gap-1.5">
                                       <motion.button
-                                        whileTap={{ scale: 0.9 }}
+                                        whileTap={{ scale: 0.88 }}
                                         onClick={(e) =>
                                           handleToggleClick(
                                             time,
@@ -2732,25 +2747,25 @@ export const TodayView: React.FC = () => {
                                           )
                                         }
                                         className={cn(
-                                          "w-9 h-9 sm:w-10 sm:h-10 rounded-2xl flex items-center justify-center transition-all shadow-sm",
+                                          "w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center transition-all cursor-pointer shadow-2xs shrink-0",
                                           isDone
                                             ? "bg-emerald-600 text-white shadow-emerald-600/30"
-                                            : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200/80",
+                                            : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200/70",
                                           isKitchenMode &&
-                                            "w-16 h-16 rounded-[24px]",
+                                            "w-12 h-12 rounded-2xl",
                                         )}
                                       >
                                         <CheckCircle2
-                                          size={isKitchenMode ? 36 : 22}
+                                          size={isKitchenMode ? 28 : 16}
                                           strokeWidth={2.5}
                                         />
                                       </motion.button>
                                       {item.isRetail && (
                                         <span
                                           className={cn(
-                                            "text-[10px] font-semibold uppercase tracking-widest px-2 py-1 rounded-lg bg-slate-900 text-white",
+                                            "text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-slate-900 text-white",
                                             isKitchenMode &&
-                                              "text-base px-4 py-2",
+                                              "text-sm px-3 py-1",
                                           )}
                                         >
                                           Retail
@@ -2759,58 +2774,58 @@ export const TodayView: React.FC = () => {
                                       {item.hasExtraOrder && (
                                         <span
                                           className={cn(
-                                            "text-[10px] font-semibold uppercase tracking-widest px-2 py-1 rounded-lg bg-orange-500 text-white",
+                                            "text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-orange-500 text-white",
                                             isKitchenMode &&
-                                              "text-base px-4 py-2",
+                                              "text-sm px-3 py-1",
                                           )}
                                         >
                                           สั่งแยก
                                         </span>
                                       )}
                                       {item.hasNotes && !isDone && (
-                                        <AlertTriangle
-                                          size={isKitchenMode ? 40 : 20}
-                                          className="text-red-500 animate-pulse"
-                                        />
+                                        <span className="inline-flex items-center gap-1 text-[9px] font-bold bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded-md border border-rose-200 animate-pulse">
+                                          <AlertTriangle size={11} />
+                                          แพ้อาหาร
+                                        </span>
                                       )}
                                     </div>
                                     <h4
                                       className={cn(
-                                        "text-xl font-semibold transition-colors",
+                                        "text-base font-black tracking-tight truncate mt-0.5",
                                         isDone
                                           ? "text-slate-400 line-through"
-                                          : "text-slate-900 group-hover:text-emerald-600",
+                                          : "text-slate-900 group-hover:text-emerald-700",
                                         isKitchenMode &&
-                                          "text-3xl text-white mt-2",
+                                          "text-2xl text-white mt-1",
                                       )}
                                     >
                                       {memberName}
                                     </h4>
-                                    {item.dropPointName && (
-                                      <div className="mt-1">
+                                    <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                                      {item.dropPointName && (
                                         <span
                                           className={cn(
-                                            "inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-50 text-indigo-600 border border-indigo-100/50 uppercase tracking-wider",
-                                            isKitchenMode && "text-lg px-4 py-1.5 bg-indigo-900 text-indigo-200 border-none mt-2"
+                                            "inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100 uppercase tracking-wider",
+                                            isKitchenMode && "text-sm px-3 py-1 bg-indigo-950 text-indigo-200 border-none"
                                           )}
                                         >
                                           📍 {item.dropPointName}
                                         </span>
-                                      </div>
-                                    )}
-                                    {item.buddyGroupCode && (
-                                      <div className="mt-1">
+                                      )}
+                                      {item.buddyGroupCode && (
                                         <span
                                           className={cn(
-                                            "inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded bg-pink-50 text-pink-600 border border-pink-100/50 uppercase tracking-wider",
-                                            isKitchenMode && "text-lg px-4 py-1.5 bg-pink-900 text-pink-200 border-none mt-2"
+                                            "inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-pink-50 text-pink-700 border border-pink-100 uppercase tracking-wider",
+                                            isKitchenMode && "text-sm px-3 py-1 bg-pink-950 text-pink-200 border-none"
                                           )}
                                         >
                                           👯 คู่หู: {item.buddyGroupCode}
                                         </span>
-                                      </div>
-                                    )}
+                                      )}
+                                    </div>
                                   </div>
+                                  
+                                  {/* Total Boxes Counter */}
                                   <div
                                     onClick={(e) =>
                                       handleToggleClick(
@@ -2821,24 +2836,24 @@ export const TodayView: React.FC = () => {
                                       )
                                     }
                                     className={cn(
-                                      "cursor-pointer text-white px-3 py-2 rounded-2xl flex flex-col items-center justify-center shrink-0 min-w-[50px] shadow-lg transition-all hover:scale-105 active:scale-95",
-                                      isDone ? "bg-slate-300" : "bg-slate-900",
+                                      "cursor-pointer text-white px-2.5 py-1.5 rounded-xl flex flex-col items-center justify-center shrink-0 min-w-[42px] shadow-sm transition-all hover:scale-105 active:scale-95",
+                                      isDone ? "bg-slate-300 text-slate-600" : "bg-slate-900",
                                       isKitchenMode &&
-                                        "bg-emerald-600 px-8 py-6 rounded-[32px] min-w-[100px]",
+                                        "bg-emerald-600 px-6 py-4 rounded-2xl min-w-[80px]",
                                     )}
                                   >
                                     <span
                                       className={cn(
-                                        "text-2xl font-semibold leading-none",
-                                        isKitchenMode && "text-5xl",
+                                        "text-lg font-black leading-none",
+                                        isKitchenMode && "text-4xl",
                                       )}
                                     >
                                       {item.totalQty}
                                     </span>
                                     <span
                                       className={cn(
-                                        "text-[8px] font-semibold uppercase opacity-60 leading-none mt-1",
-                                        isKitchenMode && "text-sm",
+                                        "text-[7px] font-bold uppercase opacity-70 leading-none mt-0.5",
+                                        isKitchenMode && "text-xs",
                                       )}
                                     >
                                       BOX
@@ -2846,15 +2861,15 @@ export const TodayView: React.FC = () => {
                                   </div>
                                 </div>
 
-                                {/* Content Section (Faded when Done) */}
+                                {/* Content Section */}
                                 <div
                                   className={cn(
-                                    `px-5 pt-4 flex flex-col gap-4 flex-1`,
-                                    isDone ? "opacity-25 grayscale-[1]" : "",
-                                    isKitchenMode && "p-8",
+                                    `px-3.5 sm:p-4 pt-3 flex flex-col gap-2 flex-1`,
+                                    isDone ? "opacity-30 grayscale-[1]" : "",
+                                    isKitchenMode && "p-6",
                                   )}
                                 >
-                                  <div className="space-y-3">
+                                  <div className="space-y-2">
                                     {item.orders.map(
                                       (order: any, oIdx: number) => {
                                         const orderDone =
@@ -2868,31 +2883,31 @@ export const TodayView: React.FC = () => {
                                               toggleSingleItem(order, e)
                                             }
                                             className={cn(
-                                              "p-3 rounded-2xl border transition-all cursor-pointer relative overflow-hidden",
+                                              "p-2.5 rounded-xl border transition-all cursor-pointer relative overflow-hidden",
                                               orderDone
                                                 ? "bg-slate-50 border-transparent opacity-60"
-                                                : "bg-slate-50 border-slate-100 hover:border-emerald-300 hover:bg-white hover:shadow-sm",
+                                                : "bg-slate-50/70 border-slate-200/70 hover:border-emerald-300 hover:bg-white hover:shadow-2xs",
                                               isKitchenMode &&
-                                                "p-8 rounded-[32px] border-4",
+                                                "p-6 rounded-2xl border-2",
                                               isKitchenMode &&
                                                 !orderDone &&
                                                 "bg-slate-700/50 border-slate-600 text-white",
                                             )}
                                           >
-                                            <div className="flex justify-between items-start gap-4">
-                                              <div className="flex-1">
-                                                <div className="flex items-center gap-2 mb-1.5">
+                                            <div className="flex justify-between items-start gap-2">
+                                              <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-1.5 mb-1">
                                                   <span
                                                     className={cn(
-                                                      "w-2 h-2 rounded-full",
+                                                      "w-1.5 h-1.5 rounded-full",
                                                       getCategoryBgClass(order.category),
                                                     )}
                                                   ></span>
                                                   <span
                                                     className={cn(
-                                                      "text-[11px] font-bold text-slate-900 uppercase tracking-widest",
+                                                      "text-[9px] font-bold text-slate-500 uppercase tracking-wider truncate",
                                                       isKitchenMode &&
-                                                        "text-xl text-emerald-400 font-bold",
+                                                        "text-base text-emerald-400 font-bold",
                                                     )}
                                                   >
                                                     {order.category}
@@ -2900,11 +2915,11 @@ export const TodayView: React.FC = () => {
                                                 </div>
                                                 <p
                                                   className={cn(
-                                                    "text-base font-bold leading-tight",
+                                                    "text-xs sm:text-sm font-bold leading-tight line-clamp-2",
                                                     orderDone
                                                       ? "text-slate-400 line-through"
                                                       : "text-slate-800",
-                                                    isKitchenMode && "text-3xl",
+                                                    isKitchenMode && "text-2xl",
                                                     isKitchenMode &&
                                                       !orderDone &&
                                                       "text-white",
@@ -2916,31 +2931,28 @@ export const TodayView: React.FC = () => {
                                                       order.id &&
                                                       mealIndices[order.id]
                                                     ) {
-                                                      return ` (มื้อที่ ${mealIndices[order.id]})`;
+                                                      return ` (มื้อ ${mealIndices[order.id]})`;
                                                     } else if (order.mealType) {
                                                       const matchDigit = String(
                                                         order.mealType,
                                                       ).match(/\d+/);
                                                       return matchDigit
-                                                        ? ` (มื้อที่ ${matchDigit[0]})`
+                                                        ? ` (มื้อ ${matchDigit[0]})`
                                                         : "";
                                                     }
                                                     return "";
                                                   })()}
                                                 </p>
                                               </div>
-                                              <div className="flex flex-col items-end gap-1">
+                                              <div className="flex items-center gap-1 shrink-0">
                                                 <span
                                                   className={cn(
-                                                    "text-lg font-bold",
+                                                    "text-xs sm:text-sm font-black px-1.5 py-0.5 rounded-md bg-white border border-slate-200 text-slate-800",
                                                     orderDone
-                                                      ? "text-slate-300"
-                                                      : "text-slate-900",
+                                                      ? "text-slate-300 border-transparent bg-transparent"
+                                                      : "",
                                                     isKitchenMode &&
-                                                      "text-5xl font-bold",
-                                                    isKitchenMode &&
-                                                      !orderDone &&
-                                                      "text-emerald-400",
+                                                      "text-3xl font-bold bg-slate-900 text-white",
                                                   )}
                                                 >
                                                   x{order.qty}
@@ -2948,9 +2960,9 @@ export const TodayView: React.FC = () => {
                                                 {orderDone && (
                                                   <CheckCircle2
                                                     size={
-                                                      isKitchenMode ? 32 : 16
+                                                      isKitchenMode ? 24 : 14
                                                     }
-                                                    className="text-emerald-500"
+                                                    className="text-emerald-500 shrink-0"
                                                   />
                                                 )}
                                               </div>
@@ -2958,32 +2970,32 @@ export const TodayView: React.FC = () => {
                                             {order.note && (
                                               <div
                                                 className={cn(
-                                                  `mt-3 flex gap-3 items-start p-3 rounded-2xl`,
+                                                  `mt-2 flex gap-1.5 items-start p-2 rounded-lg`,
                                                   orderDone
                                                     ? "bg-slate-100/30"
-                                                    : "bg-rose-50 border border-rose-100",
+                                                    : "bg-rose-50 border border-rose-200 text-rose-800",
                                                   isKitchenMode &&
-                                                    "p-6 bg-rose-600 border-none shadow-xl animate-pulse mt-6",
+                                                    "p-4 bg-rose-600 border-none shadow-lg animate-pulse mt-4",
                                                 )}
                                               >
                                                 <AlertTriangle
-                                                  size={isKitchenMode ? 32 : 14}
+                                                  size={isKitchenMode ? 24 : 12}
                                                   className={cn(
                                                     orderDone
-                                                      ? "text-slate-200"
-                                                      : "text-rose-500",
+                                                      ? "text-slate-300"
+                                                      : "text-rose-600",
                                                     isKitchenMode &&
                                                       "text-white",
                                                   )}
                                                 />
                                                 <p
                                                   className={cn(
-                                                    `text-xs font-bold leading-tight italic`,
+                                                    `text-[11px] font-black leading-tight`,
                                                     orderDone
-                                                      ? "text-slate-300"
-                                                      : "text-rose-700",
+                                                      ? "text-slate-400"
+                                                      : "text-rose-800",
                                                     isKitchenMode &&
-                                                      "text-2xl text-white not-italic font-bold",
+                                                      "text-lg text-white font-bold",
                                                   )}
                                                 >
                                                   {order.note}
@@ -2997,18 +3009,19 @@ export const TodayView: React.FC = () => {
                                   </div>
                                 </div>
 
-                                <div className="px-4 pb-4 flex flex-col gap-2">
-                                  <div className="flex justify-between items-center pt-2 border-t border-dashed border-slate-100">
-                                    <p className="text-[9px] font-bold text-slate-900 uppercase tracking-[0.1em]">
-                                      ข้อมูลโภชนาการรวม
+                                {/* Footer & Action Dock */}
+                                <div className="px-3.5 pb-3 flex flex-col gap-1.5 mt-auto">
+                                  <div className="flex justify-between items-center pt-1.5 border-t border-dashed border-slate-200">
+                                    <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                                      โภชนาการ
                                     </p>
-                                    <span className="text-[11px] font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded-lg">
-                                      {Math.max(0, item.totalKcal)} KCAL
+                                    <span className="text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
+                                      🔥 {Math.max(0, item.totalKcal)} kcal
                                     </span>
                                   </div>
                                   <div
                                     className={cn(
-                                      "grid gap-2",
+                                      "grid gap-1.5",
                                       printerEnabled
                                         ? "grid-cols-2"
                                         : "grid-cols-1",
@@ -3016,8 +3029,7 @@ export const TodayView: React.FC = () => {
                                   >
                                     {printerEnabled && (
                                       <motion.button
-                                        whileHover={{ y: -1 }}
-                                        whileTap={{ scale: 0.96 }}
+                                        whileTap={{ scale: 0.95 }}
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           handlePrintReceipt(
@@ -3026,14 +3038,13 @@ export const TodayView: React.FC = () => {
                                             item,
                                           );
                                         }}
-                                        className="flex items-center justify-center gap-2 py-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-[10px] font-bold text-slate-600 transition-all border border-slate-100"
+                                        className="flex items-center justify-center gap-1 py-1.5 bg-slate-50 hover:bg-slate-100 rounded-lg text-[10px] font-bold text-slate-700 transition-all border border-slate-200 cursor-pointer min-h-[30px]"
                                       >
-                                        <Printer size={13} /> พิมพ์
+                                        <Printer size={12} /> สลิป 🖨️
                                       </motion.button>
                                     )}
                                     <motion.button
-                                      whileHover={{ y: -1 }}
-                                      whileTap={{ scale: 0.96 }}
+                                      whileTap={{ scale: 0.95 }}
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         setNutritionModal({
@@ -3043,35 +3054,36 @@ export const TodayView: React.FC = () => {
                                           time,
                                         });
                                       }}
-                                      className="flex items-center justify-center gap-2 py-2 bg-emerald-50 hover:bg-emerald-100 rounded-xl text-[10px] font-bold text-emerald-600 transition-all border border-emerald-100 w-full"
+                                      className="flex items-center justify-center gap-1 py-1.5 bg-emerald-50 hover:bg-emerald-100 rounded-lg text-[10px] font-bold text-emerald-700 transition-all border border-emerald-200 w-full cursor-pointer min-h-[30px]"
                                     >
-                                      <Info size={13} /> รายละเอียด
+                                      <Info size={12} /> ข้อมูลสารอาหาร
                                     </motion.button>
                                   </div>
                                 </div>
 
+                                {/* Bottom Ready Toggle Button */}
                                 <motion.button
                                   whileTap={{ scale: 0.98 }}
                                   onClick={(e) =>
                                     handleToggleClick(time, memberName, item, e)
                                   }
-                                  className={`h-11 sm:h-12 border-t flex items-center justify-center gap-2 cursor-pointer font-bold text-xs transition-all w-full select-none ${
+                                  className={`h-10 border-t flex items-center justify-center gap-1.5 cursor-pointer font-bold text-xs transition-all w-full select-none ${
                                     isDone
                                       ? "bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700"
-                                      : "bg-emerald-600 hover:bg-emerald-700 border-emerald-500 text-white shadow-xs"
+                                      : "bg-emerald-600 hover:bg-emerald-700 border-emerald-500 text-white shadow-2xs"
                                   }`}
                                 >
                                   {isDone ? (
                                     <>
-                                      <RotateCcw size={14} className="text-slate-300" />
-                                      <span className="tracking-wider text-[11px]">
+                                      <RotateCcw size={13} className="text-slate-300" />
+                                      <span className="tracking-wider text-[10px]">
                                         ยกเลิก / ทำใหม่ (UNDO)
                                       </span>
                                     </>
                                   ) : (
                                     <>
-                                      <CheckCircle2 size={15} className="text-white" />
-                                      <span className="tracking-wider text-[11px]">
+                                      <CheckCircle2 size={14} className="text-white" />
+                                      <span className="tracking-wider text-[10px]">
                                         ยืนยันแพ็คเสร็จ (READY)
                                       </span>
                                     </>

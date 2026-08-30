@@ -12,8 +12,10 @@ import {
   Plus, 
   Trash2,
   CheckCircle,
-  Truck
+  Truck,
+  Calendar
 } from 'lucide-react';
+import { DeliveryScheduleCard } from '../../auth/settings/components/DeliveryScheduleCard';
 
 interface Vehicle {
   id: string;
@@ -52,7 +54,7 @@ interface ShippingDiscount {
 }
 
 export const DeliverySettings: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'vehicles' | 'fuel' | 'shipping'>('vehicles');
+  const [activeTab, setActiveTab] = useState<'schedule' | 'vehicles' | 'fuel' | 'shipping'>('schedule');
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [fuelPrices, setFuelPrices] = useState<Record<string, number>>({});
   const [logisticsConfig, setLogisticsConfig] = useState<LogisticsConfig | null>(null);
@@ -260,6 +262,7 @@ export const DeliverySettings: React.FC = () => {
       <div className="px-8 pt-6">
         <div className="bg-white p-1.5 rounded-2xl border border-slate-200/50 flex gap-1 w-fit shadow-sm">
           {[
+            { id: 'schedule', label: 'รอบวันจัดส่งหลัก', icon: Calendar },
             { id: 'vehicles', label: 'รถจัดส่ง', icon: Car },
             { id: 'fuel', label: 'ราคาน้ำมัน', icon: Droplet },
             { id: 'shipping', label: 'ค่าจัดส่ง', icon: Package },
@@ -283,6 +286,18 @@ export const DeliverySettings: React.FC = () => {
       {/* Content */}
       <div className="p-8 max-w-6xl w-full">
         <AnimatePresence mode="wait">
+          {activeTab === 'schedule' && (
+            <motion.div
+              key="schedule"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="space-y-6"
+            >
+              <DeliveryScheduleCard />
+            </motion.div>
+          )}
+
           {activeTab === 'vehicles' && (
             <motion.div
               key="vehicles"

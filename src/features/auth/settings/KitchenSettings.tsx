@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { KdsBoardSettingsCard } from './components/KdsBoardSettingsCard';
 import { PrinterSupportCard } from './components/PrinterSupportCard';
 import { FontSelector } from './components/FontSelector';
+import { DeliveryScheduleCard } from './components/DeliveryScheduleCard';
 
 interface KitchenSettingsProps {
   autoRefreshInterval: number;
@@ -47,8 +48,11 @@ export const KitchenSettings: React.FC<KitchenSettingsProps> = ({
       exit={{ opacity: 0, y: -10 }}
       className="space-y-6 animate-fadeIn w-full max-w-[1400px] mx-auto"
     >
+      {/* 1. Store Delivery Schedule & KDS Linkage */}
+      <DeliveryScheduleCard />
+
       {/* Title Header */}
-      <div className="border-b border-slate-100 pb-4">
+      <div className="border-b border-slate-100 pb-4 pt-2">
         <h3 className="text-base font-bold text-slate-800 uppercase tracking-tight">ตั้งค่าระบบครัว KDS & เครื่องพิมพ์ฮาร์ดแวร์</h3>
         <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-widest pt-0.5">Kitchen Display System & Printer Configuration</p>
       </div>

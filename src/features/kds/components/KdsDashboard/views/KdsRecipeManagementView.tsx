@@ -367,15 +367,15 @@ export const KdsRecipeManagementView: React.FC = () => {
         ) : (
           <div className="flex flex-col h-full">
             {/* Header */}
-            <div className={`shrink-0 py-4 md:py-6 border-b border-slate-200/60 flex flex-col md:flex-row md:justify-between items-start md:items-end gap-4 md:gap-0 bg-white z-20 shadow-sm transition-all duration-300 ${!isSidebarOpen ? 'px-4 md:px-8 md:pl-20' : 'px-4 md:px-8'}`}>
+            <div className={`shrink-0 py-3 md:py-4 border-b border-slate-200/60 flex flex-col md:flex-row md:justify-between items-start md:items-center gap-3 bg-white z-20 shadow-2xs transition-all duration-300 ${!isSidebarOpen ? 'px-4 md:px-8 md:pl-20' : 'px-4 md:px-6'}`}>
               
-              <div className="flex items-start gap-3 w-full md:w-auto">
+              <div className="flex items-center gap-3 w-full md:w-auto">
                 {/* Mobile Back Button */}
                 <button 
                   onClick={() => setSelectedMenuId(null)}
-                  className="md:hidden mt-1 p-2 bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 hover:text-slate-900 transition-colors shrink-0"
+                  className="md:hidden p-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-colors shrink-0"
                 >
-                  <ArrowLeft size={20} />
+                  <ArrowLeft size={18} />
                 </button>
                 
                 <motion.div 
@@ -384,15 +384,16 @@ export const KdsRecipeManagementView: React.FC = () => {
                   key={`header-${selectedMenuId}`}
                   className="min-w-0 flex-1"
                 >
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold tracking-wide mb-3">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
-                    {selectedMenu?.category || 'ไม่ระบุหมวดหมู่'}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md font-bold">
+                      {selectedMenu?.category || 'ไม่ระบุหมวดหมู่'}
+                    </span>
+                    <h2 className="text-lg md:text-xl font-black text-slate-900 tracking-tight truncate">
+                      {selectedMenu?.name}
+                    </h2>
                   </div>
-                  <h2 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight leading-none mb-2 truncate">
-                    {selectedMenu?.name}
-                  </h2>
-                  <p className="text-sm font-medium text-slate-500">
-                    รหัส: {(selectedMenu as any)?.menu_code || 'ไม่มีรหัส'}
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    รหัสเมนู: {(selectedMenu as any)?.menu_code || 'ไม่มีรหัส'}
                   </p>
                 </motion.div>
               </div>
@@ -402,10 +403,10 @@ export const KdsRecipeManagementView: React.FC = () => {
                 whileTap={{ scale: 0.98 }}
                 onClick={handleSave}
                 disabled={isSaving}
-                className="w-full md:w-auto flex items-center justify-center gap-2 px-6 py-3.5 md:py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-xl font-bold transition-all shadow-md shadow-emerald-500/25 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full md:w-auto flex items-center justify-center gap-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-600/20 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer min-h-[38px]"
               >
-                <Save size={18} />
-                {isSaving ? 'กำลังบันทึก...' : 'บันทึกสูตรอาหาร'}
+                <Save size={15} />
+                <span>{isSaving ? 'กำลังบันทึก...' : 'บันทึกสูตรอาหาร 💾'}</span>
               </motion.button>
             </div>
 

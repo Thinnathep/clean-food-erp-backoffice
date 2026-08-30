@@ -130,6 +130,11 @@ const navItems: NavItem[] = [
       { label: 'คำนวณค่าจัดส่ง', path: '/logistics/calculator', icon: Calculator },
     ]
   },
+  { 
+    label: 'คู่มือการใช้งาน', 
+    path: '/manual', 
+    icon: BookOpen 
+  },
 ];
 
 interface SidebarProps {
@@ -226,19 +231,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
             : `max-xl:-translate-x-full ${showFullSidebar ? 'w-[260px]' : 'w-[72px]'}`
         }`}
       >
-        {/* ─── Brand Header (Clean: Logo + Title Only, No Overlapping Button) ─── */}
+        {/* ─── Brand Header (Clean: Logo + Title + Version) ─── */}
         <div className={`h-16 flex items-center shrink-0 border-b border-slate-800/80 bg-[#0B1120] ${showFullSidebar ? 'px-4 gap-3' : 'justify-center'}`}>
           <div className="w-9 h-9 bg-emerald-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-emerald-500/20 shrink-0">
             <UtensilsCrossed size={18} />
           </div>
           {showFullSidebar && (
-            <div className="min-w-0">
-              <h1 className="text-sm font-bold text-white tracking-tight leading-none uppercase truncate">
-                Clean Food
-              </h1>
-              <p className="text-[10px] text-emerald-400 font-medium tracking-[0.15em] uppercase mt-1">
-                ERP System
-              </p>
+            <div className="min-w-0 flex-1 flex items-center justify-between">
+              <div>
+                <h1 className="text-sm font-bold text-white tracking-tight leading-none uppercase truncate">
+                  Clean Food
+                </h1>
+                <p className="text-[10px] text-emerald-400 font-medium tracking-[0.15em] uppercase mt-1">
+                  ERP System
+                </p>
+              </div>
+              <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-mono font-bold text-emerald-400">
+                v2.1.6
+              </span>
             </div>
           )}
         </div>

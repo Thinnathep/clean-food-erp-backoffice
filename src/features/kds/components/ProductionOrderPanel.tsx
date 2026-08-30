@@ -332,20 +332,20 @@ export const ProductionOrderPanel: React.FC = () => {
 
         {/* Summary Stats */}
         <motion.div variants={fadeUp} className="grid grid-cols-3 gap-3 sm:gap-4">
-          <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4 text-center">
-            <p className="text-[10px] sm:text-xs text-slate-500 mb-0.5 sm:mb-1">แผนผลิต</p>
-            <p className="text-xl sm:text-2xl font-bold text-slate-900">{totalPlanned}</p>
-            <p className="text-[10px] text-slate-400">กล่อง</p>
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-3.5 sm:p-4 text-center shadow-2xs">
+            <p className="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider mb-0.5 sm:mb-1">แผนผลิต</p>
+            <p className="text-xl sm:text-2xl font-black text-slate-900 leading-tight">{totalPlanned}</p>
+            <p className="text-[10px] font-bold text-slate-400">BOX</p>
           </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4 text-center">
-            <p className="text-[10px] sm:text-xs text-slate-500 mb-0.5 sm:mb-1">ผลิตจริง</p>
-            <p className="text-xl sm:text-2xl font-bold text-emerald-600">{totalActual}</p>
-            <p className="text-[10px] text-slate-400">กล่อง</p>
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-3.5 sm:p-4 text-center shadow-2xs">
+            <p className="text-[10px] sm:text-xs font-bold text-emerald-600 uppercase tracking-wider mb-0.5 sm:mb-1">ผลิตจริง</p>
+            <p className="text-xl sm:text-2xl font-black text-emerald-600 leading-tight">{totalActual}</p>
+            <p className="text-[10px] font-bold text-slate-400">BOX</p>
           </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-3 sm:p-4 text-center">
-            <p className="text-[10px] sm:text-xs text-slate-500 mb-0.5 sm:mb-1">ของเสีย</p>
-            <p className="text-xl sm:text-2xl font-bold text-red-500">{totalWasteAll}</p>
-            <p className="text-[10px] text-slate-400">กล่อง</p>
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-3.5 sm:p-4 text-center shadow-2xs">
+            <p className="text-[10px] sm:text-xs font-bold text-rose-500 uppercase tracking-wider mb-0.5 sm:mb-1">ของเสีย (Waste)</p>
+            <p className="text-xl sm:text-2xl font-black text-rose-600 leading-tight">{totalWasteAll}</p>
+            <p className="text-[10px] font-bold text-slate-400">BOX</p>
           </div>
         </motion.div>
 

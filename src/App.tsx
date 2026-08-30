@@ -34,6 +34,7 @@ const DeliverySettings = lazy(() => import('./features/logistics/components/Deli
 const ProcurementDashboard = lazy(() => import('./features/procurement/components/ProcurementDashboard').then(m => ({ default: m.ProcurementDashboard })));
 const OrderCalculator = lazy(() => import('./features/calculator/components/OrderCalculator').then(m => ({ default: m.OrderCalculator })));
 const SettingsPage = lazy(() => import('./features/auth/SettingsPage').then(m => ({ default: m.SettingsPage })));
+const UserManualPage = lazy(() => import('./features/guide/components/UserManualPage').then(m => ({ default: m.UserManualPage })));
 
 const PageLoader: React.FC = () => (
   <div className="h-[60vh] w-full flex flex-col items-center justify-center gap-3">
@@ -156,6 +157,7 @@ function App() {
         
         <Route path="/calculator" element={<ProtectedRoute><MainLayout><OrderCalculator /></MainLayout></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><MainLayout><SettingsPage /></MainLayout></ProtectedRoute>} />
+        <Route path="/manual" element={<ProtectedRoute><MainLayout><UserManualPage /></MainLayout></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   );

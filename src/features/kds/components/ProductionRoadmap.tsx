@@ -533,18 +533,15 @@ export const ProductionRoadmap: React.FC = () => {
     >
       <div className="flex flex-col bg-slate-50/50 min-h-full">
         
-        {/* 1. Enhanced Header */}
-        <div className="bg-white px-4 md:px-6 py-4 md:py-5 border-b border-slate-200 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-sm relative z-20">
-          <div className="flex items-center gap-4">
-             <div className="w-12 h-12 rounded-2xl bg-slate-900 flex items-center justify-center text-white shadow-xl shadow-slate-900/10 shrink-0">
-                <CalendarIcon size={24} />
+        {/* 1. Streamlined Controls Bar */}
+        <div className="bg-white px-4 md:px-6 py-2.5 border-b border-slate-200/60 flex flex-wrap items-center justify-between gap-3 shadow-2xs relative z-20">
+          <div className="flex items-center gap-2.5">
+             <div className="w-8 h-8 rounded-xl bg-slate-900 flex items-center justify-center text-white shadow-sm shrink-0">
+                <CalendarIcon size={16} className="text-emerald-400" />
              </div>
              <div>
-                <h2 className="text-xl font-bold text-slate-900 tracking-tight flex flex-wrap items-center gap-2">
-                  แผนการผลิตหลัก
-                  <span className="text-[10px] font-bold bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full uppercase tracking-widest whitespace-nowrap">Master Roadmap</span>
-                </h2>
-                <p className="text-xs md:text-sm text-slate-500 font-medium mt-0.5">วางแผนเมนูมาตรฐานสำหรับครัว (ลากวางเมนูได้เลย)</p>
+                <h3 className="text-sm font-black text-slate-900 leading-tight">แผนการผลิตหลัก (Master Roadmap)</h3>
+                <p className="text-[11px] text-slate-400">ลากวางเมนูจัดตารางการผลิตประจำสัปดาห์</p>
              </div>
           </div>
 

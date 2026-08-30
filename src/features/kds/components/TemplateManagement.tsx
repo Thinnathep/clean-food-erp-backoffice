@@ -197,55 +197,73 @@ export const TemplateManagement: React.FC = () => {
 
   return (
     <div className="flex flex-col bg-slate-50 min-h-full relative">
-      {/* Header */}
-      <div className="bg-white px-4 md:px-8 py-4 md:py-6 border-b border-slate-200/60 flex flex-col md:flex-row md:items-center justify-between gap-4 z-10 relative">
-        <div className="flex items-center gap-4 md:gap-5">
-          <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30 shrink-0">
-            <Layout size={24} className="md:w-[26px] md:h-[26px]" strokeWidth={2.5} />
+      {/* Top Controls Bar */}
+      <div className="bg-white px-4 md:px-6 py-2.5 border-b border-slate-200/60 flex flex-wrap items-center justify-between gap-3 z-10 relative shadow-2xs">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold shrink-0">
+            <Layout size={18} />
           </div>
           <div>
-            <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">จัดการแม่แบบเมนู</h2>
-            <p className="text-xs md:text-sm text-slate-500 font-medium mt-0.5 md:mt-1">กำหนดโครงสร้างอาหารสำหรับลูกค้าในแต่ละสัปดาห์</p>
+            <h3 className="text-sm font-black text-slate-900 leading-tight">จัดการแม่แบบเมนู 4 สัปดาห์</h3>
+            <p className="text-[11px] text-slate-400">โครงสร้างเมนูหมุนเวียนอัตโนมัติประจำรอบสัปดาห์</p>
           </div>
+        </div>
+
+        {/* Week Selector Tabs */}
+        <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200/60">
+          {[1, 2, 3, 4].map(w => (
+            <button
+              key={w}
+              onClick={() => setSelectedWeek(w)}
+              className={cn(
+                "px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all outline-none cursor-pointer",
+                selectedWeek === w 
+                  ? "bg-slate-900 text-white shadow-xs" 
+                  : "text-slate-500 hover:text-slate-800"
+              )}
+            >
+              สัปดาห์ที่ {w}
+            </button>
+          ))}
         </div>
       </div>
 
       <div className="flex flex-col md:flex-row flex-1">
         {/* Category Sidebar */}
-        <div className="w-full md:w-64 lg:w-72 bg-white/60 backdrop-blur-xl border-b md:border-b-0 md:border-r border-slate-200/60 p-4 md:p-5 shrink-0">
-          <div className="flex items-center justify-between mb-4 md:mb-6 px-1">
+        <div className="w-full md:w-64 lg:w-72 bg-white/80 backdrop-blur-xl border-b md:border-b-0 md:border-r border-slate-200/60 p-4 md:p-5 shrink-0">
+          <div className="flex items-center justify-between mb-3 px-1">
             <h3 className="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-widest">รูปแบบ Template</h3>
             <button 
               onClick={() => setIsAddModalOpen(true)}
-              className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-600 hover:bg-indigo-100 hover:text-indigo-600 transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+              className="w-7 h-7 flex items-center justify-center rounded-xl bg-slate-100 text-slate-600 hover:bg-indigo-100 hover:text-indigo-600 transition-all focus:outline-none cursor-pointer"
               title="เพิ่ม Template ใหม่"
             >
-              <Plus size={14} className="md:w-4 md:h-4" strokeWidth={3} />
+              <Plus size={14} strokeWidth={2.5} />
             </button>
           </div>
           
-          {/* Scrollable categories on mobile (horizontal) and desktop (vertical) */}
-          <div className="flex md:flex-col gap-2 overflow-x-auto md:overflow-visible pb-2 md:pb-0 scrollbar-hide">
+          {/* Scrollable categories */}
+          <div className="flex md:flex-col gap-1.5 overflow-x-auto md:overflow-visible pb-2 md:pb-0 scrollbar-hide">
             {categories.map(cat => (
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.id)}
                 className={cn(
-                  "flex items-center justify-between p-3 md:p-4 rounded-xl md:rounded-2xl transition-all duration-300 border-2 outline-none shrink-0 md:shrink w-[160px] md:w-full",
+                  "flex items-center justify-between p-3 rounded-2xl transition-all duration-200 border outline-none shrink-0 md:shrink w-[160px] md:w-full cursor-pointer",
                   selectedCategory === cat.id 
-                    ? "bg-white border-indigo-500 shadow-md shadow-indigo-500/10 text-indigo-700 font-bold md:scale-[1.02]" 
-                    : "bg-transparent border-transparent text-slate-600 hover:bg-white/80 hover:border-slate-200/60 hover:shadow-sm"
+                    ? "bg-indigo-50/80 border-indigo-200 text-indigo-800 font-black shadow-xs" 
+                    : "bg-white border-slate-200/70 text-slate-600 hover:bg-slate-50 hover:border-slate-300"
                 )}
               >
-                <div className="flex items-center gap-3 md:gap-4">
-                  <span className="flex items-center justify-center w-6 h-6 md:w-8 md:h-8 text-slate-500">
-                    {renderIcon(cat.icon, 20)}
+                <div className="flex items-center gap-2.5">
+                  <span className="flex items-center justify-center w-6 h-6 text-indigo-600">
+                    {renderIcon(cat.icon, 18)}
                   </span>
-                  <span className="text-xs md:text-sm tracking-wide truncate">{cat.name}</span>
+                  <span className="text-xs font-bold tracking-tight truncate">{cat.name}</span>
                 </div>
                 {selectedCategory === cat.id && (
-                  <div className="hidden md:block">
-                     <ChevronRight size={18} strokeWidth={2.5} />
+                  <div className="hidden md:block text-indigo-600">
+                     <ChevronRight size={16} strokeWidth={2.5} />
                   </div>
                 )}
               </button>
@@ -255,25 +273,7 @@ export const TemplateManagement: React.FC = () => {
 
         {/* Template Grid */}
         <div className="flex-1 flex flex-col min-w-0 bg-slate-50/50">
-          {/* Week Selector */}
-          <div className="px-4 md:px-8 py-4 md:py-5 flex items-center gap-2 md:gap-3 overflow-x-auto scrollbar-hide">
-            {[1, 2, 3, 4].map(w => (
-              <button
-                key={w}
-                onClick={() => setSelectedWeek(w)}
-                className={cn(
-                  "px-4 md:px-6 py-2 md:py-2.5 rounded-full text-xs md:text-sm font-bold transition-all duration-300 outline-none shrink-0",
-                  selectedWeek === w 
-                    ? "bg-slate-900 text-white shadow-lg shadow-slate-900/20 ring-4 ring-slate-900/10" 
-                    : "bg-white text-slate-500 border border-slate-200 hover:border-slate-300 hover:text-slate-800 hover:shadow-sm"
-                )}
-              >
-                สัปดาห์ที่ {w}
-              </button>
-            ))}
-          </div>
-
-          <div className="px-4 md:px-8 pb-12 overflow-x-auto custom-scrollbar">
+          <div className="px-4 md:px-8 py-6 pb-12 overflow-x-auto custom-scrollbar">
             <div className="grid grid-cols-6 gap-3 md:gap-5 min-w-[900px] md:min-w-[1200px]">
               {DAYS.map(day => (
                 <div key={day.id} className="space-y-4">
@@ -297,17 +297,17 @@ export const TemplateManagement: React.FC = () => {
                         <div 
                           key={slot} 
                           className={cn(
-                            "min-h-[130px] rounded-[1.25rem] border-2 p-4 transition-all duration-300 relative group flex flex-col items-center justify-center text-center cursor-pointer",
+                            "min-h-[110px] rounded-2xl border p-3.5 transition-all duration-200 relative group flex flex-col items-center justify-center text-center cursor-pointer",
                             template 
-                              ? "bg-white border-transparent shadow-md hover:shadow-lg hover:-translate-y-1" 
-                              : "bg-slate-100/50 border-slate-200/60 border-dashed hover:bg-white hover:border-indigo-300 hover:shadow-md"
+                              ? "bg-white border-slate-200/80 shadow-2xs hover:shadow-sm hover:border-indigo-300" 
+                              : "bg-slate-100/60 border-slate-200/60 border-dashed hover:bg-white hover:border-indigo-300 hover:shadow-2xs"
                           )}
                           onClick={(e) => {
                             if ((e.target as HTMLElement).closest('.delete-btn')) return;
                             setEditingSlot(slotId);
                           }}
                         >
-                          <span className="absolute -top-3 -left-3 w-8 h-8 bg-slate-900 text-white rounded-xl flex items-center justify-center text-xs font-black shadow-sm z-10 opacity-90 group-hover:opacity-100 transition-opacity">
+                          <span className="absolute -top-2.5 -left-2.5 w-6 h-6 bg-slate-900 text-white rounded-lg flex items-center justify-center text-[10px] font-black shadow-2xs z-10">
                             {slot}
                           </span>
 
@@ -318,20 +318,20 @@ export const TemplateManagement: React.FC = () => {
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.95, y: 10 }}
                                 transition={{ duration: 0.15, ease: "easeOut" }}
-                                className="absolute inset-x-0 -top-2 z-30 bg-white rounded-2xl shadow-[0_20px_40px_-15px_rgba(0,0,0,0.15)] flex flex-col p-3 border border-indigo-100" 
+                                className="absolute inset-x-0 -top-2 z-30 bg-white rounded-2xl shadow-xl flex flex-col p-3 border border-indigo-200" 
                                 onClick={e => e.stopPropagation()}
                               >
                                 <div className="flex justify-between items-center mb-2 px-1">
-                                  <span className="text-xs font-bold text-slate-500">เลือกเมนู มื้อที่ {slot}</span>
-                                  <button onClick={() => setEditingSlot(null)} className="text-slate-400 hover:text-slate-700 bg-slate-100 rounded-full p-1 transition-colors">
-                                    <X size={14} />
+                                  <span className="text-xs font-bold text-slate-700">เลือกเมนู มื้อที่ {slot}</span>
+                                  <button onClick={() => setEditingSlot(null)} className="text-slate-400 hover:text-slate-700 bg-slate-100 rounded-full p-1 transition-colors cursor-pointer">
+                                    <X size={13} />
                                   </button>
                                 </div>
                                 <Select 
                                   autoFocus
                                   defaultMenuIsOpen
                                   menuPortalTarget={document.body}
-                                  className="w-full text-left text-sm font-medium"
+                                  className="w-full text-left text-xs font-medium"
                                   options={options}
                                   placeholder="ค้นหาเมนู..."
                                   onChange={(selected: any) => {
@@ -350,7 +350,7 @@ export const TemplateManagement: React.FC = () => {
                                     }),
                                     control: (base, state) => ({ 
                                       ...base, 
-                                      minHeight: '44px', 
+                                      minHeight: '38px', 
                                       borderRadius: '10px',
                                       borderColor: state.isFocused ? '#6366f1' : '#e2e8f0',
                                       boxShadow: state.isFocused ? '0 0 0 1px #6366f1' : 'none',
@@ -370,10 +370,10 @@ export const TemplateManagement: React.FC = () => {
 
                           {template ? (
                             <>
-                              <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 mb-3 group-hover:scale-110 group-hover:bg-indigo-100 transition-all duration-300">
-                                <UtensilsCrossed size={22} strokeWidth={2} />
+                              <div className="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 mb-1.5 group-hover:scale-105 transition-all">
+                                <UtensilsCrossed size={16} strokeWidth={2} />
                               </div>
-                              <p className="text-sm font-medium text-slate-700 line-clamp-2 px-2 leading-relaxed">
+                              <p className="text-xs font-bold text-slate-800 line-clamp-2 px-1 leading-snug">
                                 {template.menu_name}
                               </p>
                               <button 
@@ -381,18 +381,18 @@ export const TemplateManagement: React.FC = () => {
                                   e.stopPropagation();
                                   setDeleteConfirm({ day: day.id, slot, id: template.id, name: template.menu_name });
                                 }}
-                                className="delete-btn absolute -top-2 -right-2 w-7 h-7 bg-white rounded-full border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50 flex items-center justify-center transition-all z-20 shadow-sm"
+                                className="delete-btn absolute -top-1.5 -right-1.5 w-6 h-6 bg-white rounded-full border border-slate-200 text-slate-400 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 flex items-center justify-center transition-all z-20 shadow-xs cursor-pointer"
                                 title="ลบเมนู"
                               >
-                                <Trash2 size={14} />
+                                <Trash2 size={12} />
                               </button>
                             </>
                           ) : (
-                            <div className="flex flex-col items-center gap-3 opacity-40 group-hover:opacity-100 transition-opacity">
-                               <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-500">
-                                 <Plus size={20} strokeWidth={3} />
-                               </div>
-                               <span className="text-[11px] font-bold text-slate-500 tracking-wide">เพิ่มเมนู</span>
+                            <div className="flex flex-col items-center gap-1.5 opacity-40 group-hover:opacity-100 transition-opacity">
+                               <div className="w-7 h-7 rounded-lg bg-slate-200 flex items-center justify-center text-slate-500">
+                                 <Plus size={14} strokeWidth={2.5} />
+                                </div>
+                               <span className="text-[10px] font-bold text-slate-500 tracking-wide">เพิ่มเมนู</span>
                             </div>
                           )}
                         </div>

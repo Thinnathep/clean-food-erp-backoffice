@@ -212,12 +212,7 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
     const netQtyIncrease = qty - existingQty;
 
     if (pkg && !isExtraOrder && !isCompensatory && projectedRemaining < netQtyIncrease) {
-        Swal.fire({
-            icon: 'error',
-            title: 'โควต้าไม่พอ!',
-            text: 'จำนวนมื้อที่เหลือไม่เพียงพอ ไม่สามารถลงมื้ออาหารปกติได้ (ระบบไม่อนุญาตให้ยอดติดลบ)',
-            confirmButtonColor: '#ef4444'
-        });
+        toast.error('โควต้าไม่พอ! จำนวนมื้อที่เหลือไม่เพียงพอ ไม่สามารถลงมื้ออาหารปกติได้');
         return;
     }
 
@@ -451,11 +446,11 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
       const endStr = dayjs().add(9, 'month').format('YYYY-MM-DD');
       await get().loadMemberPlanner(startStr, endStr, selectedPackageId, true);
       
-      Swal.fire({ icon: 'success', title: 'บันทึกแผนงานเรียบร้อย', timer: 1500, toast: true, position: 'top-end', showConfirmButton: false });
+      toast.success('บันทึกแผนงานเรียบร้อย ✨');
     } catch (error: any) {
       set({ isSaving: false });
       console.error('Save failed:', error);
-      Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาดในการบันทึก', text: error.message });
+      toast.error('เกิดข้อผิดพลาดในการบันทึก: ' + error.message);
     }
   },
 
