@@ -109,7 +109,7 @@ export const POOL_CONFIG: Record<PoolType, {
     description: 'สำรองสำหรับซื้อผัก อกไก่ ข้าวไรซ์เบอร์รี่ และกล่องบรรจุภัณฑ์'
   },
   LABOR: { 
-    label: 'ค่าแรง & สวัสดิการ', 
+    label: 'ค่าแรง', 
     labelPublic: 'สวัสดิการทีม', 
     color: '#3b82f6', 
     bgColor: 'rgba(59,130,246,0.08)', 

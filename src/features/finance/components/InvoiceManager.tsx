@@ -56,7 +56,7 @@ const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> =
   voided: { label: 'Void', color: 'text-red-700', bg: 'bg-red-50' },
 };
 
-export const InvoiceManager: React.FC = () => {
+export const InvoiceManager: React.FC<{ isDarkMode?: boolean }> = () => {
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -118,31 +118,31 @@ export const InvoiceManager: React.FC = () => {
   });
 
   return (
-    <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-5">
+    <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-5 font-sans">
       {/* Header */}
       <motion.div variants={fadeUp} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="p-2 sm:p-2.5 bg-indigo-100 rounded-xl shrink-0">
-            <Receipt size={20} className="text-indigo-600" />
+          <div className="p-2 sm:p-2.5 rounded-2xl bg-indigo-100 text-indigo-700 shadow-xs shrink-0">
+            <Receipt size={20} className="text-indigo-700" />
           </div>
           <div>
             <h2 className="text-base sm:text-lg font-bold text-slate-900">ใบเสร็จ / ใบแจ้งหนี้</h2>
-            <p className="text-[11px] text-slate-500">สร้าง จัดการ ออกใบเสร็จ ใบกำกับภาษี</p>
+            <p className="text-xs text-slate-500 font-medium">สร้าง จัดการ ออกใบเสร็จ ใบกำกับภาษี</p>
           </div>
         </div>
         <button title="Button" type="button" onClick={() => setShowCreate(true)}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 active:scale-[0.97] transition-all min-h-[44px] self-start sm:self-auto">
+          className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 active:scale-[0.97] transition-all min-h-[44px] self-start sm:self-auto shadow-md hover:shadow-lg cursor-pointer">
           <Plus size={16} /> สร้างใบเสร็จ
         </button>
       </motion.div>
 
       {/* 💡 Helper Guide Banner */}
-      <motion.div variants={fadeUp} className="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-xs space-y-1.5">
-        <div className="flex items-center gap-2 text-blue-800 font-bold">
-          <Receipt size={14} className="text-blue-700 shrink-0" />
+      <motion.div variants={fadeUp} className="p-4 rounded-2xl border border-blue-200 bg-blue-50/70 text-xs space-y-1.5 shadow-xs">
+        <div className="flex items-center gap-2 font-bold text-blue-950">
+          <Receipt size={15} className="text-blue-700 shrink-0" />
           <span>คู่มือการออกเอกสาร & ภาษีมูลค่าเพิ่ม (VAT 7%)</span>
         </div>
-        <p className="text-slate-600 text-[11px] leading-relaxed">
+        <p className="text-[11px] leading-relaxed text-slate-600">
           • <strong>ใบเสร็จรับเงิน (Receipt)</strong>: สำหรับลูกค้าทั่วไปที่ชำระค่าอาหารแล้ว<br />
           • <strong>ใบกำกับภาษีเต็มรูป (Full Tax Invoice)</strong>: สำหรับลูกค้านิติบุคคล ระบุเลขผู้เสียภาษีและที่อยู่บริษัท<br />
           • <strong>ภาษี 7% รวมในยอด (VAT Included)</strong>: ระบบคำนวณฐานภาษี = ยอดรวม × 7 ÷ 107 ให้อัตโนมัติ
@@ -155,16 +155,16 @@ export const InvoiceManager: React.FC = () => {
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input title="Input field" type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
             placeholder="ค้นหาเลขที่ หรือชื่อลูกค้า..."
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/20 min-h-[44px]" />
+            className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400/20 bg-white text-slate-900 shadow-xs min-h-[44px]" />
         </div>
         <div className="flex gap-2">
           <select title="Select option" value={filterType} onChange={e => setFilterType(e.target.value)}
-            className="flex-1 sm:flex-none px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white min-h-[44px]">
+            className="flex-1 sm:flex-none px-3 py-2.5 border border-slate-200 rounded-xl text-sm min-h-[44px] bg-white text-slate-800 shadow-xs">
             <option value="">ทุกประเภท</option>
             {Object.entries(TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select>
           <select title="Select option" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-            className="flex-1 sm:flex-none px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white min-h-[44px]">
+            className="flex-1 sm:flex-none px-3 py-2.5 border border-slate-200 rounded-xl text-sm min-h-[44px] bg-white text-slate-800 shadow-xs">
             <option value="">ทุกสถานะ</option>
             {Object.entries(STATUS_MAP).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
           </select>
@@ -176,42 +176,42 @@ export const InvoiceManager: React.FC = () => {
         {isLoading ? (
           <div className="flex justify-center py-16"><div className="w-8 h-8 border-[3px] border-indigo-400/20 border-t-indigo-500 rounded-full animate-spin" /></div>
         ) : filteredInvoices.length === 0 ? (
-          <div className="text-center py-16 bg-white rounded-xl border border-slate-200">
+          <div className="text-center py-16 rounded-2xl border border-slate-200 bg-white shadow-xs">
             <FileText size={44} className="mx-auto mb-3 text-slate-300" />
-            <p className="font-medium text-slate-500">ยังไม่มีใบเสร็จ</p>
-            <p className="text-sm text-slate-400 mt-1">กดปุ่ม "สร้างใบเสร็จ" เพื่อเริ่มต้น</p>
+            <p className="font-bold text-slate-700">ยังไม่มีใบเสร็จ</p>
+            <p className="text-xs text-slate-400 mt-1">กดปุ่ม "สร้างใบเสร็จ" เพื่อเริ่มต้น</p>
           </div>
         ) : (
           <>
             {/* Desktop Table */}
-            <div className="hidden sm:block bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <div className="hidden sm:block rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-xs">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-left text-[11px] text-slate-500 uppercase tracking-wider bg-slate-50">
-                      <th className="px-4 py-3 font-medium">เลขที่</th>
-                      <th className="px-4 py-3 font-medium">ประเภท</th>
-                      <th className="px-4 py-3 font-medium">ลูกค้า</th>
-                      <th className="px-4 py-3 font-medium">วันที่</th>
-                      <th className="px-4 py-3 font-medium text-right">ยอดรวม</th>
-                      <th className="px-4 py-3 font-medium text-center">สถานะ</th>
-                      <th className="px-4 py-3 font-medium text-center">จัดการ</th>
+                    <tr className="text-left text-[11px] uppercase tracking-wider bg-slate-50 text-slate-500 border-b border-slate-100">
+                      <th className="px-4 py-3 font-semibold">เลขที่</th>
+                      <th className="px-4 py-3 font-semibold">ประเภท</th>
+                      <th className="px-4 py-3 font-semibold">ลูกค้า</th>
+                      <th className="px-4 py-3 font-semibold">วันที่</th>
+                      <th className="px-4 py-3 font-semibold text-right">ยอดรวม</th>
+                      <th className="px-4 py-3 font-semibold text-center">สถานะ</th>
+                      <th className="px-4 py-3 font-semibold text-center">จัดการ</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {filteredInvoices.map(inv => {
                       const st = STATUS_MAP[inv.status] || STATUS_MAP.draft;
                       return (
-                        <tr key={inv.id} className="hover:bg-slate-50/50">
-                          <td className="px-4 py-2.5 font-mono text-xs font-semibold text-slate-900">{inv.invoice_number}</td>
-                          <td className="px-4 py-2.5 text-xs text-slate-600">{TYPE_LABELS[inv.invoice_type] || inv.invoice_type}</td>
-                          <td className="px-4 py-2.5 text-slate-700">{inv.customer_name}</td>
-                          <td className="px-4 py-2.5 text-slate-500 text-xs">{dayjs(inv.issue_date).format('DD/MM/YY')}</td>
-                          <td className="px-4 py-2.5 text-right font-medium">฿{(inv.total_amount || 0).toLocaleString()}</td>
-                          <td className="px-4 py-2.5 text-center">
-                            <span className={`px-2 py-0.5 rounded-full text-[11px] font-medium ${st.color} ${st.bg}`}>{st.label}</span>
+                        <tr key={inv.id} className="hover:bg-slate-50/70 transition-colors">
+                          <td className="px-4 py-3 font-mono text-xs font-bold text-slate-900">{inv.invoice_number}</td>
+                          <td className="px-4 py-3 text-xs text-slate-600">{TYPE_LABELS[inv.invoice_type] || inv.invoice_type}</td>
+                          <td className="px-4 py-3 text-slate-800 font-medium">{inv.customer_name}</td>
+                          <td className="px-4 py-3 text-slate-500 text-xs">{dayjs(inv.issue_date).format('DD/MM/YYYY')}</td>
+                          <td className="px-4 py-3 text-right font-extrabold text-slate-900 font-mono">฿{(inv.total_amount || 0).toLocaleString()}</td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border shadow-xs ${st.color} ${st.bg}`}>{st.label}</span>
                           </td>
-                          <td className="px-4 py-2.5 text-center">
+                          <td className="px-4 py-3 text-center">
                             <InvoiceActions inv={inv} onIssue={issueInvoice} onPaid={markPaid} onVoid={voidInvoice} onDelete={deleteInvoice} />
                           </td>
                         </tr>
@@ -223,22 +223,22 @@ export const InvoiceManager: React.FC = () => {
             </div>
 
             {/* Mobile Cards */}
-            <div className="sm:hidden space-y-2">
+            <div className="sm:hidden space-y-2.5">
               {filteredInvoices.map(inv => {
                 const st = STATUS_MAP[inv.status] || STATUS_MAP.draft;
                 return (
-                  <div key={inv.id} className="bg-white rounded-xl border border-slate-200 p-3">
+                  <div key={inv.id} className="rounded-2xl border border-slate-200 p-3.5 bg-white shadow-xs">
                     <div className="flex items-start justify-between mb-2">
                       <div>
-                        <span className="font-mono text-xs font-semibold text-slate-900">{inv.invoice_number}</span>
-                        <span className={`ml-2 inline-flex px-2 py-0.5 rounded-full text-[11px] font-medium ${st.color} ${st.bg}`}>{st.label}</span>
+                        <span className="font-mono text-xs font-bold text-slate-900">{inv.invoice_number}</span>
+                        <span className={`ml-2 inline-flex px-2 py-0.5 rounded-full text-[11px] font-bold border ${st.color} ${st.bg}`}>{st.label}</span>
                       </div>
                       <InvoiceActions inv={inv} onIssue={issueInvoice} onPaid={markPaid} onVoid={voidInvoice} onDelete={deleteInvoice} />
                     </div>
-                    <p className="text-sm text-slate-700 font-medium">{inv.customer_name}</p>
-                    <div className="flex items-center justify-between mt-1.5">
-                      <span className="text-xs text-slate-400">{TYPE_LABELS[inv.invoice_type] || inv.invoice_type} · {dayjs(inv.issue_date).format('DD/MM/YY')}</span>
-                      <span className="font-semibold text-slate-900 text-sm">฿{(inv.total_amount || 0).toLocaleString()}</span>
+                    <p className="text-sm font-semibold text-slate-800">{inv.customer_name}</p>
+                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100">
+                      <span className="text-xs text-slate-500">{TYPE_LABELS[inv.invoice_type] || inv.invoice_type} · {dayjs(inv.issue_date).format('DD/MM/YYYY')}</span>
+                      <span className="font-black text-sm text-slate-900 font-mono">฿{(inv.total_amount || 0).toLocaleString()}</span>
                     </div>
                   </div>
                 );
@@ -269,7 +269,7 @@ const InvoiceActions: React.FC<{
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
-      <button title="Button" type="button" onClick={() => setOpen(!open)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 min-w-[32px] min-h-[32px] flex items-center justify-center">
+      <button title="Button" type="button" onClick={() => setOpen(!open)} className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 min-w-[32px] min-h-[32px] flex items-center justify-center transition-colors">
         <Eye size={15} />
       </button>
       <AnimatePresence>
@@ -278,16 +278,16 @@ const InvoiceActions: React.FC<{
             <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 4 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 4 }}
-              className="absolute right-0 top-full mt-1 z-50 bg-white border border-slate-200 rounded-xl shadow-xl p-1 min-w-[140px]"
+              className="absolute right-0 top-full mt-1 z-50 border border-slate-200 rounded-xl shadow-xl p-1 min-w-[140px] bg-white"
             >
               {inv.status === 'draft' && (
                 <>
                   <button title="Button" type="button" onClick={() => { onIssue(inv.id); setOpen(false); }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-blue-700 hover:bg-blue-50 rounded-lg min-h-[36px]">
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg min-h-[36px] text-blue-700 hover:bg-blue-50 font-medium">
                     <Send size={13} /> ออกใบเสร็จ
                   </button>
                   <button title="Button" type="button" onClick={() => { onDelete(inv.id); setOpen(false); }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg min-h-[36px]">
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg min-h-[36px] text-red-600 hover:bg-red-50 font-medium">
                     <Trash2 size={13} /> ลบ
                   </button>
                 </>
@@ -295,11 +295,11 @@ const InvoiceActions: React.FC<{
               {inv.status === 'issued' && (
                 <>
                   <button title="Button" type="button" onClick={() => { onPaid(inv.id); setOpen(false); }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-emerald-700 hover:bg-emerald-50 rounded-lg min-h-[36px]">
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg min-h-[36px] text-emerald-700 hover:bg-emerald-50 font-medium">
                     <Check size={13} /> ชำระแล้ว
                   </button>
                   <button title="Button" type="button" onClick={() => { onVoid(inv.id); setOpen(false); }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg min-h-[36px]">
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg min-h-[36px] text-red-600 hover:bg-red-50 font-medium">
                     <Ban size={13} /> Void
                   </button>
                 </>
@@ -394,111 +394,113 @@ const CreateInvoiceDrawer: React.FC<{ onClose: () => void; onSaved: () => void }
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       role="dialog" aria-modal="true" aria-label="สร้างใบเสร็จ"
-      className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center"
+      className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center"
       onClick={e => e.target === e.currentTarget && onClose()}
       onKeyDown={e => e.key === 'Escape' && onClose()}>
       <motion.div
         initial={{ opacity: 0, y: 100 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 100 }}
         transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] as const }}
-        className="bg-white w-full sm:w-[600px] sm:max-h-[85vh] max-h-[90vh] sm:rounded-2xl rounded-t-2xl overflow-hidden flex flex-col">
+        className="w-full sm:w-[600px] sm:max-h-[85vh] max-h-[90vh] sm:rounded-2xl rounded-t-2xl overflow-hidden flex flex-col shadow-2xl border border-slate-200 bg-white text-slate-900">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-100 shrink-0">
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-100 shrink-0 bg-slate-50/50">
           <h2 className="text-base font-bold text-slate-900">สร้างใบเสร็จใหม่</h2>
-          <button title="Button" type="button" onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 min-w-[40px] min-h-[40px] flex items-center justify-center"><X size={20} /></button>
+          <button title="Button" type="button" onClick={onClose} className="p-2 rounded-xl transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center hover:bg-slate-100 text-slate-400"><X size={20} /></button>
         </div>
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-[11px] font-medium text-slate-500 mb-1.5">ประเภท</label>
+              <label className="block text-[11px] font-bold text-slate-600 mb-1.5">ประเภทเอกสาร</label>
               <select title="Select option" value={invoiceType} onChange={e => setInvoiceType(e.target.value)}
-                className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm bg-white min-h-[44px]">
+                className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm min-h-[44px] bg-white text-slate-900 shadow-xs">
                 {Object.entries(TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-slate-500 mb-1.5">วันที่ออก</label>
+              <label className="block text-[11px] font-bold text-slate-600 mb-1.5">วันที่ออก</label>
               <input title="Input field" type="date" value={issueDate} onChange={e => setIssueDate(e.target.value)}
-                className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm min-h-[44px]" />
+                className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm min-h-[44px] bg-white text-slate-900 shadow-xs" />
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-slate-500 mb-1.5">ชื่อลูกค้า *</label>
+              <label className="block text-[11px] font-bold text-slate-600 mb-1.5">ชื่อลูกค้า / บริษัท *</label>
               <input title="Input field" type="text" value={customerName} onChange={e => setCustomerName(e.target.value)}
-                placeholder="ชื่อ-สกุล หรือบริษัท"
-                className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm min-h-[44px]" />
+                placeholder="ชื่อ-สกุล หรือชื่อนิติบุคคล"
+                className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm min-h-[44px] bg-white text-slate-900 shadow-xs" />
             </div>
             <div>
-              <label className="block text-[11px] font-medium text-slate-500 mb-1.5">เลข Tax ID</label>
+              <label className="block text-[11px] font-bold text-slate-600 mb-1.5">เลขประจำตัวผู้เสียภาษี</label>
               <input title="Input field" type="text" value={customerTaxId} onChange={e => setCustomerTaxId(e.target.value)}
-                placeholder="13 หลัก (ถ้ามี)"
-                className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm min-h-[44px]" />
+                placeholder="13 หลัก (กรณีขอใบกำกับ)"
+                className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm min-h-[44px] bg-white text-slate-900 shadow-xs" />
             </div>
           </div>
 
           {/* Items */}
-          <div>
+          <div className="pt-2">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold text-slate-900">รายการ</h3>
-              <button title="Button" type="button" onClick={addItem} className="text-xs text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded-lg flex items-center gap-1 min-h-[32px]">
-                <Plus size={12} /> เพิ่ม
+              <h3 className="text-sm font-bold text-slate-900">รายการสินค้า / บริการ</h3>
+              <button title="Button" type="button" onClick={addItem} className="text-xs font-bold px-2.5 py-1.5 rounded-lg flex items-center gap-1 min-h-[32px] text-indigo-600 hover:bg-indigo-50 border border-indigo-200">
+                <Plus size={13} /> เพิ่มแถว
               </button>
             </div>
             <div className="space-y-2">
               {items.map((item, idx) => (
-                <div key={idx} className="flex gap-2 items-end flex-wrap sm:flex-nowrap">
+                <div key={idx} className="flex gap-2 items-end flex-wrap sm:flex-nowrap p-2 rounded-xl bg-slate-50 border border-slate-100">
                   <div className="flex-1 min-w-[140px]">
-                    {idx === 0 && <p className="text-[10px] text-slate-400 mb-1">รายละเอียด</p>}
+                    {idx === 0 && <p className="text-[10px] font-bold text-slate-500 mb-1">รายละเอียด</p>}
                     <input title="Input field" type="text" value={item.description} onChange={e => updateItem(idx, 'description', e.target.value)}
-                      placeholder="รายละเอียด"
-                      className="w-full px-2.5 py-2 border border-slate-200 rounded-lg text-sm min-h-[40px]" />
+                      placeholder="รายการอาหาร / สินค้า"
+                      className="w-full px-2.5 py-2 border border-slate-200 rounded-lg text-sm min-h-[40px] bg-white text-slate-900" />
                   </div>
-                  <div className="w-14">
-                    {idx === 0 && <p className="text-[10px] text-slate-400 mb-1">จำนวน</p>}
+                  <div className="w-16">
+                    {idx === 0 && <p className="text-[10px] font-bold text-slate-500 mb-1">จำนวน</p>}
                     <input title="Input field" type="number" min={1} value={item.quantity} onChange={e => updateItem(idx, 'quantity', +e.target.value || 1)}
-                      className="w-full px-2 py-2 text-center border border-slate-200 rounded-lg text-sm min-h-[40px]" />
+                      className="w-full px-2 py-2 text-center border border-slate-200 rounded-lg text-sm min-h-[40px] bg-white text-slate-900 font-bold" />
                   </div>
-                  <div className="w-20">
-                    {idx === 0 && <p className="text-[10px] text-slate-400 mb-1">ราคา</p>}
+                  <div className="w-24">
+                    {idx === 0 && <p className="text-[10px] font-bold text-slate-500 mb-1">ราคา/หน่วย</p>}
                     <input title="Input field" type="number" min={0} step={0.01} value={item.unit_price} onChange={e => updateItem(idx, 'unit_price', +e.target.value || 0)}
-                      className="w-full px-2 py-2 text-right border border-slate-200 rounded-lg text-sm min-h-[40px]" />
+                      className="w-full px-2 py-2 text-right border border-slate-200 rounded-lg text-sm min-h-[40px] bg-white text-slate-900 font-mono font-bold" />
                   </div>
-                  <div className="w-20 text-right">
-                    {idx === 0 && <p className="text-[10px] text-slate-400 mb-1">รวม</p>}
-                    <p className="py-2 text-sm font-medium text-slate-700">฿{item.amount.toFixed(2)}</p>
+                  <div className="w-24 text-right">
+                    {idx === 0 && <p className="text-[10px] font-bold text-slate-500 mb-1">รวม</p>}
+                    <p className="py-2 text-sm font-black text-slate-900 font-mono">฿{item.amount.toFixed(2)}</p>
                   </div>
-                  <button title="Button" type="button" onClick={() => removeItem(idx)} className="p-2 text-red-400 hover:text-red-600 min-h-[40px]"><Trash2 size={14} /></button>
+                  <button title="Button" type="button" onClick={() => removeItem(idx)} className="p-2 text-rose-500 hover:text-rose-700 min-h-[40px] cursor-pointer"><Trash2 size={15} /></button>
                 </div>
               ))}
             </div>
           </div>
 
           {/* VAT */}
-          <label className="flex items-center gap-2 text-sm cursor-pointer min-h-[44px]">
+          <label className="flex items-center gap-2.5 text-sm cursor-pointer min-h-[44px] pt-1">
             <input title="Input field" type="checkbox" checked={includeVat} onChange={e => setIncludeVat(e.target.checked)}
-              className="w-5 h-5 rounded border-slate-300 text-indigo-600" />
-            <span className="text-slate-700">VAT 7%</span>
+              className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+            <span className="font-semibold text-slate-700">คิดภาษีมูลค่าเพิ่ม (VAT 7%)</span>
           </label>
 
           {/* Summary */}
-          <div className="flex justify-end">
-            <div className="w-full sm:w-56 bg-slate-50 rounded-xl p-3 space-y-1.5 text-sm">
-              <div className="flex justify-between"><span className="text-slate-500">ยอดรวม</span><span>฿{subtotal.toFixed(2)}</span></div>
-              {includeVat && <div className="flex justify-between"><span className="text-slate-500">VAT 7%</span><span>฿{vatAmount.toFixed(2)}</span></div>}
-              <div className="border-t border-slate-200 pt-1.5 flex justify-between font-bold">
-                <span>ยอดสุทธิ</span><span className="text-indigo-700">฿{total.toFixed(2)}</span>
+          <div className="flex justify-end pt-2">
+            <div className="w-full sm:w-64 rounded-2xl p-4 space-y-2 text-sm bg-slate-50 border border-slate-200 shadow-xs">
+              <div className="flex justify-between"><span className="text-slate-500 font-medium">ยอดรวมสินค้า</span><span className="font-bold text-slate-800 font-mono">฿{subtotal.toFixed(2)}</span></div>
+              {includeVat && <div className="flex justify-between"><span className="text-slate-500 font-medium">VAT 7%</span><span className="font-bold text-slate-800 font-mono">฿{vatAmount.toFixed(2)}</span></div>}
+              <div className="border-t border-slate-200 pt-2 flex justify-between font-black text-base">
+                <span className="text-slate-900">ยอดสุทธิ</span><span className="text-indigo-600 font-mono">฿{total.toFixed(2)}</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2 p-4 sm:p-5 border-t border-slate-100 shrink-0">
-          <button title="Button" type="button" onClick={onClose} className="px-4 py-2.5 text-sm text-slate-600 hover:bg-slate-100 rounded-xl min-h-[44px]">ยกเลิก</button>
+        <div className="flex items-center justify-end gap-3 p-4 sm:p-5 border-t border-slate-100 shrink-0 bg-slate-50/50">
+          <button title="Button" type="button" onClick={onClose} className="px-4 py-2.5 text-sm font-semibold rounded-xl min-h-[44px] text-slate-600 hover:bg-slate-100 transition-colors">
+            ยกเลิก
+          </button>
           <button title="Button" type="button" onClick={handleSave} disabled={isSaving}
-            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 disabled:opacity-50 min-h-[44px]">
+            className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 disabled:opacity-50 min-h-[44px] shadow-md hover:shadow-lg active:scale-98 transition-all cursor-pointer">
             {isSaving ? <RefreshCw size={15} className="animate-spin" /> : <Check size={15} />}
-            บันทึก
+            บันทึกใบเสร็จ
           </button>
         </div>
       </motion.div>

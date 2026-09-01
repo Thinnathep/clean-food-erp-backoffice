@@ -21,7 +21,7 @@ import dayjs from 'dayjs';
 import { toast } from 'sonner';
 import Swal from 'sweetalert2';
 import {
-  TrendingUp, TrendingDown, RefreshCw, Sun, Moon, Package, AlertTriangle, Download,
+  TrendingUp, TrendingDown, RefreshCw, Package, AlertTriangle, Download,
   ChevronLeft, ChevronRight, PiggyBank, Wallet, Receipt
 } from 'lucide-react';
 
@@ -32,7 +32,16 @@ export const FinanceDashboard: React.FC<{ initialTab?: TabKey }> = ({ initialTab
   const isCEO = user?.role === 'ADMIN'; // CEO/CFO sees everything
 
   const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
-  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  // Pure Light Mode: Purge any residual dark mode class or storage
+  useEffect(() => {
+    try {
+      localStorage.removeItem('cf_finance_dark_mode');
+      document.documentElement.classList.remove('dark');
+    } catch {
+      // ignore
+    }
+  }, []);
   const [pools, setPools] = useState<FundPool[]>([]);
   const [buckets, setBuckets] = useState<RevenueBucket[]>([]);
   const [transactions, setTransactions] = useState<FundTransaction[]>([]);
@@ -107,8 +116,8 @@ export const FinanceDashboard: React.FC<{ initialTab?: TabKey }> = ({ initialTab
       showCancelButton: true,
       confirmButtonText: 'เริ่ม Sync ข้อมูล',
       cancelButtonText: 'ยกเลิก',
-      background: isDarkMode ? '#1e293b' : '#fff',
-      color: isDarkMode ? '#fff' : '#1e293b'
+      background: '#fff',
+      color: '#1e293b'
     });
 
     if (!result.isConfirmed) return;
@@ -173,14 +182,10 @@ export const FinanceDashboard: React.FC<{ initialTab?: TabKey }> = ({ initialTab
   };
 
   return (
-    <div className={`flex-1 flex flex-col min-h-screen transition-colors duration-300 font-sans ${
-      isDarkMode ? 'bg-[#0c0f1a]' : 'bg-[#F8FAFC]'
-    }`}>
+    <div className="flex-1 flex flex-col min-h-screen bg-[#F8FAFC] font-sans">
       
       {/* ─── Top Header Bar ─── */}
-      <div className={`border-b px-4 sm:px-6 lg:px-8 py-5 sticky top-0 z-30 backdrop-blur-md ${
-        isDarkMode ? 'bg-slate-900/90 border-slate-800' : 'bg-white/95 border-slate-200/80'
-      }`}>
+      <div className="border-b border-slate-200/80 px-4 sm:px-6 lg:px-8 py-5 sticky top-0 z-30 backdrop-blur-md bg-white/95 shadow-xs">
         <div className="max-w-[1600px] mx-auto space-y-4">
           
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -190,9 +195,7 @@ export const FinanceDashboard: React.FC<{ initialTab?: TabKey }> = ({ initialTab
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className={`text-xl sm:text-2xl font-black tracking-tight font-display ${
-                    isDarkMode ? 'text-white' : 'text-slate-900'
-                  }`}>
+                  <h1 className="text-xl sm:text-2xl font-black tracking-tight font-display text-slate-900">
                     ระบบบัญชี & 4 กองทุน
                   </h1>
                   <span className="hidden sm:inline-block text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">
@@ -203,17 +206,15 @@ export const FinanceDashboard: React.FC<{ initialTab?: TabKey }> = ({ initialTab
               </div>
             </div>
 
-            {/* Controls: Month Selector, Sync, Export, Dark Mode */}
+            {/* Controls: Month Selector, Sync, Export */}
             <div className="flex flex-wrap items-center gap-2">
               
               {/* Month Switcher */}
-              <div className={`flex items-center rounded-xl border overflow-hidden shadow-xs ${
-                isDarkMode ? 'border-slate-700 bg-slate-800/80' : 'border-slate-200 bg-white'
-              }`}>
+              <div className="flex items-center rounded-xl border border-slate-200 bg-white overflow-hidden shadow-xs">
                 <button
                   type="button"
                   onClick={() => setSelectedMonth(m => dayjs(m).subtract(1, 'month').format('YYYY-MM'))}
-                  className={`p-2 transition-colors ${isDarkMode ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-50 text-slate-500'}`}
+                  className="p-2 transition-colors hover:bg-slate-50 text-slate-500"
                   title="เดือนก่อนหน้า"
                 >
                   <ChevronLeft size={16} />
@@ -222,17 +223,13 @@ export const FinanceDashboard: React.FC<{ initialTab?: TabKey }> = ({ initialTab
                   type="month"
                   value={selectedMonth}
                   onChange={e => setSelectedMonth(e.target.value)}
-                  className={`text-xs font-bold px-2 py-1.5 outline-none text-center border-x font-mono ${
-                    isDarkMode 
-                      ? 'bg-transparent border-slate-700 text-slate-200' 
-                      : 'bg-transparent border-slate-200 text-slate-800'
-                  }`}
+                  className="text-xs font-bold px-2 py-1.5 outline-none text-center border-x font-mono bg-transparent border-slate-200 text-slate-800"
                   style={{ minWidth: '120px' }}
                 />
                 <button
                   type="button"
                   onClick={() => setSelectedMonth(m => dayjs(m).add(1, 'month').format('YYYY-MM'))}
-                  className={`p-2 transition-colors ${isDarkMode ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-50 text-slate-500'}`}
+                  className="p-2 transition-colors hover:bg-slate-50 text-slate-500"
                   title="เดือนถัดไป"
                 >
                   <ChevronRight size={16} />
@@ -243,11 +240,7 @@ export const FinanceDashboard: React.FC<{ initialTab?: TabKey }> = ({ initialTab
               <button 
                 type="button"
                 onClick={handleSyncBalances}
-                className={`px-3 py-1.5 border rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 ${
-                  isDarkMode 
-                    ? 'bg-emerald-950/60 hover:bg-emerald-900/60 border-emerald-500/40 text-emerald-400' 
-                    : 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-800'
-                }`}
+                className="px-3 py-1.5 border border-emerald-200 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800"
                 title="คำนวณยอดเงินใหม่จากประวัติทั้งหมด"
               >
                 <RefreshCw size={13} className={isLoading ? 'animate-spin' : ''} />
@@ -258,28 +251,10 @@ export const FinanceDashboard: React.FC<{ initialTab?: TabKey }> = ({ initialTab
               <button 
                 type="button"
                 onClick={exportCSV}
-                className={`p-2 border rounded-xl transition-all shadow-xs ${
-                  isDarkMode 
-                    ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200' 
-                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                }`}
+                className="p-2 border border-slate-200 rounded-xl transition-all shadow-xs bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                 title="ส่งออกรายงาน CSV"
               >
                 <Download size={15} />
-              </button>
-
-              {/* Dark Mode Toggle */}
-              <button 
-                type="button"
-                onClick={() => setIsDarkMode(!isDarkMode)}
-                className={`p-2 rounded-xl border transition-all shadow-xs ${
-                  isDarkMode 
-                    ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-amber-400' 
-                    : 'bg-white border-slate-200 text-slate-500 hover:text-emerald-600'
-                }`}
-                title={isDarkMode ? 'เปลี่ยนเป็นโหมดสว่าง' : 'เปลี่ยนเป็นโหมดมืด'}
-              >
-                {isDarkMode ? <Sun size={15} /> : <Moon size={15} />}
               </button>
             </div>
           </div>
@@ -305,18 +280,12 @@ export const FinanceDashboard: React.FC<{ initialTab?: TabKey }> = ({ initialTab
 
                 {/* Fund Depletion Alerts */}
                 {visiblePools.filter(p => p.target_amount > 0 && p.current_balance < (p.target_amount * 0.2)).length > 0 && (
-                  <div className={`p-4.5 rounded-2xl border transition-all flex items-start gap-4 shadow-xs ${
-                    isDarkMode ? 'bg-rose-500/5 border-rose-500/20' : 'bg-rose-50/60 border-rose-100'
-                  }`}>
-                    <div className={`p-2.5 rounded-xl shrink-0 shadow-xs ${
-                      isDarkMode ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' : 'bg-rose-600 text-white'
-                    }`}>
+                  <div className="p-4.5 rounded-2xl border border-rose-200 bg-rose-50/70 transition-all flex items-start gap-4 shadow-xs">
+                    <div className="p-2.5 rounded-xl shrink-0 shadow-xs bg-rose-600 text-white">
                       <AlertTriangle size={20} />
                     </div>
                     <div className="space-y-2">
-                      <h4 className={`text-sm font-black uppercase tracking-wide ${
-                        isDarkMode ? 'text-rose-300' : 'text-rose-800'
-                      }`}>
+                      <h4 className="text-sm font-black uppercase tracking-wide text-rose-800">
                         แจ้งเตือน: เงินในบางกองทุนต่ำกว่าเกณฑ์!
                       </h4>
                       <div className="flex flex-wrap gap-2 pt-0.5">
@@ -332,13 +301,11 @@ export const FinanceDashboard: React.FC<{ initialTab?: TabKey }> = ({ initialTab
                             return (
                               <span 
                                 key={p.id} 
-                                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl border text-xs shadow-xs transition-all ${
-                                  isDarkMode ? 'bg-slate-900/80 border-rose-950/50' : 'bg-white border-rose-100'
-                                }`}
+                                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl border border-rose-200 bg-white text-xs shadow-xs transition-all"
                               >
-                                <span className={`font-black ${isDarkMode ? 'text-rose-400' : 'text-rose-600'}`}>{displayName}</span>
-                                <span className={isDarkMode ? 'text-slate-800' : 'text-rose-100'}>|</span>
-                                <span className={`font-extrabold ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                                <span className="font-black text-rose-600">{displayName}</span>
+                                <span className="text-rose-200">|</span>
+                                <span className="font-extrabold text-slate-700">
                                   เหลือ ฿{formattedBalance}
                                 </span>
                               </span>
@@ -351,35 +318,33 @@ export const FinanceDashboard: React.FC<{ initialTab?: TabKey }> = ({ initialTab
 
                 {/* Summary Cards */}
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
-                  <SummaryCard label="รายรับเดือนนี้" value={monthIncome} color="#22c55e" icon={<TrendingUp size={16} />} isDarkMode={isDarkMode} />
-                  <SummaryCard label="รายจ่ายเดือนนี้" value={monthExpense} color="#ef4444" icon={<TrendingDown size={16} />} isDarkMode={isDarkMode} />
-                  <SummaryCard label="กำไรสุทธิ" value={netProfit} color={netProfit >= 0 ? "#10b981" : "#f43f5e"} icon={<PiggyBank size={16} />} isDarkMode={isDarkMode} />
-                  <SummaryCard label="แพ็กเกจ Active" value={activePackages} color="#3b82f6" icon={<Package size={16} />} isDarkMode={isDarkMode} isCount />
-                  <SummaryCard label="ค่าจัดส่งรวม" value={monthDeliveryFees} color="#8b5cf6" icon={<Receipt size={16} />} isDarkMode={isDarkMode} />
-                  <SummaryCard label="ยอดคงเหลือรวม" value={totalBalance} color="#06b6d4" icon={<Wallet size={16} />} isDarkMode={isDarkMode} />
+                  <SummaryCard label="รายรับเดือนนี้" value={monthIncome} color="#059669" icon={<TrendingUp size={16} />} />
+                  <SummaryCard label="รายจ่ายเดือนนี้" value={monthExpense} color="#e11d48" icon={<TrendingDown size={16} />} />
+                  <SummaryCard label="กำไรสุทธิ" value={netProfit} color={netProfit >= 0 ? "#059669" : "#e11d48"} icon={<PiggyBank size={16} />} />
+                  <SummaryCard label="แพ็กเกจ Active" value={activePackages} color="#2563eb" icon={<Package size={16} />} isCount />
+                  <SummaryCard label="ค่าจัดส่งรวม" value={monthDeliveryFees} color="#7c3aed" icon={<Receipt size={16} />} />
+                  <SummaryCard label="ยอดคงเหลือรวม" value={totalBalance} color="#0891b2" icon={<Wallet size={16} />} />
                 </div>
 
                 {/* 5 Fund Pools Cards */}
                 <div>
-                  <h3 className={`text-xs font-bold uppercase tracking-wider mb-3 ${isDarkMode ? 'text-slate-400' : 'text-slate-700'}`}>
+                  <h3 className="text-xs font-bold uppercase tracking-wider mb-3 text-slate-700">
                     สถานะยอดเงิน 4 กองทุน & กองทุนจัดส่ง
                   </h3>
-                  <FundPoolCards pools={visiblePools} isCEO={isCEO} transactions={transactions} isDarkMode={isDarkMode} onRefresh={fetchAll} />
+                  <FundPoolCards pools={visiblePools} isCEO={isCEO} transactions={transactions} isDarkMode={false} onRefresh={fetchAll} />
                 </div>
 
                 {/* Charts Section */}
                 <div className="mt-8">
-                   <FinanceCharts transactions={transactions} buckets={buckets} isDarkMode={isDarkMode} selectedMonth={selectedMonth} />
+                   <FinanceCharts transactions={transactions} buckets={buckets} isDarkMode={false} selectedMonth={selectedMonth} />
                 </div>
 
                 {/* Split Bar */}
-                <div className={`rounded-3xl border p-5 transition-all mt-6 shadow-xs ${
-                  isDarkMode ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-slate-200/80'
-                }`}>
-                  <h3 className={`text-xs font-bold uppercase tracking-wider mb-3 ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                <div className="rounded-2xl border border-slate-200/80 bg-white p-5 transition-all mt-6 shadow-xs">
+                  <h3 className="text-xs font-bold uppercase tracking-wider mb-3 text-slate-700">
                     สัดส่วนรายรับแยกกองทุนประจำเดือน ({dayjs(selectedMonth).format('MMMM YYYY')})
                   </h3>
-                  <div className="w-full h-4 rounded-full overflow-hidden flex bg-slate-200/50 shadow-inner">
+                  <div className="w-full h-4 rounded-full overflow-hidden flex bg-slate-100 shadow-inner">
                     {(['MATERIAL', 'LABOR', 'OPS', 'PROFIT'] as PoolType[]).map(pt => {
                       const pool = pools.find(p => p.pool_type === pt);
                       const cfg = POOL_CONFIG[pt];
@@ -408,7 +373,7 @@ export const FinanceDashboard: React.FC<{ initialTab?: TabKey }> = ({ initialTab
                       return (
                         <div key={pt} className="flex items-center gap-1.5">
                           <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cfg.color }} />
-                          <span className={`text-[11px] font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>{cfg.label} ({cfg.defaultPct}%)</span>
+                          <span className="text-[11px] font-medium text-slate-600">{cfg.label} ({cfg.defaultPct}%)</span>
                         </div>
                       );
                     })}
@@ -417,25 +382,25 @@ export const FinanceDashboard: React.FC<{ initialTab?: TabKey }> = ({ initialTab
               </>
             )}
 
-            {activeTab === 'income' && <RevenueRecorder configs={configs} onSaved={fetchAll} isDarkMode={isDarkMode} />}
-            {activeTab === 'expense' && <ExpenseRecorder onSaved={fetchAll} isDarkMode={isDarkMode} />}
-            {activeTab === 'cash_recon' && <CashReconciliation />}
-            {activeTab === 'invoices' && <InvoiceManager />}
-            {activeTab === 'pl' && <PLStatement />}
+            {activeTab === 'income' && <RevenueRecorder configs={configs} onSaved={fetchAll} isDarkMode={false} />}
+            {activeTab === 'expense' && <ExpenseRecorder onSaved={fetchAll} isDarkMode={false} />}
+            {activeTab === 'cash_recon' && <CashReconciliation isDarkMode={false} />}
+            {activeTab === 'invoices' && <InvoiceManager isDarkMode={false} />}
+            {activeTab === 'pl' && <PLStatement isDarkMode={false} />}
             {activeTab === 'history' && (
               <TransactionHistory 
                 transactions={transactions} 
                 buckets={buckets} 
                 isCEO={isCEO} 
                 selectedMonth={selectedMonth} 
-                isDarkMode={isDarkMode} 
+                isDarkMode={false} 
                 onRefresh={fetchAll} 
               />
             )}
-            {activeTab === 'simulator' && <SplitSimulator configs={configs} isDarkMode={isDarkMode} />}
-            {activeTab === 'customers' && <LTVAnalysis isDarkMode={isDarkMode} />}
-            {activeTab === 'promotions' && <PromotionBuilder isDarkMode={isDarkMode} />}
-            {activeTab === 'settings' && <FinanceSettings configs={configs} onRefresh={fetchAll} isDarkMode={isDarkMode} />}
+            {activeTab === 'simulator' && <SplitSimulator configs={configs} isDarkMode={false} />}
+            {activeTab === 'customers' && <LTVAnalysis isDarkMode={false} />}
+            {activeTab === 'promotions' && <PromotionBuilder isDarkMode={false} />}
+            {activeTab === 'settings' && <FinanceSettings configs={configs} onRefresh={fetchAll} isDarkMode={false} />}
           </motion.div>
         </AnimatePresence>
       </div>
@@ -445,30 +410,23 @@ export const FinanceDashboard: React.FC<{ initialTab?: TabKey }> = ({ initialTab
 };
 
 // Summary Card Sub-component
-function SummaryCard({ label, value, color, icon, isDarkMode, isCount = false }: {
+function SummaryCard({ label, value, color, icon, isCount = false }: {
   label: string;
   value: number;
   color: string;
   icon: React.ReactNode;
-  isDarkMode: boolean;
   isCount?: boolean;
 }) {
   const isFloatingValue = !isCount && value % 1 !== 0;
   return (
-    <div className={`p-4 rounded-3xl border transition-all shadow-xs flex flex-col justify-between ${
-      isDarkMode 
-        ? 'bg-slate-900/60 border-slate-800' 
-        : 'bg-white border-slate-200/80 hover:border-slate-300'
-    }`}>
+    <div className="p-4 rounded-2xl border border-slate-200/80 bg-white hover:border-slate-300 hover:shadow-md transition-all shadow-xs flex flex-col justify-between">
       <div className="flex items-center justify-between mb-2">
-        <span className={`text-[10px] sm:text-[11px] font-bold uppercase tracking-wider ${
-          isDarkMode ? 'text-slate-400' : 'text-slate-500'
-        }`}>{label}</span>
-        <div className="p-1.5 rounded-xl bg-slate-500/10" style={{ color }}>
+        <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-500">{label}</span>
+        <div className="p-1.5 rounded-xl bg-slate-50 border border-slate-100" style={{ color }}>
           {icon}
         </div>
       </div>
-      <div className="font-mono text-base sm:text-lg font-bold" style={{ color }}>
+      <div className="font-mono text-base sm:text-lg font-black" style={{ color }}>
         {isCount ? value : `฿${value.toLocaleString(undefined, { 
           minimumFractionDigits: isFloatingValue ? 2 : 0, 
           maximumFractionDigits: 2 
