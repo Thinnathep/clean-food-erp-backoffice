@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../config/supabase';
-import { POOL_CONFIG } from '../types';
+import { getPoolConfig } from '../types';
 import type { PoolType, FundPool, ExpenseCategory } from '../types';
 import { fetchInventoryItems, recordStockIn } from '../../inventory/api';
 import type { InventoryItem } from '../../../types';
@@ -103,7 +103,7 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
       const pool = pools.find(p => p.pool_type === pt);
       const diff = Number(actual) - (pool?.current_balance || 0);
       if (diff !== 0) {
-        adjustments.push({ pool: pt as PoolType, diff, label: POOL_CONFIG[pt as PoolType].label.split('/')[0] });
+        adjustments.push({ pool: pt as PoolType, diff, label: getPoolConfig(pt as PoolType).label.split('/')[0] });
       }
     });
 
@@ -268,8 +268,8 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
   const inputBase = isDarkMode
     ? 'bg-slate-900/60 border-slate-700 text-slate-200 placeholder-slate-600 focus:border-emerald-500'
     : 'bg-slate-50 border-slate-200 text-slate-700 placeholder-slate-400 focus:border-emerald-500';
-  const heading = isDarkMode ? 'text-white' : 'text-slate-800';
-  const subtext = isDarkMode ? 'text-slate-400' : 'text-slate-500';
+  const heading = isDarkMode ? 'text-white' : 'text-slate-900';
+  const subtext = isDarkMode ? 'text-slate-300' : 'text-slate-700';
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -282,16 +282,18 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
         </div>
 
         {/* 💡 Helper Guide Banner */}
-        <div className="mb-5 p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-xs space-y-1.5">
-          <div className="flex items-center gap-2 text-rose-800 font-bold">
-            <TrendingDown size={14} className="text-rose-700 shrink-0" />
-            <span>คำแนะนำ: เลือกระบุกองทุนที่ต้องการตัดเงินอย่างถูกต้อง</span>
+        <div className="mb-5 p-4 rounded-2xl bg-rose-50 border-2 border-rose-300 dark:bg-rose-950/40 dark:border-rose-800 text-xs space-y-2">
+          <div className="flex items-center gap-2 text-rose-950 dark:text-rose-200 font-bold text-sm">
+            <TrendingDown size={16} className="text-rose-700 dark:text-rose-400 shrink-0" />
+            <span>คำแนะนำ: เลือกระบุกองทุนที่ต้องการตัดเงินตามมาตรฐาน 7 กองทุน (04/08/2569)</span>
           </div>
-          <p className="text-slate-600 text-[11px] leading-relaxed">
-            • <strong>วัตถุดิบ (35%)</strong>: ซื้อเนื้อสัตว์ ผักสด เครื่องปรุง ซอส บรรจุภัณฑ์กล่องใส่อาหาร<br />
-            • <strong>แรงงาน (15%)</strong>: ค่าจ้างเชฟ ทีมครัว R&D วิจัยสูตรอาหาร<br />
-            • <strong>ดำเนินงาน (20%)</strong>: ค่าน้ำ ค่าไฟ แก๊สหุงต้ม ค่าเช่าที่ ค่าการตลาด<br />
-            • <strong>ค่าจัดส่ง (100%)</strong>: จ่ายค่ารอบส่งให้ไรเดอร์ (มาตรฐาน ฿45/จุด)
+          <p className="text-slate-900 dark:text-slate-100 text-xs font-medium leading-relaxed">
+            • <strong className="font-bold text-slate-950 dark:text-white">วัตถุดิบ (40%):</strong> ซื้อเนื้อสัตว์ ผักสด เครื่องปรุง ซอส ข้าว วัตถุดิบในครัว<br />
+            • <strong className="font-bold text-slate-950 dark:text-white">ค่าบิล & ถุงซีล (10%):</strong> ค่าถุงซีล 2 ชั้น ค่าน้ำ ค่าไฟ ค่าแก๊ส น้ำยาทำความสะอาด<br />
+            • <strong className="font-bold text-slate-950 dark:text-white">ค่าแรงคนทำ (14%):</strong> จ่ายค่าทำอาหารตามจำนวนแพ็คที่ผลิต<br />
+            • <strong className="font-bold text-slate-950 dark:text-white">ช่วยส่ง Grab (9%):</strong> จ่ายค่ารอบส่งไรเดอร์ตามรอบจัดส่งจริง<br />
+            • <strong className="font-bold text-slate-950 dark:text-white">งบการตลาด (4%):</strong> ค่ายิงแอด ทำคอนเทนต์ โฆษณา<br />
+            • <strong className="font-bold text-slate-950 dark:text-white">ทุนสำรอง/ซ่อมบำรุง (4%):</strong> ซ่อมบำรุงเครื่องซีล ตู้เย็น เตาอบ
           </p>
         </div>
 
@@ -306,13 +308,17 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
                       <Calculator size={20} />
                    </div>
                    <div>
-                      <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-0.5">ยอดเงินสดรวมในระบบ (Cash)</p>
-                      <p className={`text-xl font-black ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-                         ฿{totalCash.toLocaleString()}
+                      <p className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">เงินสดหน้าร้านพร้อมใช้ (รวมทุกกอง)</p>
+                      <p className={`text-2xl font-black font-mono ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                        ฿{totalCash.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </p>
                    </div>
                 </div>
-                
+                <div className="text-right">
+                   <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                     Active Mode
+                   </span>
+                </div>
              </div>
           </div>
 
@@ -325,7 +331,7 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
                    type="button"
                    onClick={() => setShowReconcile(true)}
                    className={`text-[10px] font-bold flex items-center gap-1.5 px-3 py-1 rounded-full border transition-all ${
-                     isDarkMode ? 'border-slate-700 text-slate-500 hover:text-white' : 'border-slate-200 text-slate-400 hover:text-slate-600'
+                     isDarkMode ? 'border-slate-700 text-slate-200 hover:text-white' : 'border-slate-300 text-slate-700 hover:text-slate-900'
                    }`}
                  >
                    <RefreshCw size={10} />
@@ -334,9 +340,9 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
                )}
             </div>
             
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-              {(['MATERIAL', 'LABOR', 'OPS', 'PROFIT', 'DELIVERY'] as PoolType[]).map(pt => {
-                const cfg = POOL_CONFIG[pt];
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+              {((pools.length > 0 ? pools.map(p => p.pool_type as PoolType) : ['MATERIAL', 'PACKAGING_BILLS', 'LABOR', 'DELIVERY', 'MARKETING', 'MAINTENANCE', 'PROFIT'] as PoolType[])).map(pt => {
+                const cfg = getPoolConfig(pt);
                 const pool = pools.find(p => p.pool_type === pt);
                 const actual = poolActuals[pt];
                 const diff = actual ? Number(actual) - (pool?.current_balance || 0) : 0;
@@ -347,13 +353,13 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
                       className={`w-full flex flex-col items-center justify-center p-3 rounded-2xl border transition-all ${
                         selectedPool === pt 
                           ? 'border-emerald-500 bg-emerald-500/10 shadow-lg shadow-emerald-500/10' 
-                          : isDarkMode ? 'border-slate-700 bg-slate-900/40 opacity-40 hover:opacity-100' : 'border-slate-100 bg-slate-50 opacity-40 hover:opacity-100'
+                          : isDarkMode ? 'border-slate-700 bg-slate-900/40 opacity-70 hover:opacity-100' : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
                       }`}>
                       <span className="text-xl mb-1">{cfg.icon}</span>
-                      <span className={`text-[10px] font-black ${selectedPool === pt ? 'text-emerald-600' : 'text-slate-500'}`}>
+                      <span className={`text-[11px] font-bold ${selectedPool === pt ? 'text-emerald-700' : 'text-slate-800'}`}>
                         {cfg.label.split('/')[0]}
                       </span>
-                      <span className="text-[9px] font-bold opacity-50 mt-0.5">฿{(pool?.current_balance || 0).toLocaleString()}</span>
+                      <span className="text-[10px] font-bold font-mono text-slate-700 mt-0.5">฿{(pool?.current_balance || 0).toLocaleString()}</span>
                     </button>
 
                     {showReconcile && (
@@ -387,7 +393,7 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
                    type="button"
                    onClick={() => setShowReconcile(false)}
                    className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${
-                     isDarkMode ? 'border-slate-700 text-slate-500 hover:text-white' : 'border-slate-200 text-slate-400 hover:text-slate-600'
+                     isDarkMode ? 'border-slate-700 text-slate-200 hover:text-white' : 'border-slate-300 text-slate-700 font-bold hover:text-slate-900'
                    }`}
                  >
                     ยกเลิก
@@ -411,7 +417,7 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
               <div className="relative">
                 <input type="date" value={date} onChange={e => setDate(e.target.value)}
                   className={`w-full p-2.5 pl-10 border rounded-xl text-sm outline-none transition-all ${inputBase}`} />
-                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
               </div>
             </div>
             <div>
@@ -437,7 +443,7 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
               <input type="text" value={vendor} onChange={e => setVendor(e.target.value)}
                 placeholder="เช่น ตลาดไท, แม็คโคร, ค่าน้ำแข็ง..."
                 className={`w-full p-2.5 pl-10 border rounded-xl text-sm outline-none transition-all ${inputBase}`} />
-              <Store className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+              <Store className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
             </div>
           </div>
 
@@ -556,17 +562,17 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
               className={`flex-1 py-3.5 border rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${
                 continuousEntry 
                   ? 'bg-red-500/10 border-red-500 text-red-600' 
-                  : isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-500'
+                  : isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-slate-100 border-slate-300 text-slate-800'
               }`}
             >
-              <div className={`w-4 h-4 rounded border flex items-center justify-center ${continuousEntry ? 'bg-red-500 border-red-500' : 'border-slate-300'}`}>
+              <div className={`w-4 h-4 rounded border flex items-center justify-center ${continuousEntry ? 'bg-red-500 border-red-500' : 'border-slate-400'}`}>
                  {continuousEntry && <span className="text-white text-[10px]">✓</span>}
               </div>
               บันทึกต่อเนื่อง
             </button>
             <button type="submit" id="submit-expense-btn" 
               disabled={isSubmitting || (!amount && !showReconcile) || (!selectedPool && !showReconcile)}
-              className="flex-[2] py-3.5 bg-gradient-to-r from-red-500 to-rose-600 text-white font-bold rounded-xl shadow-lg shadow-red-500/20 hover:shadow-red-500/40 transition-all disabled:opacity-40 flex items-center justify-center gap-2">
+              className="flex-[2] py-3.5 bg-gradient-to-r from-red-600 to-rose-600 text-white font-bold rounded-xl shadow-lg shadow-red-500/20 hover:shadow-red-500/40 transition-all disabled:opacity-40 flex items-center justify-center gap-2">
               {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : '💸 ยืนยันบันทึก'}
             </button>
           </div>
@@ -582,27 +588,27 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
           </h3>
           <div className="space-y-5">
             {pools.map(p => {
-              const cfg = POOL_CONFIG[p.pool_type];
+              const cfg = getPoolConfig(p.pool_type);
               const spent = p.total_out || 0;
               const target = p.target_amount || 1;
               const pct = Math.min(100, (spent / target) * 100);
               return (
                 <div key={p.id} className="space-y-1.5">
                   <div className="flex justify-between items-end">
-                    <span className={`text-[10px] font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                    <span className={`text-xs font-bold ${isDarkMode ? 'text-slate-200' : 'text-slate-900'}`}>
                       {cfg.icon} {cfg.label}
                     </span>
-                    <span className="text-[10px] text-slate-500">
+                    <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">
                       ฿{spent.toLocaleString()} / ฿{target.toLocaleString()}
                     </span>
                   </div>
-                  <div className={`h-2 w-full rounded-full overflow-hidden flex ${isDarkMode ? 'bg-slate-900' : 'bg-slate-100'}`}>
+                  <div className={`h-2 w-full rounded-full overflow-hidden flex ${isDarkMode ? 'bg-slate-900' : 'bg-slate-200'}`}>
                     <div className={`h-full rounded-full transition-all duration-500 ${
                       pct > 90 ? 'bg-red-500' : pct > 70 ? 'bg-amber-500' : 'bg-emerald-500'
                     }`} style={{ width: `${pct}%` }} />
                   </div>
                   <div className="flex justify-end">
-                    <span className={`text-[9px] font-bold ${pct > 90 ? 'text-red-500' : 'text-slate-400'}`}>
+                    <span className={`text-[10px] font-bold ${pct > 90 ? 'text-red-600' : 'text-slate-700 dark:text-slate-300'}`}>
                       {pct.toFixed(1)}% ของงบที่ตั้งไว้
                     </span>
                   </div>
@@ -614,18 +620,18 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
 
         {/* Warning Card */}
         {activePoolData && activePoolData.current_balance < (activePoolData.target_amount * 0.2) && (
-           <div className={`border rounded-2xl p-4 flex gap-3 shadow-sm transition-all ${
-             isDarkMode ? 'bg-rose-500/5 border-rose-500/20' : 'bg-rose-50/60 border-rose-100'
+           <div className={`border-2 rounded-2xl p-4 flex gap-3 shadow-sm transition-all ${
+             isDarkMode ? 'bg-rose-500/10 border-rose-500/30' : 'bg-rose-50 border-rose-300'
            }`}>
-              <AlertCircle className={`shrink-0 ${isDarkMode ? 'text-rose-400' : 'text-rose-600'}`} size={20} />
+              <AlertCircle className={`shrink-0 ${isDarkMode ? 'text-rose-400' : 'text-rose-700'}`} size={20} />
               <div>
                  <p className={`text-xs font-black uppercase ${
-                   isDarkMode ? 'text-rose-300' : 'text-rose-800'
+                   isDarkMode ? 'text-rose-300' : 'text-rose-900'
                  }`}>คำเตือน: เงินกองทุนต่ำมาก</p>
-                 <p className={`text-[10.5px] mt-1 leading-relaxed ${
-                   isDarkMode ? 'text-slate-400' : 'text-slate-600'
+                 <p className={`text-xs mt-1 leading-relaxed ${
+                   isDarkMode ? 'text-slate-200' : 'text-slate-800'
                  }`}>
-                    ยอดเงินในกอง <span className={`font-black ${isDarkMode ? 'text-rose-400' : 'text-rose-600'}`}>{activePoolData.display_name === 'ค่าดำเนินการ' ? 'ค่าบิล' : activePoolData.display_name}</span> เหลือเพียง <span className={`font-extrabold ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>฿{activePoolData.current_balance.toLocaleString(undefined, { minimumFractionDigits: activePoolData.current_balance % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 })}</span> ซึ่งต่ำกว่า 20% ของงบประมาณที่ควรมี
+                    ยอดเงินในกอง <span className={`font-black ${isDarkMode ? 'text-rose-400' : 'text-rose-700'}`}>{activePoolData.display_name === 'ค่าดำเนินการ' ? 'ค่าบิล & ถุงซีล' : activePoolData.display_name}</span> เหลือเพียง <span className={`font-extrabold ${isDarkMode ? 'text-white' : 'text-slate-950'}`}>฿{activePoolData.current_balance.toLocaleString(undefined, { minimumFractionDigits: activePoolData.current_balance % 1 !== 0 ? 2 : 0, maximumFractionDigits: 2 })}</span> ซึ่งต่ำกว่า 20% ของงบประมาณที่ควรมี
                  </p>
               </div>
            </div>
@@ -634,17 +640,17 @@ export const ExpenseRecorder: React.FC<Props> = ({ onSaved, isDarkMode = false }
         {/* Session History (Quick Check) */}
         {sessionEntries.length > 0 && (
           <div className={`p-5 rounded-2xl border border-dashed transition-all ${card}`}>
-             <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-                <HistoryIcon size={12} /> เพิ่งบันทึกไป (เซสชั่นนี้)
+             <h4 className="text-[11px] font-bold text-slate-800 dark:text-slate-200 uppercase tracking-widest mb-3 flex items-center gap-2">
+                <HistoryIcon size={14} /> เพิ่งบันทึกไป (เซสชั่นนี้)
              </h4>
              <div className="space-y-2">
                 {sessionEntries.map(entry => (
-                   <div key={entry.id} className="flex justify-between items-center text-xs p-2.5 rounded-lg bg-slate-500/5 border border-slate-500/10">
+                   <div key={entry.id} className="flex justify-between items-center text-xs p-2.5 rounded-lg bg-slate-100 border border-slate-200 dark:bg-slate-900/60 dark:border-slate-800">
                       <div>
                          <p className={`font-bold ${heading}`}>{entry.cat || 'ค่าใช้จ่าย'} {entry.vendorName && `(${entry.vendorName})`}</p>
-                         <p className="text-[10px] text-slate-500">{dayjs(entry.date).format('DD/MM/YYYY')}</p>
+                         <p className="text-[10px] text-slate-700 dark:text-slate-300 font-medium">{dayjs(entry.date).format('DD/MM/YYYY')}</p>
                       </div>
-                      <p className="font-bold text-red-500">฿{entry.amount.toLocaleString()}</p>
+                      <p className="font-bold text-red-600 font-mono">฿{entry.amount.toLocaleString()}</p>
                    </div>
                 ))}
              </div>

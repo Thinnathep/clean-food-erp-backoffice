@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../config/supabase';
-import { POOL_CONFIG } from '../types';
+import { getPoolConfig } from '../types';
 import type { SplitConfig, PoolType } from '../types';
 import type { Member } from '../../../types';
 import { toast } from 'sonner';
@@ -16,7 +16,7 @@ interface Props {
 const PINTO_PRESETS = [
   { label: '7 วัน (15 มื้อ)', price: 999, meals: 15, days: 7 },
   { label: '14 วัน (30 มื้อ)', price: 1899, meals: 30, days: 14 },
-  { label: '30 วัน (62 มื้อ)', price: 3999, meals: 62, days: 30 },
+  { label: '1 เดือน (63 มื้อ)', price: 3999, meals: 63, days: 30 },
 ];
 
 const MUSCLE_PRESETS = [
@@ -69,21 +69,34 @@ export const RevenueRecorder: React.FC<Props> = ({ configs, onSaved, isDarkMode 
     ? (isVatIncluded ? (gross * Number(vatPct) / (100 + Number(vatPct))) : (gross * Number(vatPct) / 100))
     : 0;
   
-  const activeConfig = configs.find(c => c.id === selectedConfigId) || configs.find(c => {
-    if (sourceType === 'PACKAGE') return c.promotion_type === 'PINTO' && c.is_default;
-    if (sourceType === 'MUSCLE_CUSTOM') return c.promotion_type === 'MUSCLE' && c.is_default;
-    return c.promotion_type === 'RETAIL' && c.is_default;
+  // Filter configs to only standard 7-fund configs (hide legacy 35/15/20/30)
+  const standardConfigs = configs.filter(c => {
+    const isLegacy = (c.ops_pct && c.ops_pct > 0) || c.config_name.includes('35/15') || c.config_name.includes('1799') || c.config_name.includes('40/10/20/30');
+    return !isLegacy;
   });
 
-  const materialPct = activeConfig?.material_pct ?? 35;
-  const laborPct = activeConfig?.labor_pct ?? 15;
-  const opsPct = activeConfig?.ops_pct ?? 20;
-  const profitPct = activeConfig?.profit_pct ?? 30;
+  const activeConfig = standardConfigs.find(c => c.id === selectedConfigId) 
+    || standardConfigs.find(c => c.config_name.includes('04/08/2569') || c.config_name.includes('7 กองทุน') || (c.packaging_pct && c.packaging_pct > 0))
+    || standardConfigs[0]
+    || configs.find(c => c.id === selectedConfigId);
+
+  const materialPct = activeConfig?.material_pct ?? 40;
+  const packagingPct = activeConfig?.packaging_pct ?? 10;
+  const laborPct = activeConfig?.labor_pct ?? 14;
+  const deliverySubPct = activeConfig?.delivery_sub_pct ?? 9;
+  const marketingPct = activeConfig?.marketing_pct ?? 4;
+  const maintenancePct = activeConfig?.maintenance_pct ?? 4;
+  const opsPct = activeConfig?.ops_pct ?? 0;
+  const profitPct = activeConfig?.profit_pct ?? 19;
 
   const materialAmt = +(net * materialPct / 100).toFixed(2);
+  const packagingAmt = +(net * packagingPct / 100).toFixed(2);
   const laborAmt = +(net * laborPct / 100).toFixed(2);
+  const deliverySubAmt = +(net * deliverySubPct / 100).toFixed(2);
+  const marketingAmt = +(net * marketingPct / 100).toFixed(2);
+  const maintenanceAmt = +(net * maintenancePct / 100).toFixed(2);
   const opsAmt = +(net * opsPct / 100).toFixed(2);
-  const profitAmt = +(net - materialAmt - laborAmt - opsAmt).toFixed(2);
+  const profitAmt = +(net - materialAmt - packagingAmt - laborAmt - deliverySubAmt - marketingAmt - maintenanceAmt - opsAmt).toFixed(2);
 
   const handleApplyPreset = (p: { price: number; label: string; days: number }) => {
     setGrossAmount(p.price.toString());
@@ -114,8 +127,22 @@ export const RevenueRecorder: React.FC<Props> = ({ configs, onSaved, isDarkMode 
         delivery_fee: delivery,
         net_amount: net,
         split_config_id: activeConfig?.id,
-        material_pct: materialPct, labor_pct: laborPct, ops_pct: opsPct, profit_pct: profitPct,
-        material_amount: materialAmt, labor_amount: laborAmt, ops_amount: opsAmt, profit_amount: profitAmt,
+        material_pct: materialPct,
+        packaging_pct: packagingPct,
+        labor_pct: laborPct,
+        delivery_sub_pct: deliverySubPct,
+        marketing_pct: marketingPct,
+        maintenance_pct: maintenancePct,
+        ops_pct: opsPct,
+        profit_pct: profitPct,
+        material_amount: materialAmt,
+        packaging_amount: packagingAmt,
+        labor_amount: laborAmt,
+        delivery_sub_amount: deliverySubAmt,
+        marketing_amount: marketingAmt,
+        maintenance_amount: maintenanceAmt,
+        ops_amount: opsAmt,
+        profit_amount: profitAmt,
         description, private_note: privateNote,
         period_start: periodStart || null, period_end: periodEnd || null,
         notes: (tempMemberName ? `ลูกค้า: ${tempMemberName}\n` : '') + notes + (hasVat ? `\nVAT ${vatPct}%: ${vatAmount.toFixed(2)} (${isVatIncluded ? 'รวมในยอด' : 'แยกต่างหาก'})` : ''),
@@ -135,16 +162,20 @@ export const RevenueRecorder: React.FC<Props> = ({ configs, onSaved, isDarkMode 
         }
       }
 
-      const splits: { pool_type: PoolType; amount: number }[] = [
-        { pool_type: 'MATERIAL', amount: materialAmt },
-        { pool_type: 'LABOR', amount: laborAmt },
-        { pool_type: 'OPS', amount: opsAmt },
-        { pool_type: 'PROFIT', amount: profitAmt },
-      ];
-      const deliv = Number(deliveryFee);
-      if (deliv > 0) {
-        splits.push({ pool_type: 'DELIVERY', amount: deliv });
+      const splits: { pool_type: PoolType; amount: number }[] = [];
+      if (materialAmt > 0) splits.push({ pool_type: 'MATERIAL', amount: materialAmt });
+      if (packagingAmt > 0) splits.push({ pool_type: 'PACKAGING_BILLS', amount: packagingAmt });
+      if (laborAmt > 0) splits.push({ pool_type: 'LABOR', amount: laborAmt });
+      if (marketingAmt > 0) splits.push({ pool_type: 'MARKETING', amount: marketingAmt });
+      if (maintenanceAmt > 0) splits.push({ pool_type: 'MAINTENANCE', amount: maintenanceAmt });
+      if (opsAmt > 0) splits.push({ pool_type: 'OPS', amount: opsAmt });
+      if (profitAmt > 0) splits.push({ pool_type: 'PROFIT', amount: profitAmt });
+      
+      const totalDeliveryForPool = +(deliverySubAmt + Number(deliveryFee)).toFixed(2);
+      if (totalDeliveryForPool > 0) {
+        splits.push({ pool_type: 'DELIVERY', amount: totalDeliveryForPool });
       }
+
       const { error: txErr } = await supabase.from('erp_fund_transactions').insert(
         splits.map(s => ({ 
           pool_type: s.pool_type, 
@@ -204,14 +235,14 @@ export const RevenueRecorder: React.FC<Props> = ({ configs, onSaved, isDarkMode 
   // ── Theme helpers ──
   const card = isDarkMode ? 'bg-slate-800/50 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm';
   const inputBase = isDarkMode
-    ? 'bg-slate-900/60 border-slate-700 text-slate-200 placeholder-slate-600 focus:border-emerald-500'
-    : 'bg-slate-50 border-slate-200 text-slate-700 placeholder-slate-400 focus:border-emerald-500';
-  const heading = isDarkMode ? 'text-white' : 'text-slate-800';
-  const subtext = isDarkMode ? 'text-slate-400' : 'text-slate-500';
-  const mutedBg = isDarkMode ? 'bg-slate-900/40 border-slate-700/50 text-slate-500 hover:border-slate-600' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-400';
+    ? 'bg-slate-900/60 border-slate-700 text-slate-100 placeholder-slate-500 focus:border-emerald-500'
+    : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400 focus:border-emerald-500 font-medium';
+  const heading = isDarkMode ? 'text-white' : 'text-slate-900 font-bold';
+  const subtext = isDarkMode ? 'text-slate-200 font-medium' : 'text-slate-700 font-semibold';
+  const mutedBg = isDarkMode ? 'bg-slate-900/40 border-slate-700/50 text-slate-200 hover:border-slate-600' : 'bg-slate-100 border-slate-300 text-slate-800 font-semibold hover:border-slate-400';
   const selectStyle = isDarkMode
-    ? 'bg-slate-900/60 border-slate-700 text-slate-300 focus:border-emerald-500'
-    : 'bg-white border-slate-200 text-slate-700 focus:border-emerald-500';
+    ? 'bg-slate-900/60 border-slate-700 text-slate-100 focus:border-emerald-500'
+    : 'bg-white border-slate-300 text-slate-900 font-medium focus:border-emerald-500';
 
   const sourceTypes = [
     { key: 'PACKAGE' as const, label: 'แพ็กเกจผูกปิ่นโต', icon: <Package size={16} /> },
@@ -224,18 +255,18 @@ export const RevenueRecorder: React.FC<Props> = ({ configs, onSaved, isDarkMode 
       {/* Form */}
       <div className={`lg:col-span-3 rounded-2xl border p-6 transition-all ${card}`}>
         <h3 className={`text-lg font-bold mb-4 flex items-center gap-2 ${heading}`}>
-          <TrendingUp size={20} className="text-emerald-500" /> บันทึกรายรับใหม่
+          <TrendingUp size={20} className="text-emerald-600" /> บันทึกรายรับใหม่
         </h3>
 
         {/* 💡 Helper Guide Banner */}
-        <div className="mb-5 p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-xs space-y-1.5">
-          <div className="flex items-center gap-2 text-emerald-800 font-bold">
-            <TrendingUp size={14} className="text-emerald-700 shrink-0" />
-            <span>คำแนะนำ: ระบบจะคำนวณแยกเงินเข้า 4 กองทุนให้อัตโนมัติ</span>
+        <div className="mb-5 p-4 rounded-2xl bg-emerald-50 border-2 border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-700 text-xs space-y-2">
+          <div className="flex items-center gap-2 text-emerald-950 dark:text-emerald-200 font-bold text-sm">
+            <TrendingUp size={16} className="text-emerald-700 dark:text-emerald-400 shrink-0" />
+            <span>คำแนะนำ: ระบบจะคำนวณแยกเงินเข้า 7 กองทุนให้อัตโนมัติ (มาตรฐาน 04/08/2569)</span>
           </div>
-          <p className="text-slate-600 text-[11px] leading-relaxed">
-            • <strong>สูตรคำนวณ</strong>: ยอดสุทธิ (ยอดรวม - ค่าส่ง) จะแบ่งเข้า <strong>วัตถุดิบ 35%</strong>, <strong>แรงงาน 15%</strong>, <strong>ดำเนินงาน 20%</strong>, และ <strong>กำไร 30%</strong><br />
-            • <strong>ค่าจัดส่ง 100%</strong>: ค่าส่งจะถูกแยกเข้ากองทุนจัดส่งเต็มจำนวน เพื่อจ่ายค่ารอบไรเดอร์ ฿45/จุด
+          <p className="text-slate-800 dark:text-slate-100 text-xs font-medium leading-relaxed">
+            • <strong className="font-bold text-slate-900 dark:text-white">สูตรมาตรฐาน 7 กองทุน:</strong> วัตถุดิบ 40%, บิล/ถุงซีล 10%, ค่าแรง 14%, ช่วยส่ง Grab 9%, การตลาด 4%, ซ่อมบำรุง 4%, กำไรสุทธิ 19%<br />
+            • <strong className="font-bold text-slate-900 dark:text-white">กองทุนจัดส่ง:</strong> งบช่วยส่ง 9% จะรวมกับค่าส่งลูกค้า เพื่อเบิกจ่ายไรเดอร์ตามรอบจัดส่งจริง
           </p>
         </div>
 
@@ -302,23 +333,22 @@ export const RevenueRecorder: React.FC<Props> = ({ configs, onSaved, isDarkMode 
                 </div>
              </div>
              <div>
-                <label className={`block text-xs font-medium mb-2 ${subtext}`}>เลือกสูตรแยกเงิน (Split Formula)</label>
+                <label className="block text-xs font-semibold mb-2 text-slate-800 dark:text-slate-200">สูตรแยกเงิน (Split Formula)</label>
                 <select 
-                  value={selectedConfigId}
+                  value={selectedConfigId || activeConfig?.id || ''}
                   onChange={e => setSelectedConfigId(e.target.value)}
                   className={`w-full p-3 border rounded-xl text-sm outline-none transition-all ${selectStyle}`}
                 >
-                  <option value="">-- ใช้ค่าเริ่มต้นตามประเภท --</option>
-                  {configs.map(c => (
+                  {(standardConfigs.length > 0 ? standardConfigs : configs.slice(0, 1)).map(c => (
                     <option key={c.id} value={c.id}>
-                      {c.config_name} ({c.material_pct}/{c.labor_pct}/{c.ops_pct}/{c.profit_pct})
+                      {c.config_name}
                     </option>
                   ))}
                 </select>
-                <div className={`mt-2 p-3 rounded-lg border text-[10px] transition-all ${
-                   isDarkMode ? 'bg-slate-900/40 border-slate-700/50 text-slate-500' : 'bg-slate-100/50 border-slate-200 text-slate-500'
+                <div className={`mt-2 p-2.5 rounded-xl border text-xs transition-all ${
+                   isDarkMode ? 'bg-slate-900/40 border-slate-700/50 text-slate-300' : 'bg-emerald-50 border-emerald-200 text-emerald-900'
                 }`}>
-                   ใช้สูตร: <span className="font-bold text-emerald-500">{activeConfig?.config_name || 'System Default'}</span>
+                   สูตรมาตรฐาน: <span className="font-bold text-emerald-700">{activeConfig?.config_name || 'สูตรมาตรฐาน 04/08/2569 (7 กองทุน)'}</span>
                 </div>
              </div>
           </div>
@@ -326,17 +356,17 @@ export const RevenueRecorder: React.FC<Props> = ({ configs, onSaved, isDarkMode 
           {/* Quick Presets */}
           {(sourceType === 'PACKAGE' || sourceType === 'MUSCLE_CUSTOM') && (
             <div>
-              <label className={`block text-xs font-medium mb-2 ${subtext}`}>เลือกแพ็กเกจด่วน (Presets)</label>
+              <label className={`block text-xs font-semibold mb-2 ${subtext}`}>เลือกแพ็กเกจด่วน (Presets)</label>
               <div className="flex flex-wrap gap-2">
                 {(sourceType === 'PACKAGE' ? PINTO_PRESETS : MUSCLE_PRESETS).map(p => (
                   <button
                     key={p.label}
                     type="button"
                     onClick={() => handleApplyPreset(p)}
-                    className={`px-3 py-2 rounded-xl text-xs border transition-all ${
+                    className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
                       isDarkMode 
-                        ? 'bg-slate-900/40 border-slate-700 text-slate-400 hover:border-emerald-500/50 hover:bg-emerald-500/5' 
-                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-emerald-50 hover:border-emerald-300'
+                        ? 'bg-slate-900/40 border-slate-700 text-slate-200 hover:border-emerald-500/50 hover:bg-emerald-500/5' 
+                        : 'bg-slate-100 border-slate-300 text-slate-800 hover:bg-emerald-50 hover:border-emerald-400 hover:text-emerald-800'
                     }`}
                   >
                     {p.label}
@@ -437,19 +467,19 @@ export const RevenueRecorder: React.FC<Props> = ({ configs, onSaved, isDarkMode 
             <button 
               type="button"
               onClick={() => setContinuousEntry(!continuousEntry)}
-              className={`flex-1 py-3.5 border rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+              className={`flex-1 py-3.5 border rounded-xl text-sm font-medium transition-all flex items-center justify-center gap-2 ${
                 continuousEntry 
-                  ? 'bg-emerald-500/10 border-emerald-500 text-emerald-600' 
-                  : isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-500'
+                  ? 'bg-emerald-500/10 border-emerald-500 text-emerald-700 font-semibold' 
+                  : isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-slate-100 border-slate-300 text-slate-800 font-semibold'
               }`}
             >
-              <div className={`w-4 h-4 rounded border flex items-center justify-center ${continuousEntry ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300'}`}>
+              <div className={`w-4 h-4 rounded border flex items-center justify-center ${continuousEntry ? 'bg-emerald-600 border-emerald-600' : 'border-slate-400'}`}>
                  {continuousEntry && <span className="text-white text-[10px]">✓</span>}
               </div>
               บันทึกต่อเนื่อง (คงค่าวันที่)
             </button>
             <button type="submit" disabled={isSubmitting || gross <= 0}
-              className="flex-[2] py-3.5 bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-all disabled:opacity-40 flex items-center justify-center gap-2">
+              className="flex-[2] py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold rounded-xl shadow-md shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-all disabled:opacity-40 flex items-center justify-center gap-2">
               {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : '✅ ยืนยันบันทึก'}
             </button>
           </div>
@@ -460,16 +490,16 @@ export const RevenueRecorder: React.FC<Props> = ({ configs, onSaved, isDarkMode 
       <div className="lg:col-span-2 space-y-4">
         {selectedMemberId && (
            <div className={`p-4 rounded-2xl border transition-all ${card}`}>
-              <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-                 <User size={12} /> ข้อมูลลูกค้า
+              <p className="text-xs font-bold text-emerald-700 uppercase tracking-wide mb-3 flex items-center gap-2">
+                 <User size={14} /> ข้อมูลลูกค้า
               </p>
               {members.filter(m => m.id === selectedMemberId).map(m => (
                  <div key={m.id}>
-                    <p className={`font-bold ${heading}`}>{m.full_name}</p>
-                    <p className="text-xs text-slate-500 mb-2">{m.phone}</p>
-                    <div className="flex items-center justify-between p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/10 mt-1">
-                       <span className="text-[10px] text-slate-500">ยอดสะสม (LTV)</span>
-                       <span className="text-xs font-bold text-emerald-600">฿{((m as any).lifetime_value ?? (m as any).total_spent ?? 0).toLocaleString()}</span>
+                    <p className={`font-bold text-sm ${heading}`}>{m.full_name}</p>
+                    <p className="text-xs text-slate-700 mb-2 font-medium">{m.phone}</p>
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-emerald-50 border border-emerald-200 mt-1">
+                       <span className="text-xs text-slate-800 font-medium">ยอดสะสม (LTV)</span>
+                       <span className="text-xs font-bold font-mono text-emerald-800">฿{((m as any).lifetime_value ?? (m as any).total_spent ?? 0).toLocaleString()}</span>
                     </div>
                  </div>
               ))}
@@ -477,51 +507,77 @@ export const RevenueRecorder: React.FC<Props> = ({ configs, onSaved, isDarkMode 
         )}
 
         <div className={`p-6 rounded-2xl border transition-all ${card}`}>
-           <h3 className={`text-sm font-bold mb-4 ${subtext}`}>🔄 Preview การแยกเงิน</h3>
+           <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-200">
+             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+               <span>🔄 พรีวิวการแยกเงิน (7 กองทุน)</span>
+             </h3>
+             <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-900 font-bold border border-emerald-300">
+               มาตรฐาน 04/08/2569
+             </span>
+           </div>
+
            {gross > 0 ? (
-              <div className="space-y-4">
-                 <div className="flex justify-between text-sm">
-                    <span className={subtext}>ยอดสุทธิ (Split)</span>
-                    <span className="text-cyan-600 font-bold">฿{net.toLocaleString()}</span>
+              <div className="space-y-3">
+                 <div className="flex justify-between items-center text-sm p-3 rounded-xl bg-slate-100 border border-slate-300">
+                    <span className="text-slate-900 font-bold">ยอดสุทธิที่นำมาแยก (Net Split)</span>
+                    <span className="text-teal-800 font-black font-mono text-base tabular-nums">
+                      ฿{net.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
                  </div>
-                 <div className="space-y-2">
+
+                 <div className="space-y-1.5 pt-1">
                     {([
                        { pt: 'MATERIAL' as PoolType, amt: materialAmt, pct: materialPct },
+                       { pt: 'PACKAGING_BILLS' as PoolType, amt: packagingAmt, pct: packagingPct },
                        { pt: 'LABOR' as PoolType, amt: laborAmt, pct: laborPct },
-                       { pt: 'OPS' as PoolType, amt: opsAmt, pct: opsPct },
+                       { pt: 'DELIVERY' as PoolType, amt: +(deliverySubAmt + Number(deliveryFee)).toFixed(2), pct: deliverySubPct },
+                       { pt: 'MARKETING' as PoolType, amt: marketingAmt, pct: marketingPct },
+                       { pt: 'MAINTENANCE' as PoolType, amt: maintenanceAmt, pct: maintenancePct },
                        { pt: 'PROFIT' as PoolType, amt: profitAmt, pct: profitPct },
-                    ]).map(item => {
-                       const cfg = POOL_CONFIG[item.pt];
+                       ...(opsAmt > 0 ? [{ pt: 'OPS' as PoolType, amt: opsAmt, pct: opsPct }] : []),
+                    ].filter(item => item.amt > 0 || item.pct > 0)).map(item => {
+                       const cfg = getPoolConfig(item.pt);
                        return (
-                          <div key={item.pt} className="flex justify-between items-center text-xs">
-                             <span className="flex items-center gap-2 text-slate-500">
-                                {cfg.icon} {cfg.label}
+                          <div key={item.pt} className="flex justify-between items-center text-xs p-2.5 rounded-xl hover:bg-slate-100 transition-colors border border-slate-100">
+                             <span className="flex items-center gap-2 text-slate-900 font-semibold">
+                                <span className="text-sm shrink-0">{cfg.icon}</span>
+                                <span>{cfg.label}</span>
+                                <span className="text-[11px] text-slate-700 font-bold">({item.pct}%)</span>
                              </span>
-                             <span className="font-bold" style={{ color: cfg.color }}>฿{item.amt.toLocaleString()}</span>
+                             <span className="font-bold font-mono text-sm tabular-nums tracking-tight" style={{ color: cfg.color }}>
+                               ฿{item.amt.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                             </span>
                           </div>
                        );
                     })}
                  </div>
+
+                 <div className="pt-2.5 border-t border-slate-200 flex items-center justify-between text-xs text-slate-800 font-bold">
+                   <span>รวมการแยก 7 กองทุน:</span>
+                   <span className="font-mono font-bold text-emerald-800">
+                     ฿{(materialAmt + packagingAmt + laborAmt + deliverySubAmt + Number(deliveryFee) + marketingAmt + maintenanceAmt + opsAmt + profitAmt).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (100.00% ครบถ้วน)
+                   </span>
+                 </div>
               </div>
            ) : (
-              <p className="text-xs text-slate-400 text-center py-4">ใส่จำนวนเงินเพื่อดูพรีวิว</p>
+              <p className="text-xs text-slate-700 font-medium text-center py-6">ใส่จำนวนเงินเพื่อดูพรีวิวแยกเงิน</p>
            )}
         </div>
 
         {/* Session History (Quick Check) */}
         {sessionEntries.length > 0 && (
           <div className={`p-4 rounded-2xl border border-dashed transition-all ${card}`}>
-             <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-                <HistoryIcon size={12} /> เพิ่งบันทึกไป (เซสชั่นนี้)
+             <h4 className="text-[11px] font-bold text-slate-800 uppercase tracking-widest mb-3 flex items-center gap-2">
+                <HistoryIcon size={14} /> เพิ่งบันทึกไป (เซสชั่นนี้)
              </h4>
              <div className="space-y-2">
                 {sessionEntries.map(entry => (
-                   <div key={entry.id} className="flex justify-between items-center text-xs p-2 rounded-lg bg-slate-500/5 border border-slate-500/10">
+                   <div key={entry.id} className="flex justify-between items-center text-xs p-2 rounded-lg bg-slate-100 border border-slate-200">
                       <div>
                          <p className={`font-bold ${heading}`}>{entry.memberName || 'ทั่วไป'}</p>
-                         <p className="text-[10px] text-slate-500">{dayjs(entry.date).format('DD/MM/YYYY')} · {entry.type}</p>
+                         <p className="text-[10px] text-slate-700 font-medium">{dayjs(entry.date).format('DD/MM/YYYY')} · {entry.type}</p>
                       </div>
-                      <p className="font-bold text-emerald-500">฿{entry.amount.toLocaleString()}</p>
+                      <p className="font-bold text-emerald-700 font-mono">฿{entry.amount.toLocaleString()}</p>
                    </div>
                 ))}
              </div>

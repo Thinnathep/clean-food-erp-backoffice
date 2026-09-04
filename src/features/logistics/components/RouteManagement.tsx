@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Map, Truck, Navigation, 
   MapPin, User, ChevronRight, Phone, Sparkles
@@ -28,8 +28,24 @@ interface DeliveryRoute {
   stops: RouteStop[];
 }
 
+import { 
+  getStoreDeliveryScheduleConfig, 
+  DEFAULT_DELIVERY_DAYS, 
+  DAY_NAMES_TH 
+} from '../services/deliveryScheduleService';
+
 export const RouteManagement: React.FC = () => {
-  const [selectedDay, setSelectedDay] = useState<'จันทร์' | 'พุธ' | 'ศุกร์'>('จันทร์');
+  const [selectedDay, setSelectedDay] = useState<string>('จันทร์');
+  const [activeDays, setActiveDays] = useState<number[]>(DEFAULT_DELIVERY_DAYS);
+
+  useEffect(() => {
+    getStoreDeliveryScheduleConfig().then(cfg => {
+      if (cfg?.active_days?.length) {
+        setActiveDays(cfg.active_days);
+        setSelectedDay(DAY_NAMES_TH[cfg.active_days[0]] || 'จันทร์');
+      }
+    });
+  }, []);
   const [routes, setRoutes] = useState<DeliveryRoute[]>([
     {
       id: 'R-01',
@@ -102,20 +118,23 @@ export const RouteManagement: React.FC = () => {
           <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
             {/* Delivery Day Switcher */}
             <div className="flex bg-slate-100/80 p-1 rounded-2xl border border-slate-200/60 shadow-inner">
-              {(['จันทร์', 'พุธ', 'ศุกร์'] as const).map(day => (
-                <button
-                  key={day}
-                  type="button"
-                  onClick={() => setSelectedDay(day)}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                    selectedDay === day 
-                      ? 'bg-white text-slate-900 shadow-xs' 
-                      : 'text-slate-500 hover:text-slate-800'
-                  }`}
-                >
-                  วัน{day}
-                </button>
-              ))}
+              {activeDays.map(dayNum => {
+                const dayName = DAY_NAMES_TH[dayNum] || `วัน${dayNum}`;
+                return (
+                  <button
+                    key={dayNum}
+                    type="button"
+                    onClick={() => setSelectedDay(dayName)}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                      selectedDay === dayName 
+                        ? 'bg-white text-slate-900 shadow-xs' 
+                        : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    วัน{dayName}
+                  </button>
+                );
+              })}
             </div>
 
             <button

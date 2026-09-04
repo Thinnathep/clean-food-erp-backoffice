@@ -9,6 +9,10 @@ import { supabase } from '../../../config/supabase';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { getFuelPrices } from '../services/fuelPriceService';
+import { 
+  CORE_PACKAGE_DELIVERY_MODELS, 
+  getDeliveryPlanSummary 
+} from '../services/deliveryScheduleService';
 
 // --- Workaround for React 19 + Leaflet Type mismatch ---
 const Map: any = MapContainer;
@@ -133,7 +137,8 @@ export const ShippingCalculator: React.FC = () => {
   const [distance, setDistance] = useState<number | null>(null);
   const [deliveryType, setDeliveryType] = useState<'normal' | 'hospital' | 'promo' | 'pickup'>('normal');
   const [pricingMode, setPricingMode] = useState<'standard' | 'markup'>('standard');
-  const [deliveryRounds, setDeliveryRounds] = useState<string>('14');
+  const [deliveryRounds, setDeliveryRounds] = useState<string>('3');
+  const [storeSubsidyPerRound, setStoreSubsidyPerRound] = useState<number>(35);
   
   const [orderAmountInput, setOrderAmountInput] = useState<string>('59');
   
@@ -153,6 +158,12 @@ export const ShippingCalculator: React.FC = () => {
     discount: number;
     total: number;
     promoLabel: string;
+    actualFarePerRound: number;
+    storeSubsidyPerRound: number;
+    customerFeePerRound: number;
+    storeSubsidyTotal: number;
+    totalActualFare: number;
+    rounds: number;
     ownerView: {
       vehicleCost: number;
       netIncome: number;
@@ -280,6 +291,12 @@ export const ShippingCalculator: React.FC = () => {
         discount: 0,
         total: 0,
         promoLabel: 'รับที่ร้าน',
+        actualFarePerRound: 0,
+        storeSubsidyPerRound: 0,
+        customerFeePerRound: 0,
+        storeSubsidyTotal: 0,
+        totalActualFare: 0,
+        rounds: 1,
         ownerView: { vehicleCost: 0, netIncome: 0, isWarning: false }
       });
       return;
@@ -287,12 +304,7 @@ export const ShippingCalculator: React.FC = () => {
   
     if (distance === null) return;
     
-    const base = deliveryConfig.BASE_FARE;
-    let shipping = 0;
-    let discount = 0;
-    let label = '';
-    
-    // 1. Calculate Real Cost
+    // 1. Calculate Real Vehicle & Fuel Cost
     const rounds = deliveryType === 'promo' ? (parseInt(deliveryRounds) || 1) : 1;
     let vehicleCost = (distance * 2) * deliveryConfig.VEHICLE_COST_PER_KM * rounds;
     
@@ -307,67 +319,83 @@ export const ShippingCalculator: React.FC = () => {
       vehicleCost = (fuelCost + depCost + maintCost + insCost) * rounds;
     }
     
-    if (deliveryType === 'promo') {
-      const PROMO_FREE_DIST = 7.1;
-      
-      if (distance <= PROMO_FREE_DIST) {
-        shipping = 0;
-        label = `โปรสมาชิก (ฟรีไม่เกิน ${PROMO_FREE_DIST}กม.)`;
+    // 2. Road Distance Fare per Round
+    const base = deliveryConfig.BASE_FARE;
+    let actualFarePerRound = base;
+    if (distance > deliveryConfig.BASE_INCLUDED_DISTANCE) {
+      const ex = distance - deliveryConfig.BASE_INCLUDED_DISTANCE;
+      if (distance <= 8) {
+        actualFarePerRound += ex * deliveryConfig.FEE_PER_KM_NORMAL;
       } else {
-        const excessDist = distance - PROMO_FREE_DIST;
-        let promoPerRound = base;
-        if (excessDist > deliveryConfig.BASE_INCLUDED_DISTANCE) {
-          const ex = excessDist - deliveryConfig.BASE_INCLUDED_DISTANCE;
-          promoPerRound += ex * deliveryConfig.FEE_PER_KM_NORMAL;
-        }
-        shipping = promoPerRound * rounds;
-        label = `โปรสมาชิก (คิดส่วนเกิน ${PROMO_FREE_DIST}กม. x ${rounds} รอบ)`;
+        actualFarePerRound += (8 - deliveryConfig.BASE_INCLUDED_DISTANCE) * deliveryConfig.FEE_PER_KM_NORMAL + (distance - 8) * deliveryConfig.FEE_PER_KM_FAR;
       }
-    } else {
-      // Normal or Hospital calculation
-      let extra = 0;
-      if (distance > deliveryConfig.BASE_INCLUDED_DISTANCE) {
-        const ex = distance - deliveryConfig.BASE_INCLUDED_DISTANCE;
-        if (distance <= 8) extra = ex * deliveryConfig.FEE_PER_KM_NORMAL;
-        else extra = (8 - deliveryConfig.BASE_INCLUDED_DISTANCE) * deliveryConfig.FEE_PER_KM_NORMAL + (distance - 8) * deliveryConfig.FEE_PER_KM_FAR;
-      }
-      shipping = base + extra;
+    }
 
-      if (deliveryType === 'hospital') {
-        discount = shipping; 
-        label = 'ส่งฟรี (โรงพยาบาล)'; 
+    let shipping = 0;
+    let discount = 0;
+    let label = '';
+    let customerFeePerRound = 0;
+    let storeSubsidyTotal = 0;
+    const totalActualFare = actualFarePerRound * rounds;
+
+    if (deliveryType === 'promo') {
+      // Store subsidizes 30-35 THB per round (from 9% Grab fund)
+      customerFeePerRound = Math.max(0, actualFarePerRound - storeSubsidyPerRound);
+      storeSubsidyTotal = Math.min(actualFarePerRound, storeSubsidyPerRound) * rounds;
+      shipping = customerFeePerRound * rounds;
+      discount = storeSubsidyTotal;
+
+      if (customerFeePerRound === 0) {
+        label = `ร้านช่วยออก 100% (ค่าส่งจริง ฿${Math.ceil(actualFarePerRound)} ≤ ฿${storeSubsidyPerRound}/รอบ)`;
       } else {
-        if (orderAmount >= deliveryConfig.FREE_DELIVERY_MIN_ORDER && distance <= deliveryConfig.FREE_DELIVERY_MAX_DISTANCE) { 
-          discount = shipping; 
-          label = 'ส่งฟรี (ตามยอดสั่งซื้อ)'; 
-        } else {
-          const promo = [...deliveryDiscounts].sort((a, b) => b.minOrder - a.minOrder).find(p => orderAmount >= p.minOrder);
-          if (promo) { discount = Math.min(promo.discount, shipping); label = promo.label; }
-        }
+        label = `ร้านช่วยออก ฿${storeSubsidyPerRound}/รอบ • ลูกค้าช่วยออกส่วนต่าง ฿${Math.ceil(customerFeePerRound)}/รอบ (${rounds} รอบ = ฿${Math.ceil(shipping)})`;
+      }
+    } else if (deliveryType === 'hospital') {
+      customerFeePerRound = 0;
+      storeSubsidyTotal = totalActualFare;
+      shipping = totalActualFare;
+      discount = totalActualFare;
+      label = 'ส่งฟรี (โรงพยาบาล/จุดส่งกลุ่ม)';
+    } else {
+      // Normal retail delivery
+      customerFeePerRound = actualFarePerRound;
+      shipping = actualFarePerRound;
+      if (orderAmount >= deliveryConfig.FREE_DELIVERY_MIN_ORDER && distance <= deliveryConfig.FREE_DELIVERY_MAX_DISTANCE) { 
+        discount = shipping; 
+        label = 'ส่งฟรี (ตามยอดสั่งซื้อ)'; 
+      } else {
+        const promo = [...deliveryDiscounts].sort((a, b) => b.minOrder - a.minOrder).find(p => orderAmount >= p.minOrder);
+        if (promo) { discount = Math.min(promo.discount, shipping); label = promo.label; }
       }
     }
 
     if (pricingMode === 'markup' && deliveryType !== 'hospital' && deliveryType !== 'promo') {
-        shipping = vehicleCost * 1.5;
-        discount = 0;
-        label = 'ราคาคำนวณตามต้นทุนจริง (Markup 50%)';
+      shipping = vehicleCost * 1.5;
+      discount = 0;
+      label = 'ราคาคำนวณตามต้นทุนจริง (Markup 50%)';
     }
 
     const net = (shipping - discount) - vehicleCost;
     
     setResults({ 
       distance, 
-      shippingFee: Math.ceil(shipping), 
+      shippingFee: Math.ceil(deliveryType === 'promo' ? totalActualFare : shipping), 
       discount: Math.floor(discount), 
-      total: Math.ceil(shipping - discount), 
+      total: Math.ceil(deliveryType === 'promo' ? shipping : Math.max(0, shipping - discount)), 
       promoLabel: label, 
+      actualFarePerRound: Math.ceil(actualFarePerRound),
+      storeSubsidyPerRound,
+      customerFeePerRound: Math.ceil(customerFeePerRound),
+      storeSubsidyTotal: Math.ceil(storeSubsidyTotal),
+      totalActualFare: Math.ceil(totalActualFare),
+      rounds,
       ownerView: { 
         vehicleCost: Math.ceil(vehicleCost), 
         netIncome: Math.ceil(net),
         isWarning: net < 0
       } 
     });
-  }, [distance, orderAmount, deliveryType, pricingMode, deliveryConfig, deliveryDiscounts, deliveryRounds, selectedVehicleId, vehicles, fuelPrices]);
+  }, [distance, orderAmount, deliveryType, pricingMode, deliveryConfig, deliveryDiscounts, deliveryRounds, storeSubsidyPerRound, selectedVehicleId, vehicles, fuelPrices]);
 
 
 
@@ -528,18 +556,118 @@ export const ShippingCalculator: React.FC = () => {
 
           {deliveryType === 'promo' && (
             <section className="space-y-4 animate-in slide-in-from-top-2 duration-300">
-              <h3 className="text-[11px] font-medium text-slate-400 uppercase tracking-[0.1em] flex items-center gap-2"><Package size={14} /> จำนวนรอบที่จัดส่งในแพ็ค</h3>
-              <div className="bg-blue-50 p-6 rounded-3xl border border-blue-100 relative">
+              <div className="flex items-center justify-between">
+                <h3 className="text-[11px] font-medium text-slate-400 uppercase tracking-[0.1em] flex items-center gap-2">
+                  <Package size={14} /> จำนวนรอบที่จัดส่งในแพ็ค
+                </h3>
+                <span className="text-[10px] text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full">
+                  รอบปกติ จันทร์ & พฤหัสฯ
+                </span>
+              </div>
+
+              {/* Package Presets */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {CORE_PACKAGE_DELIVERY_MODELS.map((pkg) => {
+                  const isSelected = parseInt(deliveryRounds) === pkg.roundsCount && parseFloat(orderAmountInput) === pkg.price;
+                  return (
+                    <button
+                      key={pkg.id}
+                      type="button"
+                      onClick={() => {
+                        setDeliveryRounds(String(pkg.roundsCount));
+                        setOrderAmountInput(String(pkg.price));
+                        setStoreSubsidyPerRound(pkg.roundsCount === 3 ? 30 : 35);
+                      }}
+                      className={`p-3 rounded-2xl border text-left transition-all relative ${
+                        isSelected
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-500/20'
+                          : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <span className="text-xs font-bold truncate">{pkg.name}</span>
+                        <span className={`text-[9px] px-1.5 py-0.2 rounded font-semibold ${
+                          isSelected ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800'
+                        }`}>
+                          {pkg.roundsCount} รอบ
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className={isSelected ? 'text-blue-100' : 'text-slate-500'}>
+                          ฿{pkg.price.toLocaleString()}
+                        </span>
+                        <span className={`text-[10px] font-mono ${isSelected ? 'text-blue-100' : 'text-slate-400'}`}>
+                          [{pkg.roundQuantities.join(', ')}] ถุง
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="bg-blue-50 p-5 rounded-3xl border border-blue-100 relative space-y-3">
                 <div className="flex items-center justify-center gap-4">
                   <input 
                     type="number" 
                     value={deliveryRounds}
                     onChange={(e) => setDeliveryRounds(e.target.value)}
-                    className="w-32 bg-transparent text-4xl font-semibold text-blue-700 outline-none border-b-2 border-transparent focus:border-blue-500 transition-all tracking-tight text-center"
+                    className="w-28 bg-transparent text-4xl font-semibold text-blue-700 outline-none border-b-2 border-transparent focus:border-blue-500 transition-all tracking-tight text-center font-mono"
                   />
-                  <span className="text-xl font-bold text-blue-300">รอบ</span>
+                  <span className="text-xl font-bold text-blue-400">รอบ</span>
                 </div>
-                <p className="mt-3 text-[10px] text-blue-400 leading-relaxed italic text-center font-normal">คูณค่าส่งส่วนเกิน (ถ้ามี) ตามจำนวนวันส่งจริง</p>
+
+                {/* Remainder breakdown indicator */}
+                {(() => {
+                  const rCount = parseInt(deliveryRounds) || 1;
+                  const matchedPkg = CORE_PACKAGE_DELIVERY_MODELS.find(p => p.roundsCount === rCount);
+                  const quantities = matchedPkg ? matchedPkg.roundQuantities : null;
+
+                  return (
+                    <div className="pt-2 border-t border-blue-200/60 text-center">
+                      {quantities ? (
+                        <p className="text-[11px] text-blue-700 font-medium">
+                          การกระจายส่ง: <strong>{getDeliveryPlanSummary(quantities)}</strong>
+                        </p>
+                      ) : (
+                        <p className="text-[10px] text-blue-500 italic">
+                          คำนวณค่าส่งคูณตาม {rCount} วันส่งจริง (วันจัดส่งหลัก: จันทร์ & พฤหัสบดี)
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Store Subsidy Selector (30-35 บาท ตามกองทุน 9% Grab) */}
+              <div className="bg-emerald-50/90 p-4 rounded-2xl border border-emerald-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    ร้านช่วยออกค่าส่ง (กองทุน Grab 9%)
+                  </span>
+                  <span className="text-xs font-black text-emerald-800 bg-white px-2.5 py-0.5 rounded-lg border border-emerald-300 shadow-xs">
+                    ฿{storeSubsidyPerRound} / รอบ
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  {[30, 35].map((amt) => (
+                    <button
+                      key={amt}
+                      type="button"
+                      onClick={() => setStoreSubsidyPerRound(amt)}
+                      className={`py-2 px-3 rounded-xl text-xs font-bold transition-all border ${
+                        storeSubsidyPerRound === amt
+                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                          : 'bg-white text-slate-700 border-slate-200 hover:border-emerald-300'
+                      }`}
+                    >
+                      ช่วย ฿{amt}/รอบ {amt === 30 ? '(แพ็ก 7 วัน)' : '(แพ็ก 14/30 วัน)'}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-emerald-900 font-medium">
+                  💡 ร้านช่วยออก ฿{storeSubsidyPerRound}/รอบ (ส่วนเกินระยะทาง ลูกค้าช่วยออกตามจริง)
+                </p>
               </div>
             </section>
           )}
@@ -574,27 +702,84 @@ export const ShippingCalculator: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="bg-slate-900 p-8 rounded-[32px] text-white shadow-xl relative overflow-hidden group">
+                <div className="bg-slate-900 p-7 rounded-[32px] text-white shadow-xl relative overflow-hidden group">
                   <div className="absolute right-[-20px] bottom-[-20px] opacity-10 rotate-12 transition-transform group-hover:scale-105 duration-700"><Truck size={200} /></div>
-                  <p className="text-slate-400 text-[10px] font-medium uppercase tracking-widest mb-2">ยอดค่าส่งสุทธิ (แจ้งลูกค้า)</p>
-                  <div className="flex items-baseline gap-2"><span className="text-5xl font-semibold tracking-tight">฿{results.total}</span></div>
-                  {results.promoLabel && <div className="mt-5 inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 text-emerald-400 text-[10px] font-medium rounded-full border border-emerald-500/20">{results.promoLabel}</div>}
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-slate-300 text-[11px] font-bold uppercase tracking-widest">
+                      {deliveryType === 'promo' ? 'ยอดค่าส่งส่วนต่าง (แจ้งลูกค้า)' : 'ยอดค่าส่งสุทธิ (แจ้งลูกค้า)'}
+                    </p>
+                    {deliveryType === 'promo' && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                        จัดส่ง {results.rounds} รอบ
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-5xl font-extrabold tracking-tight">฿{results.total}</span>
+                    {results.total === 0 && (
+                      <span className="text-emerald-400 text-xs font-bold">(ส่งฟรี! ร้านช่วยออก 100%)</span>
+                    )}
+                  </div>
+                  {results.promoLabel && (
+                    <div className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-500/20 text-emerald-300 text-xs font-bold rounded-xl border border-emerald-500/30">
+                      {results.promoLabel}
+                    </div>
+                  )}
                 </div>
 
-                <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden text-sm">
-                  <div className="p-4 flex justify-between border-b border-slate-50 items-center">
-                    <span className="text-slate-500 font-medium">ระยะทางจริง (ทางถนน)</span>
-                    <span className="text-base font-semibold text-slate-900">{results.distance.toFixed(1)} กม.</span>
+                <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden text-sm shadow-xs">
+                  <div className="p-3.5 flex justify-between border-b border-slate-100 items-center">
+                    <span className="text-slate-700 font-semibold text-xs">ระยะทางจริง (ทางถนน)</span>
+                    <span className="text-sm font-bold text-slate-900">{results.distance.toFixed(1)} กม.</span>
                   </div>
-                  <div className="p-4 flex justify-between border-b border-slate-50 items-center">
-                    <span className="text-slate-500 font-medium">ค่าจัดส่งพื้นฐาน</span>
-                    <span className="text-base font-semibold text-slate-900">฿{results.shippingFee}</span>
-                  </div>
-                  {results.discount > 0 && (
-                    <div className="p-4 flex justify-between bg-emerald-50/30 text-emerald-600 items-center font-medium">
-                      <span>หักลบโปรโมชั่น</span>
-                      <span>-฿{results.discount}</span>
-                    </div>
+
+                  {deliveryType === 'promo' ? (
+                    <>
+                      <div className="p-3.5 flex justify-between border-b border-slate-100 items-center bg-slate-50/70">
+                        <span className="text-slate-700 font-medium text-xs">ค่าจัดส่งจริงตามระยะทาง</span>
+                        <div className="text-right">
+                          <span className="text-sm font-bold text-slate-900">฿{results.actualFarePerRound}/รอบ</span>
+                          <span className="text-[11px] text-slate-600 ml-1.5 font-mono">({results.rounds} รอบ = ฿{results.totalActualFare})</span>
+                        </div>
+                      </div>
+                      <div className="p-3.5 flex justify-between border-b border-slate-100 items-center bg-emerald-50/80 text-emerald-950">
+                        <span className="font-semibold text-xs flex items-center gap-1.5">
+                          <span>💚</span>
+                          <span>ร้านช่วยออก (กองทุน 9% Grab)</span>
+                        </span>
+                        <div className="text-right">
+                          <span className="text-sm font-extrabold text-emerald-800">-฿{results.storeSubsidyPerRound}/รอบ</span>
+                          <span className="text-[11px] text-emerald-700 ml-1.5 font-bold font-mono">(-฿{results.storeSubsidyTotal})</span>
+                        </div>
+                      </div>
+                      <div className="p-3.5 flex justify-between items-center bg-blue-50/60 text-blue-950">
+                        <span className="font-bold text-xs flex items-center gap-1.5">
+                          <span>🛵</span>
+                          <span>ลูกค้าช่วยออกส่วนต่าง</span>
+                        </span>
+                        <div className="text-right">
+                          <span className="text-sm font-black text-blue-900">
+                            {results.customerFeePerRound === 0 ? '฿0 (ส่งฟรี)' : `฿${results.customerFeePerRound}/รอบ`}
+                          </span>
+                          {results.customerFeePerRound > 0 && (
+                            <span className="text-[11px] text-blue-700 ml-1.5 font-bold font-mono">(รวม ฿{results.total})</span>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="p-3.5 flex justify-between border-b border-slate-100 items-center">
+                        <span className="text-slate-700 font-medium text-xs">ค่าจัดส่งพื้นฐาน</span>
+                        <span className="text-sm font-bold text-slate-900">฿{results.shippingFee}</span>
+                      </div>
+                      {results.discount > 0 && (
+                        <div className="p-3.5 flex justify-between bg-emerald-50/50 text-emerald-800 items-center font-semibold text-xs">
+                          <span>หักลบโปรโมชั่น</span>
+                          <span>-฿{results.discount}</span>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
 
@@ -634,9 +819,20 @@ export const ShippingCalculator: React.FC = () => {
                 )}
 
                 <button onClick={() => {
-                  const text = `📌 สรุปค่าจัดส่ง:\n📍 ระยะทาง: ${results.distance.toFixed(1)} กม.\n💰 ค่าส่งสุทธิ: ฿${results.total}\n${results.promoLabel ? `🎁 โปรโมชั่น: ${results.promoLabel}\n` : ''}`;
-                  navigator.clipboard.writeText(text); toast.success('คัดลอกสรุปสำเร็จ');
-                }} className="w-full py-4 bg-emerald-500 text-white rounded-2xl font-medium text-sm shadow-lg shadow-emerald-500/20 hover:bg-emerald-600 transition-all flex items-center justify-center gap-2 active:scale-95">
+                  let text = '';
+                  if (deliveryType === 'promo') {
+                    text = `📌 สรุปค่าจัดส่งแพ็กเกจอาหารสุขภาพ (Clean Food เชียงราย)\n`
+                      + `📍 ระยะทางจัดส่ง: ${results.distance.toFixed(1)} กม. (จัดส่ง ${results.rounds} รอบ)\n`
+                      + `🚗 ค่าจัดส่งตามระยะทางจริง: ฿${results.actualFarePerRound}/รอบ (รวม ฿${results.totalActualFare})\n`
+                      + `💚 ร้านช่วยออกค่าส่งให้ (กองทุน Grab 9%): ฿${results.storeSubsidyPerRound}/รอบ (ร้านช่วยรวม ฿${results.storeSubsidyTotal})\n`
+                      + `💰 ลูกค้าช่วยออกส่วนต่าง: ${results.customerFeePerRound === 0 ? '฿0 (ส่งฟรี! ร้านช่วยออกให้ 100%)' : `฿${results.customerFeePerRound}/รอบ (รวม ${results.rounds} รอบ = ฿${results.total})`}\n`
+                      + `✨ ขอบคุณที่ให้ Clean Food เชียงราย ดูแลสุขภาพค่ะ 🥗`;
+                  } else {
+                    text = `📌 สรุปค่าจัดส่ง:\n📍 ระยะทาง: ${results.distance.toFixed(1)} กม.\n💰 ค่าส่งสุทธิ: ฿${results.total}\n${results.promoLabel ? `🎁 โปรโมชั่น: ${results.promoLabel}\n` : ''}`;
+                  }
+                  navigator.clipboard.writeText(text);
+                  toast.success('คัดลอกสรุปค่าส่งสำเร็จ');
+                }} className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 transition-all flex items-center justify-center gap-2 active:scale-95">
                   <Copy size={16} /> คัดลอกสรุปส่งลูกค้า
                 </button>
               </div>

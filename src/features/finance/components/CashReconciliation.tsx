@@ -9,12 +9,20 @@ import {
 } from 'lucide-react';
 
 import { useAuthStore } from '../../../store/authStore';
+import { getPoolConfig } from '../types';
+import type { PoolType } from '../types';
 
 // ─── Types ───
 interface PoolInfo {
   pool_type: string;
   display_name: string;
   current_balance: number;
+}
+
+interface CashReconProps {
+  isDarkMode?: boolean;
+  selectedDate?: string;
+  onDateChange?: (date: string) => void;
 }
 
 interface ReconEntry {
@@ -54,8 +62,13 @@ const fadeUp = {
   show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] as const } },
 };
 
-export const CashReconciliation: React.FC<{ isDarkMode?: boolean }> = () => {
-  const [selectedDate, setSelectedDate] = useState(dayjs().format('YYYY-MM-DD'));
+export const CashReconciliation: React.FC<CashReconProps> = ({
+  selectedDate: propDate,
+  onDateChange: propOnDateChange
+}) => {
+  const [internalDate, setInternalDate] = useState(dayjs().format('YYYY-MM-DD'));
+  const selectedDate = propDate || internalDate;
+  const setSelectedDate = propOnDateChange || setInternalDate;
   const [entries, setEntries] = useState<ReconEntry[]>([]);
   const [history, setHistory] = useState<SavedRecon[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -107,7 +120,7 @@ export const CashReconciliation: React.FC<{ isDarkMode?: boolean }> = () => {
         return {
           id: saved?.id,
           pool_type: pool.pool_type,
-          display_name: pool.display_name === 'ค่าดำเนินการ' ? 'ค่าบิล' : pool.display_name,
+          display_name: pool.display_name === 'ค่าดำเนินการ' ? 'ค่าบิล & ถุงซีล' : (pool.display_name || getPoolConfig(pool.pool_type as PoolType).label),
           opening_balance: saved?.opening_balance ?? openingBalance,
           total_income: saved?.total_income ?? income,
           total_expense: saved?.total_expense ?? expense,
@@ -185,7 +198,7 @@ export const CashReconciliation: React.FC<{ isDarkMode?: boolean }> = () => {
   };
 
   const navDate = (dir: -1 | 1) => {
-    setSelectedDate(d => dayjs(d).add(dir, 'day').format('YYYY-MM-DD'));
+    setSelectedDate(dayjs(selectedDate).add(dir, 'day').format('YYYY-MM-DD'));
   };
 
   const totalExpected = entries.reduce((s, e) => s + e.expected_balance, 0);
@@ -216,24 +229,31 @@ export const CashReconciliation: React.FC<{ isDarkMode?: boolean }> = () => {
           </div>
           <div>
             <h2 className="text-lg font-bold text-slate-900">ตรวจนับเงินสดประจำวัน</h2>
-            <p className="text-xs text-slate-500 font-medium">Cash Reconciliation — เทียบยอดเงินจริงกับระบบ</p>
+            <p className="text-xs text-slate-700 font-semibold">Cash Reconciliation — เทียบยอดเงินจริงกับระบบ</p>
           </div>
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-1 border border-slate-200 rounded-xl px-1 bg-white shadow-xs">
-            <button title="Button" type="button" onClick={() => navDate(-1)} className="p-2 rounded-lg hover:bg-slate-50 text-slate-500 transition-colors"><ChevronLeft size={16} /></button>
-            <div className="flex items-center gap-1.5 px-2">
-              <Calendar size={14} className="text-slate-400" />
-              <input title="Input field"
-                type="date"
-                value={selectedDate}
-                onChange={e => setSelectedDate(e.target.value)}
-                className="text-sm font-semibold border-none outline-none bg-transparent py-1 text-slate-800"
-              />
+          {propDate ? (
+            <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl border border-amber-200/80 bg-amber-50/60 text-xs font-bold text-amber-900 shadow-xs">
+              <Calendar size={15} className="text-amber-700" />
+              <span>ตรวจนับประจำวันที่: {dayjs(selectedDate).format('DD/MM/YYYY')}</span>
             </div>
-            <button title="Button" type="button" onClick={() => navDate(1)} className="p-2 rounded-lg hover:bg-slate-50 text-slate-500 transition-colors"><ChevronRight size={16} /></button>
-          </div>
+          ) : (
+            <div className="flex items-center gap-1 border border-slate-300 rounded-xl px-1 bg-white shadow-xs">
+              <button title="Button" type="button" onClick={() => navDate(-1)} className="p-2 rounded-lg hover:bg-slate-100 text-slate-700 transition-colors"><ChevronLeft size={16} /></button>
+              <div className="flex items-center gap-1.5 px-2">
+                <Calendar size={14} className="text-slate-600" />
+                <input title="Input field"
+                  type="date"
+                  value={selectedDate}
+                  onChange={e => setSelectedDate(e.target.value)}
+                  className="text-sm font-bold border-none outline-none bg-transparent py-1 text-slate-900"
+                />
+              </div>
+              <button title="Button" type="button" onClick={() => navDate(1)} className="p-2 rounded-lg hover:bg-slate-100 text-slate-700 transition-colors"><ChevronRight size={16} /></button>
+            </div>
+          )}
 
           <button title="Button" type="button"
             onClick={() => setShowHistory(!showHistory)}
@@ -269,11 +289,11 @@ export const CashReconciliation: React.FC<{ isDarkMode?: boolean }> = () => {
         className="grid grid-cols-1 sm:grid-cols-3 gap-4"
       >
         <motion.div variants={fadeUp} className="rounded-2xl border border-slate-200/80 bg-white p-4.5 shadow-xs">
-          <p className="text-xs text-slate-500 mb-1 font-bold uppercase tracking-wider">ยอดคาดหวังรวม</p>
+          <p className="text-xs text-slate-700 mb-1 font-bold uppercase tracking-wider">ยอดคาดหวังรวม</p>
           <p className="text-2xl font-black text-slate-900 font-mono">฿{fmt(totalExpected)}</p>
         </motion.div>
         <motion.div variants={fadeUp} className="rounded-2xl border border-slate-200/80 bg-white p-4.5 shadow-xs">
-          <p className="text-xs text-slate-500 mb-1 font-bold uppercase tracking-wider">ยอดนับจริงรวม</p>
+          <p className="text-xs text-slate-700 mb-1 font-bold uppercase tracking-wider">ยอดนับจริงรวม</p>
           <p className="text-2xl font-black text-slate-900 font-mono">฿{fmt(totalActual)}</p>
         </motion.div>
         <motion.div variants={fadeUp} className={`rounded-2xl border p-4.5 shadow-xs ${
@@ -308,15 +328,15 @@ export const CashReconciliation: React.FC<{ isDarkMode?: boolean }> = () => {
             }`}
           >
             {/* Pool Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 gap-3 border-b border-slate-100 bg-slate-50/50">
-              <div>
-                <h3 className="font-bold text-slate-900">{entry.display_name}</h3>
-                <p className="text-xs text-slate-500 mt-0.5 font-medium">{entry.pool_type}</p>
+            <div className="p-4 flex items-center justify-between border-b border-slate-100 bg-slate-50/50">
+              <div className="flex items-center gap-2.5">
+                <span className="text-base">{getPoolConfig(entry.pool_type as PoolType).icon}</span>
+                <span className="font-bold text-sm text-slate-900">{entry.display_name}</span>
               </div>
               {entry.variance !== 0 && (
                 <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border shadow-xs ${
                   entry.variance > 0 
-                    ? 'bg-amber-50 text-amber-700 border-amber-200' 
+                    ? 'bg-amber-50 text-amber-800 border-amber-200' 
                     : 'bg-rose-50 text-rose-700 border-rose-200'
                 }`}>
                   <AlertTriangle size={13} />
@@ -333,19 +353,19 @@ export const CashReconciliation: React.FC<{ isDarkMode?: boolean }> = () => {
             {/* Pool Detail Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-px bg-slate-100">
               <div className="p-3.5 sm:p-4 bg-white">
-                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold mb-1">ยอดเปิด</p>
+                <p className="text-[10px] text-slate-600 uppercase tracking-wider font-bold mb-1">ยอดเปิด</p>
                 <p className="text-sm font-bold text-slate-700 font-mono">฿{fmt(entry.opening_balance)}</p>
               </div>
               <div className="p-3.5 sm:p-4 bg-white">
-                <p className="text-[10px] text-emerald-600 uppercase tracking-wider font-bold mb-1">รับเข้า</p>
-                <p className="text-sm font-bold text-emerald-600 font-mono">+฿{fmt(entry.total_income)}</p>
+                <p className="text-[10px] text-emerald-700 uppercase tracking-wider font-bold mb-1">รับเข้า</p>
+                <p className="text-sm font-bold text-emerald-700 font-mono">+฿{fmt(entry.total_income)}</p>
               </div>
               <div className="p-3.5 sm:p-4 bg-white">
-                <p className="text-[10px] text-rose-500 uppercase tracking-wider font-bold mb-1">จ่ายออก</p>
+                <p className="text-[10px] text-rose-600 uppercase tracking-wider font-bold mb-1">จ่ายออก</p>
                 <p className="text-sm font-bold text-rose-600 font-mono">-฿{fmt(entry.total_expense)}</p>
               </div>
               <div className="p-3.5 sm:p-4 bg-white">
-                <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">ยอดคาดหวัง</p>
+                <p className="text-[10px] text-slate-700 uppercase tracking-wider font-bold mb-1">ยอดคาดหวัง</p>
                 <p className="text-sm font-extrabold text-slate-900 font-mono">฿{fmt(entry.expected_balance)}</p>
               </div>
               <div className="p-3.5 sm:p-4 col-span-2 sm:col-span-1 bg-white">
@@ -416,41 +436,41 @@ export const CashReconciliation: React.FC<{ isDarkMode?: boolean }> = () => {
             <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-xs">
               <div className="p-4 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between">
                 <h3 className="font-bold flex items-center gap-2 text-slate-900">
-                  <History size={16} className="text-slate-500" />
+                  <History size={16} className="text-slate-700" />
                   ประวัติการตรวจนับเงินสดย้อนหลัง
                 </h3>
               </div>
               {history.length === 0 ? (
-                <div className="text-center py-12 text-slate-400">
-                  <Coins size={40} className="mx-auto mb-3 opacity-30" />
-                  <p className="font-medium text-slate-500">ยังไม่มีประวัติการบันทึก</p>
+                <div className="text-center py-12 text-slate-500">
+                  <Coins size={40} className="mx-auto mb-3 opacity-40" />
+                  <p className="font-semibold text-slate-700">ยังไม่มีประวัติการบันทึก</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="text-left text-xs uppercase tracking-wider bg-slate-50 text-slate-500 border-b border-slate-100">
-                        <th className="px-4 py-3 font-semibold">วันที่</th>
-                        <th className="px-4 py-3 font-semibold">กองทุน</th>
-                        <th className="px-4 py-3 font-semibold text-right">คาดหวัง</th>
-                        <th className="px-4 py-3 font-semibold text-right">นับจริง</th>
-                        <th className="px-4 py-3 font-semibold text-right">ผลต่าง</th>
-                        <th className="px-4 py-3 font-semibold">สาเหตุ</th>
+                      <tr className="text-left text-xs uppercase tracking-wider bg-slate-100 text-slate-800 font-bold border-b border-slate-200">
+                        <th className="px-4 py-3 font-bold">วันที่</th>
+                        <th className="px-4 py-3 font-bold">กองทุน</th>
+                        <th className="px-4 py-3 font-bold text-right">คาดหวัง</th>
+                        <th className="px-4 py-3 font-bold text-right">นับจริง</th>
+                        <th className="px-4 py-3 font-bold text-right">ผลต่าง</th>
+                        <th className="px-4 py-3 font-bold">สาเหตุ</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {history.map(h => (
                         <tr key={h.id} className="hover:bg-slate-50/70 transition-colors">
-                          <td className="px-4 py-3 text-slate-600 font-medium">{dayjs(h.reconciliation_date).format('DD/MM/YYYY')}</td>
+                          <td className="px-4 py-3 text-slate-800 font-medium">{dayjs(h.reconciliation_date).format('DD/MM/YYYY')}</td>
                           <td className="px-4 py-3 font-bold text-slate-900">{h.pool_type}</td>
-                          <td className="px-4 py-3 text-right text-slate-500 font-mono">฿{fmt(h.expected_balance)}</td>
-                          <td className="px-4 py-3 text-right font-bold text-slate-800 font-mono">฿{fmt(h.actual_balance)}</td>
+                          <td className="px-4 py-3 text-right text-slate-700 font-bold font-mono">฿{fmt(h.expected_balance)}</td>
+                          <td className="px-4 py-3 text-right font-black text-slate-900 font-mono">฿{fmt(h.actual_balance)}</td>
                           <td className="px-4 py-3 text-right font-mono">
                             <span className={`font-bold ${h.variance === 0 ? 'text-emerald-600' : h.variance > 0 ? 'text-amber-600' : 'text-rose-600'}`}>
                               {h.variance >= 0 ? '+' : ''}฿{fmt(h.variance)}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-xs text-slate-500 max-w-[150px] truncate">
+                          <td className="px-4 py-3 text-xs text-slate-700 font-medium max-w-[150px] truncate">
                             {h.variance_reason || '-'}
                           </td>
                         </tr>

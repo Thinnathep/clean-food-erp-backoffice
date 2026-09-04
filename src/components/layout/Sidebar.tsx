@@ -99,7 +99,7 @@ const navItems: NavItem[] = [
     label: 'บัญชีและการเงิน', 
     icon: Wallet, 
     children: [
-      { label: 'ภาพรวม 4 กองทุน', isHeader: true },
+      { label: 'ระบบบัญชี 7 กองทุน', isHeader: true },
       { label: 'แดชบอร์ดการเงิน', path: '/finance', icon: LayoutDashboard, end: true },
       { label: 'ประวัติธุรกรรม', path: '/finance/history', icon: History },
       

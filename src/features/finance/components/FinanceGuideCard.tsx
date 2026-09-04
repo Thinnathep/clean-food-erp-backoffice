@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { 
   Lightbulb, ChevronDown, CheckCircle2, 
-  Percent, BookOpen
+  Percent, BookOpen, ChefHat, Rocket, ShieldCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const FinanceGuideCard: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [selectedPkgTab, setSelectedPkgTab] = useState<0 | 1 | 2>(0);
 
   return (
     <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-slate-900 border border-emerald-500/30 rounded-3xl p-5 text-white shadow-md relative overflow-hidden font-sans">
@@ -23,14 +24,14 @@ export const FinanceGuideCard: React.FC = () => {
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-sm sm:text-base font-bold text-white tracking-tight">
-                คู่มือการใช้งานระบบบัญชี & กฎการเงิน 4 กองทุน
+                คู่มือระบบบัญชี & กฎการเงิน 7 กองทุน
               </h3>
               <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold uppercase">
-                Clean Food CR Standard
+                มาตรฐาน 04/08/2569
               </span>
             </div>
             <p className="text-xs text-slate-300 mt-0.5">
-              โครงสร้างการแยกรายได้สุทธิ 35/15/20/30 และแยกค่าจัดส่ง 100% เพื่อความมั่นคงทางการเงิน
+              โครงสร้างการแยกเงิน 7 กองทุน (40/10/14/9/4/4/19) บันทึกรายรับ-รายจ่าย และกระทบยอดเงินสด
             </p>
           </div>
         </div>
@@ -41,7 +42,7 @@ export const FinanceGuideCard: React.FC = () => {
           className="px-3.5 py-1.5 bg-white/10 hover:bg-white/20 border border-white/10 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 self-start sm:self-auto shrink-0 cursor-pointer"
         >
           <BookOpen size={14} className="text-emerald-400" />
-          <span>{isOpen ? 'ซ่อนคู่มือ' : 'ดูคู่มือ & วิธีคำนวณ'}</span>
+          <span>{isOpen ? 'ซ่อนคู่มือ' : 'ดูคู่มือ 7 กองทุน'}</span>
           <ChevronDown size={14} className={`transition-transform duration-200 ${isOpen ? 'rotate-180 text-emerald-400' : ''}`} />
         </button>
       </div>
@@ -56,117 +57,219 @@ export const FinanceGuideCard: React.FC = () => {
             transition={{ duration: 0.25 }}
             className="overflow-hidden pt-5 space-y-5 border-t border-slate-800 mt-4 relative z-10"
           >
-            {/* ─── 1. โครงสร้าง 4 กองทุนหลัก + กองทุนจัดส่ง ─── */}
-            <div className="space-y-2.5">
+            {/* ─── 1. โครงสร้าง 7 กองทุนใน 3 Financial Zones ─── */}
+            <div className="space-y-3">
               <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
                 <Percent size={14} />
-                <span>1. สัดส่วนการแบ่งเงิน 4 กองทุน (จากรายได้สุทธิหลังหักค่าส่ง)</span>
+                <span>1. สัดส่วนแยกเงิน 7 กองทุน แบ่งตาม 3 โซนการเงิน</span>
               </h4>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-                
-                {/* Fund 1: วัตถุดิบ 35% */}
-                <div className="p-3.5 rounded-2xl bg-slate-800/80 border border-emerald-500/30 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-emerald-400">🥦 วัตถุดิบ (Material)</span>
-                    <span className="text-xs font-mono font-bold text-white bg-emerald-500/20 px-2 py-0.5 rounded-md">35%</span>
-                  </div>
-                  <p className="text-[11px] text-slate-300 leading-relaxed">
-                    ใช้จ่ายค่าเนื้อสัตว์ ผักสด เครื่องปรุง ซอส และกล่องบรรจุภัณฑ์
-                  </p>
+              {/* Zone 1: Direct Production (64%) */}
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <ChefHat size={14} className="text-emerald-400" />
+                  <span className="text-xs font-bold text-emerald-300">โซน 1: ต้นทุนตรงการผลิตอาหาร (64%)</span>
                 </div>
-
-                {/* Fund 2: พัฒนา & แรงงาน 15% */}
-                <div className="p-3.5 rounded-2xl bg-slate-800/80 border border-blue-500/30 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-blue-400">👥 แรงงาน (Labor/R&D)</span>
-                    <span className="text-xs font-mono font-bold text-white bg-blue-500/20 px-2 py-0.5 rounded-md">15%</span>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <div className="p-3 rounded-2xl bg-slate-800/80 border border-emerald-500/30 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-emerald-400">🟢 กองทุนวัตถุดิบ</span>
+                      <span className="text-xs font-mono font-bold text-white bg-emerald-500/20 px-2 py-0.5 rounded-md">40%</span>
+                    </div>
+                    <p className="text-[11px] text-slate-300">เนื้อสัตว์ ผักสด เครื่องปรุง และวัตถุดิบประกอบอาหารทั้งหมด</p>
                   </div>
-                  <p className="text-[11px] text-slate-300 leading-relaxed">
-                    ใช้จ่ายค่าแรงทีมครัว เชฟ R&D พัฒนาสูตรอาหารและโภชนาการ
-                  </p>
-                </div>
-
-                {/* Fund 3: ดำเนินงาน & บิล 20% */}
-                <div className="p-3.5 rounded-2xl bg-slate-800/80 border border-amber-500/30 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-amber-400">⚡ ดำเนินงาน (Ops/Bills)</span>
-                    <span className="text-xs font-mono font-bold text-white bg-amber-500/20 px-2 py-0.5 rounded-md">20%</span>
+                  <div className="p-3 rounded-2xl bg-slate-800/80 border border-amber-500/30 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-amber-400">🟡 ค่าบิล & ถุงซีล</span>
+                      <span className="text-xs font-mono font-bold text-white bg-amber-500/20 px-2 py-0.5 rounded-md">10%</span>
+                    </div>
+                    <p className="text-[11px] text-slate-300">ค่าถุงซีล 2 ชั้น ค่าน้ำ ค่าไฟ ค่าแก๊ส และน้ำยาทำความสะอาด</p>
                   </div>
-                  <p className="text-[11px] text-slate-300 leading-relaxed">
-                    ใช้จ่ายค่าน้ำ ค่าไฟ ค่าแก๊ส ค่าเช่าสถานที่ และค่าการตลาด
-                  </p>
-                </div>
-
-                {/* Fund 4: กำไร & สำรอง 30% */}
-                <div className="p-3.5 rounded-2xl bg-slate-800/80 border border-purple-500/30 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-purple-400">💰 กำไร (Profit/Reserve)</span>
-                    <span className="text-xs font-mono font-bold text-white bg-purple-500/20 px-2 py-0.5 rounded-md">30%</span>
+                  <div className="p-3 rounded-2xl bg-slate-800/80 border border-blue-500/30 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-blue-400">🔵 ค่าแรงคนทำ</span>
+                      <span className="text-xs font-mono font-bold text-white bg-blue-500/20 px-2 py-0.5 rounded-md">14%</span>
+                    </div>
+                    <p className="text-[11px] text-slate-300">จ่ายค่าตอบแทนคนทำอาหารในครัวตามจำนวนแพ็คที่ผลิต</p>
                   </div>
-                  <p className="text-[11px] text-slate-300 leading-relaxed">
-                    กำไรสุทธิของกิจการ และเงินทุนสำรองฉุกเฉินสำหรับขยายสาขา
-                  </p>
                 </div>
-
-                {/* Fund 5: ค่าจัดส่ง 100% */}
-                <div className="p-3.5 rounded-2xl bg-slate-800/80 border border-teal-500/30 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-teal-400">🛵 กองทุนส่ง (Delivery)</span>
-                    <span className="text-xs font-mono font-bold text-white bg-teal-500/20 px-2 py-0.5 rounded-md">100%</span>
-                  </div>
-                  <p className="text-[11px] text-slate-300 leading-relaxed">
-                    แยกค่าจัดส่งออก 100% ไม่นำมาปน เพื่อจ่ายค่ารอบไรเดอร์ ฿45/จุด
-                  </p>
-                </div>
-
               </div>
-            </div>
 
-            {/* ─── 2. ตัวอย่างการคำนวณจริง ─── */}
-            <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-2">
-              <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
-                <CheckCircle2 size={14} className="text-emerald-400" />
-                <span>ตัวอย่างการคำนวณ: ออเดอร์ปิ่นโต ฿299 + ค่าจัดส่ง ฿40 (ยอดรวม ฿339)</span>
-              </h4>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-slate-300 font-mono pt-1">
-                <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800 space-y-1">
-                  <p className="text-slate-400 font-sans font-bold">ขั้นที่ 1: แยกค่าส่งออก 100%</p>
-                  <p>• ยอดรวมที่ลูกค้าชำระ: <strong className="text-white">฿339.00</strong></p>
-                  <p>• หักค่าส่งเข้ากองทุนส่ง: <strong className="text-teal-400">- ฿40.00</strong></p>
-                  <p>• ยอดสุทธิเข้าคำนวณ (Net): <strong className="text-emerald-400">฿299.00</strong></p>
+              {/* Zone 2: Operations & Growth (17%) */}
+              <div className="space-y-1.5 pt-1">
+                <div className="flex items-center gap-2">
+                  <Rocket size={14} className="text-sky-400" />
+                  <span className="text-xs font-bold text-sky-300">โซน 2: การดำเนินงานและการเติบโต (17%)</span>
                 </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <div className="p-3 rounded-2xl bg-slate-800/80 border border-orange-500/30 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-orange-400">🛵 ช่วยค่าส่ง Grab</span>
+                      <span className="text-xs font-mono font-bold text-white bg-orange-500/20 px-2 py-0.5 rounded-md">9%</span>
+                    </div>
+                    <p className="text-[11px] text-slate-300">งบช่วยส่ง 9% + ค่าส่งที่ลูกค้าจ่าย ใช้เบิกจ่ายไรเดอร์ตามรอบจริง</p>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-slate-800/80 border border-purple-500/30 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-purple-400">📢 งบการตลาด (Ads)</span>
+                      <span className="text-xs font-mono font-bold text-white bg-purple-500/20 px-2 py-0.5 rounded-md">4%</span>
+                    </div>
+                    <p className="text-[11px] text-slate-300">สะสมไว้สำหรับยิงโฆษณา Facebook, TikTok และทำคอนเทนต์</p>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-slate-800/80 border border-slate-500/30 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-200">🛠️ ทุนสำรอง/ซ่อมบำรุง</span>
+                      <span className="text-xs font-mono font-bold text-white bg-slate-500/30 px-2 py-0.5 rounded-md">4%</span>
+                    </div>
+                    <p className="text-[11px] text-slate-200">เงินสำรองซ่อมเครื่องซีล ตู้เย็น เตาอบ หรือค่าใช้จ่ายฉุกเฉิน</p>
+                  </div>
+                </div>
+              </div>
 
-                <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800 space-y-1">
-                  <p className="text-slate-400 font-sans font-bold">ขั้นที่ 2: แบ่งยอดสุทธิ ฿299 เข้า 4 กองทุน</p>
-                  <p>• วัตถุดิบ (35%): <strong className="text-emerald-400">฿104.65</strong></p>
-                  <p>• พัฒนา & แรงงาน (15%): <strong className="text-blue-400">฿44.85</strong></p>
-                  <p>• ดำเนินงาน & บิล (20%): <strong className="text-amber-400">฿59.80</strong></p>
-                  <p>• กำไร & สำรอง (30%): <strong className="text-purple-400">฿89.70</strong></p>
+              {/* Zone 3: Bottom Line & Reserves (19% 🔒) */}
+              <div className="space-y-1.5 pt-1">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck size={14} className="text-pink-400" />
+                  <span className="text-xs font-bold text-pink-300">โซน 3: ผลตอบแทนสุทธิและการเงิน (19% 🔒)</span>
+                </div>
+                <div className="p-3 rounded-2xl bg-slate-800/80 border border-pink-500/30">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-bold text-pink-400">🔴 กำไรสุทธิเข้ากระเป๋า (19%)</span>
+                    <span className="text-xs font-mono font-bold text-white bg-pink-500/20 px-2 py-0.5 rounded-md">19%</span>
+                  </div>
+                  <p className="text-[11px] text-slate-200">
+                    กำไรสุทธิ 19% เป็นผลตอบแทนเข้ากระเป๋าเจ้าของกิจการ (ปันผลและสะสมความมั่งคั่ง)
+                  </p>
                 </div>
               </div>
             </div>
 
-            {/* ─── 3. ขั้นตอนการลงบัญชีประจำวัน ─── */}
-            <div className="space-y-2">
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                3. ขั้นตอนการปฏิบัติงานประจำวันของฝ่ายบัญชี (Daily Workflow)
-              </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                <div className="p-3 bg-slate-900/80 rounded-2xl border border-slate-800 space-y-1">
-                  <p className="font-bold text-emerald-400">1. บันทึกรายรับ (Income)</p>
-                  <p className="text-slate-300 text-[11px]">ลงยอดจากลูกค้าปิ่นโตหรือขายหน้าร้าน ระบบจะหักค่าส่งและตัดเข้า 4 กองทุนให้อัตโนมัติ</p>
-                </div>
-                <div className="p-3 bg-slate-900/80 rounded-2xl border border-slate-800 space-y-1">
-                  <p className="font-bold text-rose-400">2. บันทึกรายจ่าย (Expense)</p>
-                  <p className="text-slate-300 text-[11px]">เมื่อซื้อของ ให้เลือกว่าหักจากกองทุนใด เช่น ซื้ออกไก่ → หักกองทุนวัตถุดิบ 35%</p>
-                </div>
-                <div className="p-3 bg-slate-900/80 rounded-2xl border border-slate-800 space-y-1">
-                  <p className="font-bold text-amber-400">3. กระทบยอดเงินสด (Cash Recon)</p>
-                  <p className="text-slate-300 text-[11px]">สิ้นวันนับเงินสดจริงในลิ้นชัก เทียบกับยอดในระบบ หากมีผลต่าง (Variance) ให้ลงบันทึกปิดกะ</p>
+            {/* ─── 2. ตัวอย่างการคำนวณจริง ทั้ง 3 แพ็กเกจมาตรฐาน ─── */}
+            <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1 border-b border-slate-800">
+                <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <CheckCircle2 size={14} className="text-emerald-400" />
+                  <span>ตัวอย่างคำนวณแยกเงินจริง: 3 แพ็กเกจมาตรฐาน (กำไร 19% เต็ม)</span>
+                </h4>
+                <div className="flex gap-1.5">
+                  {(['7 วัน (999฿)', '14 วัน (1,899฿)', '1 เดือน (3,999฿)'] as const).map((tabName, idx) => (
+                    <button
+                      key={tabName}
+                      type="button"
+                      onClick={() => setSelectedPkgTab(idx as 0 | 1 | 2)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                        selectedPkgTab === idx 
+                          ? 'bg-emerald-500 text-white shadow-xs' 
+                          : 'bg-slate-900 text-slate-300 hover:bg-slate-800'
+                      }`}
+                    >
+                      {tabName}
+                    </button>
+                  ))}
                 </div>
               </div>
+
+              {(() => {
+                const pkg = [
+                  {
+                    name: '1. แพ็กเกจ 7 วัน (999 บาท) | 15 มื้อ',
+                    subtitle: 'ราคาเฉลี่ย 66.60 ฿/มื้อ | จัดส่ง 3 รอบ: 6 + 6 + 3 ถุง',
+                    zone1Total: '฿639.36',
+                    zone23Total: '฿359.64',
+                    material: '฿399.60',
+                    materialDesc: 'เฉลี่ย 26.64 ฿/มื้อ — งบเหลือเฟือ อาหารแน่น',
+                    packaging: '฿99.90',
+                    packagingDesc: 'เฉลี่ย 6.66 ฿/มื้อ — คลุมค่าถุง 2 ชั้น + ค่าไฟแก๊ส',
+                    labor: '฿139.86',
+                    laborDesc: 'เฉลี่ย 9.32 ฿/มื้อ — จ่ายคนทำ ~140 บาท',
+                    delivery: '฿89.91',
+                    deliveryDesc: 'ได้งบส่ง 29.97 ฿/รอบ ≈ 30 ฿ × 3 รอบ',
+                    marketing: '฿39.96',
+                    marketingDesc: 'สะสมไว้ค่ายิงแอด',
+                    maintenance: '฿39.96',
+                    maintenanceDesc: 'สะสมซ่อมเครื่องซีล/ตู้เย็น',
+                    profit: '฿189.81',
+                    profitDesc: '19% เต็ม (เฉลี่ย 12.65 ฿/มื้อ — กำไรสุทธิเข้ากระเป๋า CEO 🔒)'
+                  },
+                  {
+                    name: '2. แพ็กเกจ 14 วัน (1,899 บาท) | 30 มื้อ',
+                    subtitle: 'ราคาเฉลี่ย 63.30 ฿/มื้อ | จัดส่ง 5 รอบ: รอบละ 6 ถุง',
+                    zone1Total: '฿1,215.36',
+                    zone23Total: '฿683.64',
+                    material: '฿759.60',
+                    materialDesc: 'เฉลี่ย 25.32 ฿/มื้อ — ชนต้นทุนจริง 25.28 ฿ พอดี',
+                    packaging: '฿189.90',
+                    packagingDesc: 'เฉลี่ย 6.33 ฿/มื้อ',
+                    labor: '฿265.86',
+                    laborDesc: 'เฉลี่ย 8.86 ฿/มื้อ — จ่ายคนทำ ~266 บาท',
+                    delivery: '฿170.91',
+                    deliveryDesc: 'ได้งบส่ง 34.18 ฿/รอบ × 5 รอบ',
+                    marketing: '฿75.96',
+                    marketingDesc: 'สะสมไว้ค่ายิงแอด',
+                    maintenance: '฿75.96',
+                    maintenanceDesc: 'สะสมซ่อมเครื่องซีล/ตู้เย็น',
+                    profit: '฿360.81',
+                    profitDesc: '19% เต็ม (เฉลี่ย 12.03 ฿/มื้อ — กำไรสุทธิเข้ากระเป๋า CEO 🔒)'
+                  },
+                  {
+                    name: '3. แพ็กเกจ 1 เดือน (3,999 บาท) | 63 มื้อ',
+                    subtitle: 'ราคาเฉลี่ย 63.48 ฿/มื้อ | จัดส่ง 11 รอบ: 10 รอบละ 6 ถุง + 1 รอบเศษ 3 ถุง',
+                    zone1Total: '฿2,559.36',
+                    zone23Total: '฿1,439.64',
+                    material: '฿1,599.60',
+                    materialDesc: 'เฉลี่ย 25.39 ฿/มื้อ — สั่งของยกกระสอบ/ลัง ประหยัดขึ้น',
+                    packaging: '฿399.90',
+                    packagingDesc: 'เฉลี่ย 6.35 ฿/มื้อ',
+                    labor: '฿559.86',
+                    laborDesc: 'เฉลี่ย 8.89 ฿/มื้อ — จ่ายคนทำ ~560 บาท',
+                    delivery: '฿359.91',
+                    deliveryDesc: 'ได้งบส่ง 32.72 ฿/รอบ × 11 รอบ',
+                    marketing: '฿159.96',
+                    marketingDesc: 'สะสมไว้ค่ายิงแอด',
+                    maintenance: '฿159.96',
+                    maintenanceDesc: 'สะสมซ่อมเครื่องซีล/ตู้เย็น',
+                    profit: '฿759.81',
+                    profitDesc: '19% เต็ม (เฉลี่ย 12.06 ฿/มื้อ — กำไรสุทธิเข้ากระเป๋า CEO 🔒)'
+                  }
+                ][selectedPkgTab];
+
+                return (
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center justify-between text-xs">
+                      <span className="font-bold text-emerald-400">{pkg.name}</span>
+                      <span className="text-slate-300 font-mono text-[11px]">{pkg.subtitle}</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-slate-200 font-mono pt-1">
+                      <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800 space-y-1">
+                        <p className="text-emerald-300 font-sans font-bold">โซน 1: ต้นทุนตรงการผลิต ({pkg.zone1Total})</p>
+                        <p>• วัตถุดิบ (40%): <strong className="text-emerald-400">{pkg.material}</strong> <span className="text-[11px] text-slate-300 font-sans font-normal">({pkg.materialDesc})</span></p>
+                        <p>• ค่าบิล & ถุงซีล (10%): <strong className="text-amber-400">{pkg.packaging}</strong> <span className="text-[11px] text-slate-300 font-sans font-normal">({pkg.packagingDesc})</span></p>
+                        <p>• ค่าแรงคนทำ (14%): <strong className="text-blue-400">{pkg.labor}</strong> <span className="text-[11px] text-slate-300 font-sans font-normal">({pkg.laborDesc})</span></p>
+                      </div>
+
+                      <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800 space-y-1">
+                        <p className="text-sky-300 font-sans font-bold">โซน 2 & 3: ดำเนินงาน + กำไร ({pkg.zone23Total})</p>
+                        <p>• ช่วยส่ง Grab (9%): <strong className="text-orange-400">{pkg.delivery}</strong> <span className="text-[11px] text-slate-300 font-sans font-normal">({pkg.deliveryDesc})</span></p>
+                        <p>• งบการตลาด (4%): <strong className="text-purple-400">{pkg.marketing}</strong> <span className="text-[11px] text-slate-300 font-sans font-normal">({pkg.marketingDesc})</span></p>
+                        <p>• ทุนสำรองซ่อมบำรุง (4%): <strong className="text-slate-200">{pkg.maintenance}</strong> <span className="text-[11px] text-slate-300 font-sans font-normal">({pkg.maintenanceDesc})</span></p>
+                        <p className="pt-0.5 border-t border-slate-800">
+                          • กำไรสุทธิเข้ากระเป๋า (19%): <strong className="text-pink-400 text-sm">{pkg.profit}</strong> 🔒 <span className="text-[10px] text-slate-300 font-sans block">{pkg.profitDesc}</span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* ─── 3. ทำความเข้าใจความต่างระหว่าง "ค่าบิล" กับ "ค่าดำเนินการเดิม" ─── */}
+            <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-xs space-y-1">
+              <p className="font-bold text-emerald-400">💡 ทำไมจึงไม่มีคำว่า "ค่าดำเนินการ" อีกต่อไป?</p>
+              <p className="text-[11px] text-slate-300 leading-relaxed">
+                ในระบบเดิม 4 กองทุน "ค่าดำเนินการ" ถูกรวมไว้กว้างๆ 20% ทำให้ไม่ชัดเจนว่ารวมอะไรบ้าง<br />
+                ในมาตรฐานใหม่ 7 กองทุน จึงแตกเป็น 4 บัญชีเจาะจง: <strong>ค่าบิล & ถุงซีล (10%)</strong> สำหรับค่าน้ำ/ไฟ/แก๊ส/ถุงซีล, <strong>ช่วยค่าส่ง Grab (9%)</strong> สำหรับไรเดอร์, <strong>การตลาด (4%)</strong> สำหรับยิงแอด, และ <strong>ซ่อมบำรุง (4%)</strong> สำหรับซ่อมอุปกรณ์ครัว ทุกบาทมีชื่อและหน้าที่ชัดเจน 100%
+              </p>
             </div>
 
           </motion.div>

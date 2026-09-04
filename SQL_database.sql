@@ -35,6 +35,7 @@ CREATE TABLE public.members (
   province text,
   postal_code text,
   delivery_time text,
+  preferred_delivery_days integer[] DEFAULT ARRAY[1, 4],
   age_range text,
   occupation text,
   food_preferences jsonb DEFAULT '[]'::jsonb,
@@ -57,6 +58,9 @@ CREATE TABLE public.pinto_packages (
   phone text,
   start_date date,
   delivery_slot text,
+  delivery_days integer[] DEFAULT ARRAY[1, 4],
+  delivery_rounds integer,
+  delivery_rounds_plan jsonb,
   package_code text UNIQUE,
   meals_total integer DEFAULT 0,
   meals_remaining integer DEFAULT 0,
@@ -865,6 +869,13 @@ CREATE TABLE public.erp_settings (
   description text,
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT erp_settings_pkey PRIMARY KEY (key)
+);
+CREATE TABLE public.erp_system_configs (
+  key text NOT NULL,
+  value jsonb NOT NULL,
+  description text,
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT erp_system_configs_pkey PRIMARY KEY (key)
 );
 CREATE TABLE public.erp_shipping_discounts (
   id uuid NOT NULL DEFAULT gen_random_uuid(),

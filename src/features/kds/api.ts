@@ -183,11 +183,11 @@ export const fetchActivePackages = async (): Promise<PintoPackage[]> => {
   const { data, error } = await supabase
     .from('pinto_packages')
     .select(`
-      id, member_id, package_name, days_total, days_remaining, meals_total, meals_remaining, start_date, end_date, status, created_at, buddy_group_id, bonus_meals,
+      id, member_id, package_name, days_total, days_remaining, meals_total, meals_remaining, start_date, end_date, status, created_at, buddy_group_id, bonus_meals, delivery_slot, delivery_days, delivery_rounds, delivery_rounds_plan, price_paid, promotion_id,
       members!pinto_packages_member_id_fkey (
         id, full_name, phone, line_id, avatar_url, date_of_birth, gender, 
         health_goal, allergy_notes, internal_notes, tags, source, member_type,
-        age_range, delivery_time, address, sub_district, district, province, postal_code, food_preferences,
+        age_range, delivery_time, preferred_delivery_days, address, sub_district, district, province, postal_code, food_preferences,
         is_banned, ban_reason
       )
     `)
@@ -249,8 +249,8 @@ export const fetchMemberSchedules = async (startDate: string, endDate: string, p
     .select(`
       id, package_id, member_id, delivery_date, meal_type, menu_item_id, quantity, box_size, delivery_time, kitchen_status, notes, is_extra_order, meal_order_type, is_compensatory,
       menu_items (id, name, category, protein, calories, carbs, fat, image_url, tags),
-      pinto_packages (id, package_name, meals_remaining, buddy_group_id, drop_point:erp_drop_points(name)),
-      members!erp_member_meal_schedules_member_id_fkey (id, full_name, phone, delivery_time, member_type, is_banned)
+      pinto_packages (id, package_name, meals_remaining, buddy_group_id, delivery_days, delivery_rounds_plan, delivery_slot, drop_point:erp_drop_points(name)),
+      members!erp_member_meal_schedules_member_id_fkey (id, full_name, phone, delivery_time, member_type, preferred_delivery_days, is_banned)
     `)
     .gte('delivery_date', startDate)
     .lte('delivery_date', endDate);

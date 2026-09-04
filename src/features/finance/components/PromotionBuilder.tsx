@@ -1,225 +1,295 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '../../../config/supabase';
-import { POOL_CONFIG } from '../types';
-import type { PoolType } from '../types';
 import { toast } from 'sonner';
-import { InfoTooltip } from './InfoTooltip';
 import {
-  Rocket, Receipt, ShieldCheck,
-  Truck, Zap, ChefHat,
-  Save, AlertTriangle, TrendingUp,
-  PieChart as PieIcon, Coins, RotateCcw,
-  Package, Fuel, Home, Star,
-  Percent, Shield, Sparkles, ThumbsUp, ThumbsDown, Minus, Loader2, Tag
+  Receipt, Truck, Zap, Save, RotateCcw,
+  Sparkles, Loader2, Tag, ChevronDown, ChevronUp, CheckCircle2
 } from 'lucide-react';
 
 interface Props {
   isDarkMode?: boolean;
 }
 
+// 📦 Standard Packages Presets (04/08/2569)
+const STANDARD_PRESETS = [
+  {
+    id: 'pinto_7d',
+    name: 'ผูกปิ่นโต 7 วัน (15 มื้อ)',
+    code: 'PINTO_7D_999',
+    price: 999,
+    meals: 15,
+    deliveryRounds: 3,
+    days: 7,
+    tag: 'ทดลองทาน 7 วัน',
+    desc: 'จัดส่ง 3 รอบ (6 + 6 + 3 ถุง) | เฉลี่ย 66.60 ฿/มื้อ | ช่วยส่ง Grab ~30 ฿/รอบ',
+    split: {
+      material: 40,
+      packaging: 10,
+      labor: 14,
+      deliverySub: 9,
+      marketing: 4,
+      maintenance: 4,
+      profit: 19
+    }
+  },
+  {
+    id: 'pinto_14d',
+    name: 'ผูกปิ่นโต 14 วัน (30 มื้อ)',
+    code: 'PINTO_14D_1899',
+    price: 1899,
+    meals: 30,
+    deliveryRounds: 5,
+    days: 14,
+    tag: 'ยอดนิยม 🔥',
+    desc: 'จัดส่ง 5 รอบ (รอบละ 6 ถุง) | เฉลี่ย 63.30 ฿/มื้อ | ช่วยส่ง Grab ~34.18 ฿/รอบ',
+    split: {
+      material: 40,
+      packaging: 10,
+      labor: 14,
+      deliverySub: 9,
+      marketing: 4,
+      maintenance: 4,
+      profit: 19
+    }
+  },
+  {
+    id: 'pinto_30d',
+    name: 'ผูกปิ่นโต 1 เดือน (63 มื้อ)',
+    code: 'PINTO_30D_3999',
+    price: 3999,
+    meals: 63,
+    deliveryRounds: 11,
+    days: 30,
+    tag: 'สุดคุ้ม ⭐️',
+    desc: 'จัดส่ง 11 รอบ (10 รอบละ 6 ถุง + 1 รอบ 3 ถุง) | เฉลี่ย 63.48 ฿/มื้อ | ช่วยส่ง Grab ~32.72 ฿/รอบ',
+    split: {
+      material: 40,
+      packaging: 10,
+      labor: 14,
+      deliverySub: 9,
+      marketing: 4,
+      maintenance: 4,
+      profit: 19
+    }
+  },
+];
+
 const DEFAULTS = {
-  promoName: '', promoCode: '', price: 1799, meals: 30, deliveryCount: 14,
-  includeVat: false, gpPercentage: 0,
-  materialPerMeal: 35, laborPerMeal: 10, packagingPerMeal: 5,
-  deliveryCostPerTrip: 20, gasCostPerTrip: 15,
-  billMonthly: 5000, rentMonthly: 0, adBudget: 1000,
-  depreciationMonthly: 500, insuranceMonthly: 0, contingencyPct: 5,
-  promoCustomers: 10, promoDays: 14,
+  promoName: 'ผูกปิ่นโต 14 วัน (30 มื้อ)',
+  promoCode: 'PINTO_14D_1899',
+  price: 1899,
+  meals: 30,
+  deliveryCount: 5,
+  promoDays: 14,
+  includeVat: false,
+  gpPercentage: 0,
+  promoCustomers: 10,
+  // 7 Fund Percentages
+  materialPct: 40,
+  packagingPct: 10,
+  laborPct: 14,
+  deliverySubPct: 9,
+  marketingPct: 4,
+  maintenancePct: 4,
+  profitPct: 19,
+  // Advanced Overhead (Optional)
+  billMonthly: 0,
+  rentMonthly: 0,
+  depreciationMonthly: 0,
+  insuranceMonthly: 0,
+  contingencyPct: 0
 };
 
 export const PromotionBuilder: React.FC<Props> = ({ isDarkMode = false }) => {
+  const [activePreset, setActivePreset] = useState<string>('pinto_14d');
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+  const [showAdvancedOverhead, setShowAdvancedOverhead] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Form States
   const [promoName, setPromoName] = useState(DEFAULTS.promoName);
   const [promoCode, setPromoCode] = useState(DEFAULTS.promoCode);
   const [price, setPrice] = useState(DEFAULTS.price);
   const [meals, setMeals] = useState(DEFAULTS.meals);
   const [deliveryCount, setDeliveryCount] = useState(DEFAULTS.deliveryCount);
+  const [promoDays, setPromoDays] = useState(DEFAULTS.promoDays);
+  const [promoCustomers, setPromoCustomers] = useState(DEFAULTS.promoCustomers);
   const [includeVat, setIncludeVat] = useState(DEFAULTS.includeVat);
   const [gpPercentage, setGpPercentage] = useState(DEFAULTS.gpPercentage);
-  const [materialPerMeal, setMaterialPerMeal] = useState(DEFAULTS.materialPerMeal);
-  const [laborPerMeal, setLaborPerMeal] = useState(DEFAULTS.laborPerMeal);
-  const [packagingPerMeal, setPackagingPerMeal] = useState(DEFAULTS.packagingPerMeal);
-  const [deliveryCostPerTrip, setDeliveryCostPerTrip] = useState(DEFAULTS.deliveryCostPerTrip);
-  const [gasCostPerTrip, setGasCostPerTrip] = useState(DEFAULTS.gasCostPerTrip);
+
+  // 7 Funds Split States
+  const [materialPct, setMaterialPct] = useState(DEFAULTS.materialPct);
+  const [packagingPct, setPackagingPct] = useState(DEFAULTS.packagingPct);
+  const [laborPct, setLaborPct] = useState(DEFAULTS.laborPct);
+  const [deliverySubPct, setDeliverySubPct] = useState(DEFAULTS.deliverySubPct);
+  const [marketingPct, setMarketingPct] = useState(DEFAULTS.marketingPct);
+  const [maintenancePct, setMaintenancePct] = useState(DEFAULTS.maintenancePct);
+  const [profitPct, setProfitPct] = useState(DEFAULTS.profitPct);
+
+  // Advanced Overhead States
   const [billMonthly, setBillMonthly] = useState(DEFAULTS.billMonthly);
   const [rentMonthly, setRentMonthly] = useState(DEFAULTS.rentMonthly);
-  const [adBudget, setAdBudget] = useState(DEFAULTS.adBudget);
   const [depreciationMonthly, setDepreciationMonthly] = useState(DEFAULTS.depreciationMonthly);
   const [insuranceMonthly, setInsuranceMonthly] = useState(DEFAULTS.insuranceMonthly);
   const [contingencyPct, setContingencyPct] = useState(DEFAULTS.contingencyPct);
-  const [promoCustomers, setPromoCustomers] = useState(DEFAULTS.promoCustomers);
-  const [promoDays, setPromoDays] = useState(DEFAULTS.promoDays);
 
   // --- AUTO-SAVE DRAFT SYSTEM ---
   useEffect(() => {
-    const savedDraft = localStorage.getItem('promotion_builder_draft');
+    const savedDraft = localStorage.getItem('promotion_builder_draft_v3');
     if (savedDraft) {
       try {
         const draft = JSON.parse(savedDraft);
         if (draft.promoName) setPromoName(draft.promoName);
         if (draft.promoCode) setPromoCode(draft.promoCode);
-        if (draft.price) setPrice(draft.price);
-        if (draft.meals) setMeals(draft.meals);
-        if (draft.deliveryCount) setDeliveryCount(draft.deliveryCount);
-        if (draft.includeVat !== undefined) setIncludeVat(draft.includeVat);
-        if (draft.gpPercentage !== undefined) setGpPercentage(draft.gpPercentage);
-        if (draft.materialPerMeal) setMaterialPerMeal(draft.materialPerMeal);
-        if (draft.laborPerMeal) setLaborPerMeal(draft.laborPerMeal);
-        if (draft.packagingPerMeal) setPackagingPerMeal(draft.packagingPerMeal);
-        if (draft.deliveryCostPerTrip) setDeliveryCostPerTrip(draft.deliveryCostPerTrip);
-        if (draft.gasCostPerTrip) setGasCostPerTrip(draft.gasCostPerTrip);
-        if (draft.billMonthly) setBillMonthly(draft.billMonthly);
-        if (draft.rentMonthly) setRentMonthly(draft.rentMonthly);
-        if (draft.adBudget) setAdBudget(draft.adBudget);
-        if (draft.depreciationMonthly) setDepreciationMonthly(draft.depreciationMonthly);
-        if (draft.insuranceMonthly) setInsuranceMonthly(draft.insuranceMonthly);
-        if (draft.contingencyPct) setContingencyPct(draft.contingencyPct);
-        if (draft.promoCustomers) setPromoCustomers(draft.promoCustomers);
-        if (draft.promoDays) setPromoDays(draft.promoDays);
-      } catch (e) { console.error('Error loading draft', e); }
+        if (draft.price !== undefined) setPrice(draft.price);
+        if (draft.meals !== undefined) setMeals(draft.meals);
+        if (draft.deliveryCount !== undefined) setDeliveryCount(draft.deliveryCount);
+        if (draft.promoDays !== undefined) setPromoDays(draft.promoDays);
+        if (draft.materialPct !== undefined) setMaterialPct(draft.materialPct);
+        if (draft.packagingPct !== undefined) setPackagingPct(draft.packagingPct);
+        if (draft.laborPct !== undefined) setLaborPct(draft.laborPct);
+        if (draft.deliverySubPct !== undefined) setDeliverySubPct(draft.deliverySubPct);
+        if (draft.marketingPct !== undefined) setMarketingPct(draft.marketingPct);
+        if (draft.maintenancePct !== undefined) setMaintenancePct(draft.maintenancePct);
+        if (draft.profitPct !== undefined) setProfitPct(draft.profitPct);
+      } catch (e) {
+        console.error('Error loading draft', e);
+      }
     }
   }, []);
 
-  useEffect(() => {
-    const draft = { promoName, promoCode, price, meals, deliveryCount, includeVat, gpPercentage, materialPerMeal, laborPerMeal, packagingPerMeal, billMonthly, rentMonthly, adBudget, deliveryCostPerTrip, gasCostPerTrip, depreciationMonthly, insuranceMonthly, contingencyPct, promoCustomers, promoDays };
-    localStorage.setItem('promotion_builder_draft', JSON.stringify(draft));
-  }, [promoName, promoCode, price, meals, deliveryCount, includeVat, gpPercentage, materialPerMeal, laborPerMeal, packagingPerMeal, billMonthly, rentMonthly, adBudget, deliveryCostPerTrip, gasCostPerTrip, depreciationMonthly, insuranceMonthly, contingencyPct, promoCustomers, promoDays]);
+  const handleApplyPreset = (presetId: string) => {
+    setActivePreset(presetId);
+    const p = STANDARD_PRESETS.find(x => x.id === presetId);
+    if (!p) return;
+    setPromoName(p.name);
+    setPromoCode(p.code);
+    setPrice(p.price);
+    setMeals(p.meals);
+    setDeliveryCount(p.deliveryRounds);
+    setPromoDays(p.days);
+    setMaterialPct(p.split.material);
+    setPackagingPct(p.split.packaging);
+    setLaborPct(p.split.labor);
+    setDeliverySubPct(p.split.deliverySub);
+    setMarketingPct(p.split.marketing);
+    setMaintenancePct(p.split.maintenance);
+    setProfitPct(p.split.profit);
+    toast.success(`โหลดข้อมูลแพ็กเกจ ${p.name} ครบ 7 หมวดเรียบร้อย`);
+  };
 
   const handleSaveDraft = () => {
-    const draft = { promoName, promoCode, price, meals, deliveryCount, includeVat, gpPercentage, materialPerMeal, laborPerMeal, packagingPerMeal, billMonthly, rentMonthly, adBudget, deliveryCostPerTrip, gasCostPerTrip, depreciationMonthly, insuranceMonthly, contingencyPct, promoCustomers, promoDays };
-    localStorage.setItem('promotion_builder_draft', JSON.stringify(draft));
-    toast.success('บันทึกแบบร่างเรียบร้อยแล้ว ข้อมูลจะคงอยู่แม้รีเฟรชหน้าจอ');
+    const draft = {
+      promoName, promoCode, price, meals, deliveryCount, promoDays, promoCustomers,
+      includeVat, gpPercentage, materialPct, packagingPct, laborPct, deliverySubPct,
+      marketingPct, maintenancePct, profitPct
+    };
+    localStorage.setItem('promotion_builder_draft_v3', JSON.stringify(draft));
+    toast.success('บันทึกแบบร่างเรียบร้อยแล้ว');
   };
 
   const handleReset = () => {
-    setPromoName(DEFAULTS.promoName); setPromoCode(DEFAULTS.promoCode); setPrice(DEFAULTS.price); setMeals(DEFAULTS.meals);
-    setDeliveryCount(DEFAULTS.deliveryCount); setIncludeVat(DEFAULTS.includeVat);
-    setGpPercentage(DEFAULTS.gpPercentage); setMaterialPerMeal(DEFAULTS.materialPerMeal);
-    setLaborPerMeal(DEFAULTS.laborPerMeal); setPackagingPerMeal(DEFAULTS.packagingPerMeal);
-    setDeliveryCostPerTrip(DEFAULTS.deliveryCostPerTrip); setGasCostPerTrip(DEFAULTS.gasCostPerTrip);
-    setBillMonthly(DEFAULTS.billMonthly); setRentMonthly(DEFAULTS.rentMonthly);
-    setAdBudget(DEFAULTS.adBudget); setDepreciationMonthly(DEFAULTS.depreciationMonthly);
-    setInsuranceMonthly(DEFAULTS.insuranceMonthly); setContingencyPct(DEFAULTS.contingencyPct);
-    setPromoCustomers(DEFAULTS.promoCustomers); setPromoDays(DEFAULTS.promoDays);
-    localStorage.removeItem('promotion_builder_draft');
-    toast.success('รีเซ็ตค่าทั้งหมดเรียบร้อย');
+    handleApplyPreset('pinto_14d');
+    localStorage.removeItem('promotion_builder_draft_v3');
+    toast.success('รีเซ็ตเป็นค่าเริ่มต้นเรียบร้อย');
   };
 
+  // Calculations
   const calculations = useMemo(() => {
     const gpAmount = +(price * gpPercentage / 100).toFixed(2);
     const afterGp = price - gpAmount;
     const vatAmount = includeVat ? +(afterGp * 7 / 107).toFixed(2) : 0;
     const netRevenue = +(afterGp - vatAmount).toFixed(2);
 
-    const totalMaterial = materialPerMeal * meals;
-    const totalLabor = laborPerMeal * meals;
-    const totalPackaging = packagingPerMeal * meals;
-    const totalDelivery = deliveryCostPerTrip * deliveryCount;
-    const totalGas = gasCostPerTrip * deliveryCount;
-    const allocRatio = promoDays / 30;
-    const totalBills = +(billMonthly * allocRatio).toFixed(2);
-    const totalRent = +(rentMonthly * allocRatio).toFixed(2);
-    const totalDepreciation = +(depreciationMonthly * allocRatio).toFixed(2);
-    const totalInsurance = +(insuranceMonthly * allocRatio).toFixed(2);
-    const totalAds = adBudget;
+    // 7 Funds amounts
+    const materialAmount = +(netRevenue * materialPct / 100).toFixed(2);
+    const packagingAmount = +(netRevenue * packagingPct / 100).toFixed(2);
+    const laborAmount = +(netRevenue * laborPct / 100).toFixed(2);
+    const deliverySubAmount = +(netRevenue * deliverySubPct / 100).toFixed(2);
+    const marketingAmount = +(netRevenue * marketingPct / 100).toFixed(2);
+    const maintenanceAmount = +(netRevenue * maintenancePct / 100).toFixed(2);
+    const profitAmount = +(netRevenue * profitPct / 100).toFixed(2);
 
-    const variableCost = totalMaterial + totalLabor + totalPackaging;
-    const deliveryCost = totalDelivery + totalGas;
-    const fixedCost = totalBills + totalRent + totalAds + totalDepreciation + totalInsurance;
-    const subtotalCost = variableCost + deliveryCost + fixedCost;
-    const contingencyAmount = +(subtotalCost * contingencyPct / 100).toFixed(2);
-    const totalCost = +(subtotalCost + contingencyAmount).toFixed(2);
-    const netProfit = +(netRevenue - totalCost).toFixed(2);
-    const marginPct = netRevenue > 0 ? +((netProfit / netRevenue) * 100).toFixed(2) : 0;
-    const costPerMeal = meals > 0 ? +(totalCost / meals).toFixed(2) : 0;
+    const totalAllocatedPct = materialPct + packagingPct + laborPct + deliverySubPct + marketingPct + maintenancePct + profitPct;
+    const totalCost = +(materialAmount + packagingAmount + laborAmount + deliverySubAmount + marketingAmount + maintenanceAmount).toFixed(2);
+
+    // Per-unit metrics
     const revenuePerMeal = meals > 0 ? +(netRevenue / meals).toFixed(2) : 0;
-    const profitPerMeal = meals > 0 ? +(netProfit / meals).toFixed(2) : 0;
-    const breakEvenMeals = revenuePerMeal > 0 ? Math.ceil(totalCost / revenuePerMeal) : 999;
-    const profitPerCustomer = promoCustomers > 0 ? +(netProfit / promoCustomers).toFixed(2) : 0;
-    const totalRevenueAll = netRevenue * promoCustomers;
-    const totalProfitAll = netProfit * promoCustomers;
+    const costPerMeal = meals > 0 ? +(totalCost / meals).toFixed(2) : 0;
+    const profitPerMeal = meals > 0 ? +(profitAmount / meals).toFixed(2) : 0;
+    const subsidyPerRound = deliveryCount > 0 ? +(deliverySubAmount / deliveryCount).toFixed(2) : 0;
 
-    const opsAmount = deliveryCost + fixedCost + contingencyAmount;
-    const matPct = netRevenue > 0 ? +((totalMaterial / netRevenue) * 100).toFixed(2) : 0;
-    const labPct = netRevenue > 0 ? +((totalLabor / netRevenue) * 100).toFixed(2) : 0;
-    const opsPct = netRevenue > 0 ? +((opsAmount / netRevenue) * 100).toFixed(2) : 0;
-    const profPct = netRevenue > 0 ? +((netProfit / netRevenue) * 100).toFixed(2) : 0;
+    const netMargin = netRevenue > 0 ? +((profitAmount / netRevenue) * 100).toFixed(1) : 0;
 
-    // Promo Score (0-100)
+    // Score
     let score = 50;
-    if (marginPct >= 30) score += 20; else if (marginPct >= 15) score += 10; else if (marginPct < 0) score -= 30;
-    if (costPerMeal < revenuePerMeal * 0.6) score += 10;
-    if (breakEvenMeals <= meals) score += 10; else score -= 10;
-    if (contingencyPct >= 3) score += 5;
-    if (totalPackaging > 0) score += 5;
+    if (netMargin >= 18) score += 30; else if (netMargin >= 10) score += 15; else if (netMargin < 0) score -= 30;
+    if (totalAllocatedPct === 100) score += 20;
     score = Math.max(0, Math.min(100, score));
 
     return {
       gpAmount, vatAmount, netRevenue,
-      totalMaterial, totalLabor, totalPackaging, totalDelivery, totalGas,
-      totalBills, totalRent, totalAds, totalDepreciation, totalInsurance,
-      variableCost, deliveryCost, fixedCost, contingencyAmount,
-      opsAmount, totalCost, netProfit, marginPct,
-      costPerMeal, revenuePerMeal, profitPerMeal, breakEvenMeals,
-      profitPerCustomer, totalRevenueAll, totalProfitAll,
-      score,
-      split: { MATERIAL: matPct, LABOR: labPct, OPS: opsPct, PROFIT: profPct }
+      materialAmount, packagingAmount, laborAmount, deliverySubAmount,
+      marketingAmount, maintenanceAmount, profitAmount,
+      totalCost, totalAllocatedPct,
+      revenuePerMeal, costPerMeal, profitPerMeal, subsidyPerRound,
+      netMargin, score
     };
-  }, [price, meals, deliveryCount, includeVat, gpPercentage, materialPerMeal, laborPerMeal, packagingPerMeal, billMonthly, rentMonthly, adBudget, deliveryCostPerTrip, gasCostPerTrip, depreciationMonthly, insuranceMonthly, contingencyPct, promoCustomers, promoDays]);
+  }, [price, meals, deliveryCount, includeVat, gpPercentage, materialPct, packagingPct, laborPct, deliverySubPct, marketingPct, maintenancePct, profitPct]);
 
   const handleSaveStrategy = async () => {
     if (!promoName) return toast.error('กรุณาตั้งชื่อโปรโมชั่น');
+    if (calculations.totalAllocatedPct !== 100) {
+      return toast.error(`ผลรวมสัดส่วนกองทุนต้องเท่ากับ 100% พอดี (ปัจจุบัน ${calculations.totalAllocatedPct}%)`);
+    }
+
     setIsSubmitting(true);
     try {
-      // 1. Check if a Split Config with this name already exists
+      // 1. Save or update Split Config
+      const resolvedConfigName = promoName;
       const { data: existingConfigs } = await supabase
         .from('erp_split_configs')
         .select('id')
-        .eq('config_name', promoName)
+        .eq('config_name', resolvedConfigName)
         .eq('is_active', true)
         .limit(1);
 
-      let splitDataId: string;
-
-      const configData = {
-        config_name: promoName,
+      const splitConfigPayload = {
+        config_name: resolvedConfigName,
         promotion_type: meals > 1 ? 'PINTO' : 'RETAIL',
-        material_pct: calculations.split.MATERIAL,
-        labor_pct: calculations.split.LABOR,
-        ops_pct: calculations.split.OPS,
-        profit_pct: calculations.split.PROFIT,
+        material_pct: materialPct,
+        packaging_pct: packagingPct,
+        labor_pct: laborPct,
+        delivery_sub_pct: deliverySubPct,
+        marketing_pct: marketingPct,
+        maintenance_pct: maintenancePct,
+        profit_pct: profitPct,
+        ops_pct: 0,
         is_active: true,
-        notes: JSON.stringify({
-          strategy: 'PROMOTION_BUILDER_V2',
-          input: { price, meals, deliveryCount, includeVat, gpPercentage, materialPerMeal, laborPerMeal, packagingPerMeal, billMonthly, rentMonthly, adBudget, deliveryCostPerTrip, gasCostPerTrip, depreciationMonthly, insuranceMonthly, contingencyPct, promoCustomers, promoDays },
-          results: calculations
-        })
+        notes: `สูตรมาตรฐาน 7 กองทุน (04/08/2569): วัตถุดิบ ${materialPct}%, บิล/ถุง ${packagingPct}%, ค่าแรง ${laborPct}%, ช่วยส่ง Grab ${deliverySubPct}%, ตลาด ${marketingPct}%, ซ่อม ${maintenancePct}%, กำไรสุทธิ ${profitPct}%`
       };
 
+      let splitConfigId: string;
+
       if (existingConfigs && existingConfigs.length > 0) {
-        // Update existing
-        splitDataId = existingConfigs[0].id;
-        const { error: updateError } = await supabase
+        splitConfigId = existingConfigs[0].id;
+        const { error: updateErr } = await supabase
           .from('erp_split_configs')
-          .update(configData)
-          .eq('id', splitDataId);
-        
-        if (updateError) throw updateError;
+          .update(splitConfigPayload)
+          .eq('id', splitConfigId);
+        if (updateErr) throw updateErr;
       } else {
-        // Insert new
-        const { data: newData, error: insertError } = await supabase
+        const { data: newCfg, error: insertErr } = await supabase
           .from('erp_split_configs')
-          .insert({ ...configData, is_default: false })
+          .insert({ ...splitConfigPayload, is_default: false })
           .select()
           .single();
-        
-        if (insertError) throw insertError;
-        splitDataId = newData.id;
+        if (insertErr) throw insertErr;
+        splitConfigId = newCfg.id;
       }
 
-      // 2. Save to Promotions (Sales/Marketing)
-      // Check if promotion with same code already exists
+      // 2. Save or update Promotions table
       const resolvedCode = promoCode || promoName.replace(/\s+/g, '_').toUpperCase();
       const promoPayload = {
         name: promoName,
@@ -227,10 +297,11 @@ export const PromotionBuilder: React.FC<Props> = ({ isDarkMode = false }) => {
         price: price,
         meals_count: meals,
         days_count: promoDays,
+        delivery_rounds: deliveryCount,
         promotion_type: meals > 1 ? 'PINTO' : 'RETAIL',
         is_active: true,
-        sales_script: `แพ็กเกจ ${promoName} (${promoCode}) ราคาเพียง ฿${price.toLocaleString()} ได้ทั้งหมด ${meals} มื้อ (เฉลี่ยมื้อละ ฿${calculations.revenuePerMeal}) คุ้มค่าที่สุดสำหรับดูแลสุขภาพต่อเนื่อง ${promoDays} วันค่ะ`,
-        split_config_id: splitDataId,
+        sales_script: `แพ็กเกจ ${promoName} (${resolvedCode}) ราคา ฿${price.toLocaleString()} ได้ ${meals} มื้อ (จัดส่ง ${deliveryCount} รอบ) เฉลี่ยมื้อละ ฿${calculations.revenuePerMeal} งบช่วยส่ง Grab ฿${calculations.subsidyPerRound}/รอบ`,
+        split_config_id: splitConfigId,
         discount_type: 'FIXED',
         discount_value: 0
       };
@@ -242,339 +313,496 @@ export const PromotionBuilder: React.FC<Props> = ({ isDarkMode = false }) => {
         .limit(1);
 
       if (existingPromo && existingPromo.length > 0) {
-        const { error: promoError } = await supabase
+        const { error: promoErr } = await supabase
           .from('promotions')
           .update(promoPayload)
           .eq('id', existingPromo[0].id);
-        if (promoError) throw promoError;
+        if (promoErr) throw promoErr;
       } else {
-        const { error: promoError } = await supabase
+        const { error: promoErr } = await supabase
           .from('promotions')
           .insert(promoPayload);
-        if (promoError) throw promoError;
+        if (promoErr) throw promoErr;
       }
 
-      toast.success('บันทึกแผนกลยุทธ์และโปรโมชั่นเรียบร้อยแล้ว');
-    } catch (err: any) { toast.error('ล้มเหลว: ' + err.message); }
-    finally { setIsSubmitting(false); }
+      toast.success('บันทึกแผนกลยุทธ์โปรโมชั่น 7 กองทุนเรียบร้อยแล้ว!');
+    } catch (err: any) {
+      toast.error('ล้มเหลว: ' + err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const card = isDarkMode ? 'bg-slate-800/40 border-slate-700/50' : 'bg-white border-slate-200 shadow-sm';
   const input = isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-slate-50 border-slate-200 text-slate-700';
-  const numInput = (val: number, set: (n: number) => void) => ({
-    value: val === 0 ? '' : val,
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
-      const v = e.target.value;
-      if (v === '') set(0); else { const num = Number(v); if (!isNaN(num)) set(num); }
-    }
-  });
-
-  const scoreColor = calculations.score >= 70 ? 'text-emerald-500' : calculations.score >= 40 ? 'text-amber-500' : 'text-red-500';
-  const scoreBg = calculations.score >= 70 ? 'bg-emerald-500/10 border-emerald-500/30' : calculations.score >= 40 ? 'bg-amber-500/10 border-amber-500/30' : 'bg-red-500/10 border-red-500/30';
-  const scoreLabel = calculations.score >= 70 ? 'โปรนี้ดีมาก!' : calculations.score >= 40 ? 'พอใช้ได้ ลองปรับเพิ่ม' : 'เสี่ยงขาดทุน ต้องปรับ';
-  const scoreIcon = calculations.score >= 70 ? <ThumbsUp size={16} /> : calculations.score >= 40 ? <Minus size={16} /> : <ThumbsDown size={16} />;
-
-  const container = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } } };
-  const item = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } };
 
   return (
-    <motion.div variants={container} initial="hidden" animate="show" className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-      <motion.div variants={item} className="lg:col-span-5 space-y-4">
-        <div className={`p-5 rounded-3xl border transition-all ${card}`}>
-           <div className="flex items-center gap-3 mb-5">
-              <motion.div whileHover={{ rotate: 15, scale: 1.1 }} className="w-10 h-10 rounded-2xl bg-indigo-500 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20"><Rocket size={20} /></motion.div>
-              <div>
-                 <h3 className="text-lg font-bold">Promotion Builder</h3>
-                 <p className="text-[10px] text-slate-500 font-medium uppercase tracking-widest">สร้างกลยุทธ์ราคาและกำไร</p>
-              </div>
-           </div>
-
-           <div className="space-y-3">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                     <div className="flex items-center justify-between">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5"><Receipt size={10} className="text-indigo-500" /> ชื่อโปรโมชั่น</label>
-                     </div>
-                     <input type="text" value={promoName} onChange={(e) => setPromoName(e.target.value)} placeholder="เช่น โปร 5.5 ลดกระหน่ำ..." className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none transition-all border ${isDarkMode ? 'bg-slate-800/50 border-slate-700 focus:border-indigo-500 text-white' : 'bg-slate-50 border-slate-200 focus:border-indigo-500 focus:bg-white'}`} />
-                  </div>
-                  <div className="space-y-1.5">
-                     <div className="flex items-center justify-between">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5"><Tag size={10} className="text-emerald-500" /> รหัสโปรโมชั่น (Code)</label>
-                     </div>
-                     <input type="text" value={promoCode} onChange={(e) => setPromoCode(e.target.value.toUpperCase().replace(/\s+/g, ''))} placeholder="เช่น PINTO1799" className={`w-full px-4 py-2.5 rounded-xl text-sm font-mono outline-none transition-all border ${isDarkMode ? 'bg-slate-800/50 border-slate-700 focus:border-emerald-500 text-white' : 'bg-slate-50 border-slate-200 focus:border-emerald-500 focus:bg-white'}`} />
-                  </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                 <div>
-                    <label className="text-[10px] font-bold text-slate-400 mb-1 uppercase flex items-center">ราคาขาย (฿)<InfoTooltip text="ราคาที่ลูกค้าจ่ายจริง รวมทุกอย่างแล้ว ก่อนหักค่า GP" isDarkMode={isDarkMode} /></label>
-                    <input type="number" {...numInput(price, setPrice)} className={`w-full p-2.5 rounded-xl border outline-none focus:border-indigo-500 transition-all font-bold text-sm ${input}`} />
-                 </div>
-                 <div>
-                    <label className="text-[10px] font-bold text-slate-400 mb-1 uppercase flex items-center">จำนวนมื้อ<InfoTooltip text="จำนวนมื้ออาหารทั้งหมดในแพ็กเกจนี้ เช่น 30 มื้อ" isDarkMode={isDarkMode} /></label>
-                    <input type="number" {...numInput(meals, setMeals)} className={`w-full p-2.5 rounded-xl border outline-none focus:border-indigo-500 transition-all font-bold text-sm ${input}`} />
-                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                 <div>
-                    <label className="text-[10px] font-bold text-slate-400 mb-1 uppercase flex items-center">ระยะเวลาโปร (วัน)<InfoTooltip text="จำนวนวันที่โปรนี้ใช้ได้ ใช้คำนวณส่วนแบ่งค่าใช้จ่ายรายเดือน" isDarkMode={isDarkMode} /></label>
-                    <input type="number" {...numInput(promoDays, setPromoDays)} className={`w-full p-2.5 rounded-xl border outline-none focus:border-indigo-500 transition-all font-bold text-sm ${input}`} />
-                 </div>
-                 <div>
-                    <label className="text-[10px] font-bold text-slate-400 mb-1 uppercase flex items-center">จำนวนลูกค้า<InfoTooltip text="จำนวนลูกค้าที่คาดว่าจะซื้อโปรนี้ ใช้คำนวณกำไรรวมทั้งหมด" isDarkMode={isDarkMode} /></label>
-                    <input type="number" {...numInput(promoCustomers, setPromoCustomers)} className={`w-full p-2.5 rounded-xl border outline-none focus:border-indigo-500 transition-all font-bold text-sm ${input}`} />
-                 </div>
-              </div>
-
-              <div className="p-3 bg-amber-500/5 rounded-xl border border-dashed border-amber-300/50 space-y-2">
-                 <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                       <Receipt size={16} className="text-amber-500" />
-                       <span className="text-xs font-medium">รวม VAT 7% ในราคาแล้ว</span>
-                       <InfoTooltip text="เปิดหากราคาที่ตั้งรวม VAT แล้ว ระบบจะถอด VAT ออกจากรายรับให้อัตโนมัติ" isDarkMode={isDarkMode} />
-                    </div>
-                    <button onClick={() => setIncludeVat(!includeVat)} className={`w-11 h-5 rounded-full transition-all relative ${includeVat ? 'bg-emerald-500' : 'bg-slate-300'}`}>
-                       <motion.div animate={{ x: includeVat ? 22 : 0 }} className="absolute top-0.5 w-4 h-4 bg-white rounded-full left-0.5" />
-                    </button>
-                 </div>
-                 <p className="text-[9px] text-amber-600/80 flex items-center gap-1"><Shield size={10} /> ร้านยังไม่จดทะเบียน VAT — ไม่มีหน้าที่เก็บ VAT จากลูกค้า แต่ใช้จำลองเพื่อวางแผนอนาคต</p>
-              </div>
-
-              <div className="space-y-2 pt-1">
-                 <p className="text-[10px] font-bold text-indigo-500 uppercase flex items-center gap-1"><ChefHat size={13} /> ต้นทุนผันแปร (Variable)<InfoTooltip text="ต้นทุนที่เพิ่มขึ้นตามจำนวนมื้อ ยิ่งขายมาก ยิ่งจ่ายมาก" isDarkMode={isDarkMode} /></p>
-                 <div className="grid grid-cols-3 gap-2">
-                    <div className={`p-2.5 rounded-xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                       <label className="text-[9px] font-bold text-slate-400 block mb-0.5 flex items-center">วัตถุดิบ/มื้อ</label>
-                       <input type="number" {...numInput(materialPerMeal, setMaterialPerMeal)} className="w-full bg-transparent border-none outline-none font-bold text-sm" />
-                    </div>
-                    <div className={`p-2.5 rounded-xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                       <label className="text-[9px] font-bold text-slate-400 block mb-0.5 flex items-center">ค่าแรง/มื้อ</label>
-                       <input type="number" {...numInput(laborPerMeal, setLaborPerMeal)} className="w-full bg-transparent border-none outline-none font-bold text-sm" />
-                    </div>
-                    <div className={`p-2.5 rounded-xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                       <label className="text-[9px] font-bold text-slate-400 block mb-0.5 flex items-center"><Package size={10} className="mr-0.5" /> แพ็กเกจ/มื้อ</label>
-                       <input type="number" {...numInput(packagingPerMeal, setPackagingPerMeal)} className="w-full bg-transparent border-none outline-none font-bold text-sm" />
-                    </div>
-                 </div>
-              </div>
-
-              <div className="space-y-2 pt-1">
-                 <p className="text-[10px] font-bold text-amber-500 uppercase flex items-center gap-1"><Truck size={13} /> จัดส่งและแพลตฟอร์ม</p>
-                 <div className="grid grid-cols-2 gap-2">
-                    <div className={`p-2.5 rounded-xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                       <label className="text-[9px] font-bold text-slate-400 block mb-0.5 flex items-center">รอบส่ง</label>
-                       <input type="number" {...numInput(deliveryCount, setDeliveryCount)} className="w-full bg-transparent border-none outline-none font-bold text-sm" />
-                    </div>
-                    <div className={`p-2.5 rounded-xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                       <label className="text-[9px] font-bold text-slate-400 block mb-0.5 flex items-center">ค่าส่ง/รอบ</label>
-                       <input type="number" {...numInput(deliveryCostPerTrip, setDeliveryCostPerTrip)} className="w-full bg-transparent border-none outline-none font-bold text-sm" />
-                    </div>
-                 </div>
-                 <div className="grid grid-cols-2 gap-2">
-                    <div className={`p-2.5 rounded-xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                       <label className="text-[9px] font-bold text-slate-400 block mb-0.5 flex items-center"><Fuel size={10} className="mr-0.5" /> น้ำมัน/รอบ</label>
-                       <input type="number" {...numInput(gasCostPerTrip, setGasCostPerTrip)} className="w-full bg-transparent border-none outline-none font-bold text-sm" />
-                    </div>
-                    <div className={`p-2.5 rounded-xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                       <label className="text-[9px] font-bold text-slate-400 block mb-0.5 flex items-center">GP แพลตฟอร์ม (%)</label>
-                       <input type="number" {...numInput(gpPercentage, setGpPercentage)} className="w-full bg-transparent border-none outline-none font-bold text-sm" />
-                    </div>
-                 </div>
-              </div>
-
-              <div className="space-y-2 pt-1">
-                 <p className="text-[10px] font-bold text-red-500 uppercase flex items-center gap-1"><Zap size={13} /> ค่าใช้จ่ายคงที่ (Fixed)</p>
-                 <div className="grid grid-cols-2 gap-2">
-                    <div className={`p-2.5 rounded-xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                       <label className="text-[9px] font-bold text-slate-400 block mb-0.5 flex items-center">ค่าน้ำ/ไฟ/เน็ต</label>
-                       <input type="number" {...numInput(billMonthly, setBillMonthly)} className="w-full bg-transparent border-none outline-none font-bold text-sm" />
-                    </div>
-                    <div className={`p-2.5 rounded-xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                       <label className="text-[9px] font-bold text-slate-400 block mb-0.5 flex items-center"><Home size={10} className="mr-0.5" /> ค่าเช่า/เดือน</label>
-                       <input type="number" {...numInput(rentMonthly, setRentMonthly)} className="w-full bg-transparent border-none outline-none font-bold text-sm" />
-                    </div>
-                 </div>
-                 <div className="grid grid-cols-3 gap-2">
-                    <div className={`p-2.5 rounded-xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                       <label className="text-[9px] font-bold text-slate-400 block mb-0.5 flex items-center">โฆษณา</label>
-                       <input type="number" {...numInput(adBudget, setAdBudget)} className="w-full bg-transparent border-none outline-none font-bold text-sm" />
-                    </div>
-                    <div className={`p-2.5 rounded-xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                       <label className="text-[9px] font-bold text-slate-400 block mb-0.5 flex items-center">ค่าเสื่อม</label>
-                       <input type="number" {...numInput(depreciationMonthly, setDepreciationMonthly)} className="w-full bg-transparent border-none outline-none font-bold text-sm" />
-                    </div>
-                    <div className={`p-2.5 rounded-xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                       <label className="text-[9px] font-bold text-slate-400 block mb-0.5 flex items-center">ประกัน</label>
-                       <input type="number" {...numInput(insuranceMonthly, setInsuranceMonthly)} className="w-full bg-transparent border-none outline-none font-bold text-sm" />
-                    </div>
-                 </div>
-              </div>
-
-              <div className={`p-3 rounded-xl border ${isDarkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                 <label className="text-[9px] font-bold text-slate-400 block mb-0.5 flex items-center"><Percent size={10} className="mr-0.5" /> สำรองฉุกเฉิน (%)</label>
-                 <input type="number" {...numInput(contingencyPct, setContingencyPct)} className="w-full bg-transparent border-none outline-none font-bold text-sm" />
-              </div>
-           </div>
+    <div className="space-y-6">
+      {/* 🚀 Preset Header Bar */}
+      <div className={`p-4 rounded-3xl border transition-all ${card}`}>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-3">
+          <div>
+            <h3 className="text-sm font-semibold flex items-center gap-2">
+              <Sparkles size={16} className="text-amber-500" />
+              เทมเพลตมาตรฐาน Clean Food CR (อัปเดต 04/08/2569)
+            </h3>
+            <p className="text-xs text-slate-500 font-normal">คลิกเลือกแพ็กเกจเพื่อโหลดตัวเลขสัดส่วน 7 กองทุนและรอบจัดส่งอัตโนมัติ</p>
+          </div>
+          <span className="text-[11px] font-mono px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 font-medium self-start md:self-auto">
+            100% Balanced Pool
+          </span>
         </div>
-      </motion.div>
 
-      <motion.div variants={item} className="lg:col-span-7 space-y-4">
-         <div className={`p-6 rounded-3xl border transition-all relative overflow-hidden ${card}`}>
-            <div className="relative z-10 space-y-5">
-               <div className="flex justify-between items-start">
-                  <div>
-                     <h3 className="text-xl font-bold">วิเคราะห์กำไรสุทธิ</h3>
-                     <p className="text-xs text-slate-500">Net Profitability Analysis</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                     <div className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 border ${scoreBg} ${scoreColor}`}>
-                        <Sparkles size={14} /> คะแนน: {calculations.score}/100
-                     </div>
-                     <div className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 ${calculations.marginPct >= 15 ? 'bg-emerald-500/10 text-emerald-600' : 'bg-red-500/10 text-red-600'}`}>
-                        {calculations.marginPct >= 15 ? <ShieldCheck size={14} /> : <AlertTriangle size={14} />}
-                        {calculations.marginPct}%
-                     </div>
-                  </div>
-               </div>
-
-               <div className={`p-3 rounded-xl border flex items-center gap-3 ${scoreBg}`}>
-                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${scoreColor} ${calculations.score >= 70 ? 'bg-emerald-500/20' : calculations.score >= 40 ? 'bg-amber-500/20' : 'bg-red-500/20'}`}>{scoreIcon}</div>
-                  <div>
-                     <p className={`text-sm font-bold ${scoreColor}`}>{scoreLabel}</p>
-                     <p className="text-[10px] text-slate-500">{calculations.score >= 70 ? 'Margin ดี ต้นทุนคุม Break-even ได้' : calculations.score >= 40 ? 'ลองปรับราคาหรือลดต้นทุนเพิ่ม' : 'ต้นทุนเกินรายรับ ต้องปรับโครงสร้างราคาใหม่'}</p>
-                  </div>
-               </div>
-
-               <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 rounded-2xl bg-indigo-500 text-white shadow-lg shadow-indigo-500/20">
-                     <p className="text-[10px] opacity-80 uppercase font-bold mb-0.5">รายรับสุทธิ (1 คน)</p>
-                     <p className="text-2xl font-black">฿{calculations.netRevenue.toLocaleString()}</p>
-                     <div className="mt-2 pt-2 border-t border-white/20 flex justify-between text-[9px]">
-                        <span>GP: -฿{calculations.gpAmount}</span>
-                        <span>VAT: -฿{calculations.vatAmount}</span>
-                     </div>
-                  </div>
-                  <div className={`p-4 rounded-2xl text-white shadow-lg ${calculations.netProfit > 0 ? 'bg-emerald-500 shadow-emerald-500/20' : 'bg-red-500 shadow-red-500/20'}`}>
-                     <p className="text-[10px] opacity-80 uppercase font-bold mb-0.5">กำไรสุทธิ (1 คน)</p>
-                     <p className="text-2xl font-black">฿{calculations.netProfit.toLocaleString()}</p>
-                     <p className="mt-2 text-[9px] flex items-center gap-1">
-                        <TrendingUp size={10} /> {calculations.netProfit > 0 ? 'แผนนี้สร้างกำไรได้จริง' : 'ขาดทุน ต้องปรับราคาหรือต้นทุน'}
-                     </p>
-                  </div>
-               </div>
-
-               {/* Per-Meal & Break-Even Metrics */}
-               <div className="grid grid-cols-4 gap-2">
-                  <div className={`p-3 rounded-xl border text-center ${isDarkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                     <p className="text-[9px] text-slate-400 font-bold uppercase">รายรับ/มื้อ</p>
-                     <p className="text-sm font-black text-indigo-500">฿{calculations.revenuePerMeal}</p>
-                  </div>
-                  <div className={`p-3 rounded-xl border text-center ${isDarkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                     <p className="text-[9px] text-slate-400 font-bold uppercase">ต้นทุน/มื้อ</p>
-                     <p className="text-sm font-black text-red-500">฿{calculations.costPerMeal}</p>
-                  </div>
-                  <div className={`p-3 rounded-xl border text-center ${isDarkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                     <p className="text-[9px] text-slate-400 font-bold uppercase">กำไร/มื้อ</p>
-                     <p className={`text-sm font-black ${calculations.profitPerMeal >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>฿{calculations.profitPerMeal}</p>
-                  </div>
-                  <div className={`p-3 rounded-xl border text-center ${isDarkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
-                     <p className="text-[9px] text-slate-400 font-bold uppercase">จุดคุ้มทุน</p>
-                     <p className={`text-sm font-black ${calculations.breakEvenMeals <= meals ? 'text-emerald-500' : 'text-amber-500'}`}>{calculations.breakEvenMeals} มื้อ</p>
-                  </div>
-               </div>
-
-               {/* Multi-Customer Projection */}
-               <div className={`p-4 rounded-xl border ${isDarkMode ? 'bg-indigo-500/5 border-indigo-500/20' : 'bg-indigo-50 border-indigo-100'}`}>
-                  <p className="text-[10px] font-bold text-indigo-500 uppercase mb-2 flex items-center gap-1"><Star size={12} /> ประมาณการรวม ({promoCustomers} ลูกค้า)</p>
-                  <div className="grid grid-cols-3 gap-3 text-center">
-                     <div><p className="text-[9px] text-slate-400">รายรับรวม</p><p className="text-sm font-black text-indigo-600">฿{calculations.totalRevenueAll.toLocaleString()}</p></div>
-                     <div><p className="text-[9px] text-slate-400">ต้นทุนรวม</p><p className="text-sm font-black text-red-500">฿{(calculations.totalCost * promoCustomers).toLocaleString()}</p></div>
-                     <div><p className="text-[9px] text-slate-400">กำไรรวม</p><p className={`text-sm font-black ${calculations.totalProfitAll >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>฿{calculations.totalProfitAll.toLocaleString()}</p></div>
-                  </div>
-               </div>
-
-               {/* Split Structure */}
-               <div className="space-y-3">
-                  <h4 className="text-[10px] font-bold text-slate-400 uppercase flex items-center gap-1"><PieIcon size={12} /> โครงสร้าง Split</h4>
-                  <div className="flex h-8 rounded-xl overflow-hidden shadow-inner">
-                     {Object.entries(calculations.split).map(([key, pct]) => {
-                        const cfg = POOL_CONFIG[key as PoolType];
-                        const absPct = Math.abs(pct as number);
-                        return <div key={key} style={{ width: `${Math.max(absPct, 2)}%`, backgroundColor: cfg.color }} className="h-full flex items-center justify-center text-[9px] font-bold text-white">{absPct > 8 && `${pct}%`}</div>;
-                     })}
-                  </div>
-                  <div className="grid grid-cols-4 gap-2">
-                     {Object.entries(calculations.split).map(([key, pct]) => {
-                        const cfg = POOL_CONFIG[key as PoolType];
-                        return (
-                           <div key={key} className={`flex items-center gap-1.5 p-2 rounded-lg border ${isDarkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 border-slate-100'}`}>
-                              <span className="text-sm">{cfg.icon}</span>
-                              <div className="min-w-0">
-                                 <p className="text-[8px] font-bold text-slate-400 uppercase">{cfg.label}</p>
-                                 <p className="text-xs font-bold" style={{ color: cfg.color }}>{pct}%</p>
-                              </div>
-                           </div>
-                        );
-                     })}
-                  </div>
-               </div>
-
-               {/* Cost Breakdown */}
-               <div className={`p-4 rounded-xl border space-y-2 ${isDarkMode ? 'bg-slate-900/30 border-slate-700' : 'bg-slate-50 border-slate-100'}`}>
-                  <div className="flex items-center gap-1.5 mb-1"><Coins size={14} className="text-slate-400" /><h4 className="text-xs font-bold">เจาะลึกต้นทุน</h4></div>
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-xs">
-                     <div className="flex justify-between"><span className="text-slate-500">วัตถุดิบ</span><span className="font-bold">฿{calculations.totalMaterial.toLocaleString()}</span></div>
-                     <div className="flex justify-between"><span className="text-slate-500">ค่าแรง</span><span className="font-bold">฿{calculations.totalLabor.toLocaleString()}</span></div>
-                     <div className="flex justify-between"><span className="text-slate-500">บรรจุภัณฑ์</span><span className="font-bold">฿{calculations.totalPackaging.toLocaleString()}</span></div>
-                     <div className="flex justify-between"><span className="text-slate-500">จัดส่ง+น้ำมัน</span><span className="font-bold">฿{(calculations.totalDelivery + calculations.totalGas).toLocaleString()}</span></div>
-                     <div className="flex justify-between"><span className="text-slate-500">สาธารณูปโภค</span><span className="font-bold">฿{calculations.totalBills.toLocaleString()}</span></div>
-                     <div className="flex justify-between"><span className="text-slate-500">ค่าเช่า</span><span className="font-bold">฿{calculations.totalRent.toLocaleString()}</span></div>
-                     <div className="flex justify-between"><span className="text-slate-500">โฆษณา</span><span className="font-bold">฿{calculations.totalAds.toLocaleString()}</span></div>
-                     <div className="flex justify-between"><span className="text-slate-500">ค่าเสื่อม+ประกัน</span><span className="font-bold">฿{(calculations.totalDepreciation + calculations.totalInsurance).toLocaleString()}</span></div>
-                     <div className="flex justify-between col-span-2 text-amber-600"><span>สำรองฉุกเฉิน ({contingencyPct}%)</span><span className="font-bold">฿{calculations.contingencyAmount.toLocaleString()}</span></div>
-                  </div>
-                  <div className="h-px bg-slate-200 dark:bg-slate-700" />
-                  <div className="flex justify-between items-center">
-                     <span className="text-xs font-bold uppercase">ต้นทุนรวม:</span>
-                     <span className="text-lg font-black">฿{calculations.totalCost.toLocaleString()}</span>
-                  </div>
-               </div>
-
-                {/* Action Buttons */}
-                <div className="flex gap-3 pt-1">
-                   <motion.button 
-                     whileTap={{ scale: 0.97 }} 
-                     onClick={handleReset} 
-                     className={`flex-1 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${isDarkMode ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                   >
-                     <RotateCcw size={16} /> ล้างข้อมูล
-                   </motion.button>
-                   
-                   <motion.button 
-                     whileTap={{ scale: 0.97 }} 
-                     onClick={handleSaveDraft} 
-                     className={`flex-1 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${isDarkMode ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'bg-indigo-50 text-indigo-600 border border-indigo-100'}`}
-                   >
-                     <Save size={16} /> บันทึกร่าง
-                   </motion.button>
-
-                   <motion.button 
-                     whileTap={{ scale: 0.97 }} 
-                     onClick={handleSaveStrategy} 
-                     disabled={isSubmitting}
-                     className="flex-[2] py-3 rounded-xl bg-indigo-600 text-white font-bold text-sm shadow-lg shadow-indigo-600/30 hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
-                   >
-                     {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Rocket size={16} />} 
-                     บันทึกโปรโมชั่นจริง
-                   </motion.button>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {STANDARD_PRESETS.map(preset => {
+            const isSelected = activePreset === preset.id;
+            return (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => handleApplyPreset(preset.id)}
+                className={`p-3 rounded-2xl border text-left transition-all relative overflow-hidden ${
+                  isSelected 
+                    ? 'border-emerald-500 bg-emerald-500/10 shadow-sm ring-1 ring-emerald-500/30' 
+                    : isDarkMode ? 'border-slate-700 bg-slate-900/40 hover:border-slate-600' : 'border-slate-200 bg-slate-50 hover:border-slate-300'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-semibold">{preset.name}</span>
+                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-600">
+                    ฿{preset.price.toLocaleString()}
+                  </span>
                 </div>
+                <p className="text-[11px] text-slate-500 font-normal line-clamp-1">{preset.desc}</p>
+                {isSelected && (
+                  <div className="absolute top-0 right-0 w-2 h-2 rounded-bl-lg bg-emerald-500" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Main Builder Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left Column: 3-Step Wizard Inputs (5 cols) */}
+        <div className="lg:col-span-6 space-y-4">
+          <div className={`p-5 rounded-3xl border transition-all ${card}`}>
+            {/* Step Selector Navigation */}
+            <div className="flex items-center justify-between border-b pb-3 mb-4 border-slate-200 dark:border-slate-700">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(1)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 ${
+                    currentStep === 1 
+                      ? 'bg-indigo-500 text-white shadow-sm font-semibold' 
+                      : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <span>1.</span> ข้อมูลแพ็กเกจ
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(2)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 ${
+                    currentStep === 2 
+                      ? 'bg-indigo-500 text-white shadow-sm font-semibold' 
+                      : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <span>2.</span> 7 กองทุน
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(3)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 ${
+                    currentStep === 3 
+                      ? 'bg-indigo-500 text-white shadow-sm font-semibold' 
+                      : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  <span>3.</span> ค่าใช้จ่ายเสริม
+                </button>
+              </div>
+              <span className="text-[11px] text-slate-400 font-normal">ขั้นตอนที่ {currentStep}/3</span>
             </div>
 
-            {/* Background Decoration */}
-            <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-            <div className="absolute bottom-0 left-0 w-48 h-48 bg-emerald-500/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
-         </div>
-      </motion.div>
-    </motion.div>
+            {/* STEP 1: Package Essentials */}
+            {currentStep === 1 && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                      <Receipt size={12} className="text-indigo-500" /> ชื่อแพ็กเกจ
+                    </label>
+                    <input
+                      type="text"
+                      value={promoName}
+                      onChange={e => setPromoName(e.target.value)}
+                      placeholder="เช่น ผูกปิ่นโต 14 วัน (30 มื้อ)"
+                      className={`w-full px-3.5 py-2 rounded-xl text-sm border outline-none font-medium ${input}`}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                      <Tag size={12} className="text-emerald-500" /> รหัสโปร (Code)
+                    </label>
+                    <input
+                      type="text"
+                      value={promoCode}
+                      onChange={e => setPromoCode(e.target.value.toUpperCase().replace(/\s+/g, ''))}
+                      placeholder="เช่น PINTO_14D_1899"
+                      className={`w-full px-3.5 py-2 rounded-xl text-sm font-mono border outline-none font-medium ${input}`}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2.5 pt-1">
+                  <div>
+                    <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 block">ราคาขาย (฿)</label>
+                    <input
+                      type="number"
+                      value={price || ''}
+                      onChange={e => setPrice(Number(e.target.value) || 0)}
+                      className={`w-full p-2.5 rounded-xl border outline-none font-semibold text-sm text-emerald-600 ${input}`}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 block">จำนวนมื้อ</label>
+                    <input
+                      type="number"
+                      value={meals || ''}
+                      onChange={e => setMeals(Number(e.target.value) || 0)}
+                      className={`w-full p-2.5 rounded-xl border outline-none font-semibold text-sm text-indigo-600 ${input}`}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 block flex items-center gap-1">
+                      <Truck size={12} className="text-orange-500" /> รอบส่งจริง
+                    </label>
+                    <input
+                      type="number"
+                      value={deliveryCount || ''}
+                      onChange={e => setDeliveryCount(Number(e.target.value) || 0)}
+                      className={`w-full p-2.5 rounded-xl border outline-none font-semibold text-sm text-orange-600 ${input}`}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 block">ระยะเวลาคอร์ส (วัน)</label>
+                    <input
+                      type="number"
+                      value={promoDays || ''}
+                      onChange={e => setPromoDays(Number(e.target.value) || 0)}
+                      className={`w-full p-2.5 rounded-xl border outline-none font-medium text-xs ${input}`}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 block">จำลองลูกค้า (คน)</label>
+                    <input
+                      type="number"
+                      value={promoCustomers || ''}
+                      onChange={e => setPromoCustomers(Number(e.target.value) || 0)}
+                      className={`w-full p-2.5 rounded-xl border outline-none font-medium text-xs ${input}`}
+                    />
+                  </div>
+                </div>
+
+                {/* VAT & GP Switches */}
+                <div className="p-3 bg-amber-500/5 rounded-xl border border-dashed border-amber-300/50 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Receipt size={15} className="text-amber-500" />
+                      <span className="text-xs font-medium">รวม VAT 7% ในราคาขาย</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIncludeVat(!includeVat)}
+                      className={`w-11 h-5 rounded-full transition-all relative ${includeVat ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                    >
+                      <motion.div animate={{ x: includeVat ? 22 : 0 }} className="absolute top-0.5 w-4 h-4 bg-white rounded-full left-0.5" />
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between pt-1.5 border-t border-amber-200/40">
+                    <span className="text-xs font-medium">หัก GP แพลตฟอร์ม (Lineman/Grab)</span>
+                    <div className="flex items-center gap-1 font-mono">
+                      <input
+                        type="number"
+                        value={gpPercentage || ''}
+                        onChange={e => setGpPercentage(Number(e.target.value) || 0)}
+                        placeholder="0"
+                        className="w-14 text-right px-2 py-0.5 rounded-lg border text-xs font-bold outline-none dark:bg-slate-800"
+                      />
+                      <span className="text-[10px] text-slate-400">%</span>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(2)}
+                  className="w-full py-2.5 mt-2 rounded-xl bg-indigo-600 text-white font-bold text-xs shadow-md hover:bg-indigo-700 transition-all flex items-center justify-center gap-1"
+                >
+                  ถัดไป: ตรวจสอบสัดส่วน 7 กองทุน ➔
+                </button>
+              </div>
+            )}
+
+            {/* STEP 2: 7-Fund Split Distribution */}
+            {currentStep === 2 && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    โครงสร้างสัดส่วน 7 กองทุน (มาตรฐาน 04/08/2569)
+                  </p>
+                  <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-md ${
+                    calculations.totalAllocatedPct === 100 
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/40' 
+                      : 'bg-red-50 text-red-700 border border-red-200 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800/40'
+                  }`}>
+                    รวม: {calculations.totalAllocatedPct}%
+                  </span>
+                </div>
+
+                {/* Split Bars */}
+                <div className="space-y-2.5">
+                  {[
+                    { label: '🟢 วัตถุดิบ (Raw Materials)', pct: materialPct, set: setMaterialPct, color: '#10b981', desc: 'อกไก่ ผัก ข้าว เครื่องปรุงคลีน' },
+                    { label: '🟡 ค่าบิล & ถุงซีล (Packaging & Bills)', pct: packagingPct, set: setPackagingPct, color: '#eab308', desc: 'ถุงซีล 2 ชั้น + ค่าไฟ + ค่าแก๊ส' },
+                    { label: '🔵 ค่าแรงคนทำ (Kitchen Labor)', pct: laborPct, set: setLaborPct, color: '#3b82f6', desc: 'จ่ายทีมครัวและคนทำอาหาร' },
+                    { label: '🛵 ช่วยค่าส่ง Grab (Delivery Subsidy)', pct: deliverySubPct, set: setDeliverySubPct, color: '#f97316', desc: '~30-34฿ ต่อรอบจัดส่ง' },
+                    { label: '📢 งบการตลาด Ads/Content', pct: marketingPct, set: setMarketingPct, color: '#8b5cf6', desc: 'ยิงแอด ทำคอนเทนต์ TikTok/FB' },
+                    { label: '🛠️ ทุนสำรอง/ซ่อมบำรุง', pct: maintenancePct, set: setMaintenancePct, color: '#64748b', desc: 'ซ่อมตู้เย็น ซ่อมเครื่องซีล' },
+                    { label: '🔴 กำไรสุทธิเข้ากระเป๋า (Net Profit 19%)', pct: profitPct, set: setProfitPct, color: '#ec4899', desc: 'กำไรสุทธิปันผลเข้ากระเป๋า 19%' },
+                  ].map(f => (
+                    <div key={f.label} className="space-y-1">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="font-medium text-slate-700 dark:text-slate-300">{f.label}</span>
+                        <div className="flex items-center gap-1 font-mono">
+                          <input
+                            type="number"
+                            value={f.pct}
+                            onChange={e => f.set(Number(e.target.value) || 0)}
+                            className="w-14 text-right px-1.5 py-0.5 rounded-lg border text-xs font-semibold outline-none dark:bg-slate-800"
+                          />
+                          <span className="text-xs text-slate-400 font-normal">%</span>
+                        </div>
+                      </div>
+                      <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                        <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(f.pct * 2, 100)}%`, backgroundColor: f.color }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentStep(1)}
+                    className="flex-1 py-2 rounded-xl border text-xs font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                  >
+                    ⬅ ย้อนกลับ
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentStep(3)}
+                    className="flex-[2] py-2 rounded-xl bg-indigo-600 text-white text-xs font-medium shadow-md hover:bg-indigo-700 transition-all"
+                  >
+                    ถัดไป: ดูสรุปผลกำไร ➔
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 3: Advanced Overhead (Collapsible) */}
+            {currentStep === 3 && (
+              <div className="space-y-4">
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                      <Zap size={14} className="text-amber-500" /> ค่าใช้จ่ายคงที่เพิ่มเติม (Overhead)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowAdvancedOverhead(!showAdvancedOverhead)}
+                      className="text-slate-400 hover:text-slate-600 p-1"
+                    >
+                      {showAdvancedOverhead ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-slate-500 font-normal">
+                    ในโมเดล 7 กองทุน ค่าบิลและค่าแก๊สถูกรวมในหมวด 10% และงบซ่อมบำรุงอยู่ในหมวด 4% เรียบร้อยแล้ว (ไม่จำเป็นต้องกรอกส่วนนี้หากใช้สูตรมาตรฐาน)
+                  </p>
+                </div>
+
+                {showAdvancedOverhead && (
+                  <div className="grid grid-cols-2 gap-2.5 text-xs">
+                    <div>
+                      <label className="text-xs font-medium text-slate-500 mb-0.5 block">ค่าน้ำ/ไฟต่อเดือน</label>
+                      <input type="number" value={billMonthly || ''} onChange={e => setBillMonthly(Number(e.target.value) || 0)} className={`w-full p-2 rounded-xl border ${input}`} />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-slate-500 mb-0.5 block">ค่าเช่าที่ต่อเดือน</label>
+                      <input type="number" value={rentMonthly || ''} onChange={e => setRentMonthly(Number(e.target.value) || 0)} className={`w-full p-2 rounded-xl border ${input}`} />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-slate-500 mb-0.5 block">ค่าเสื่อมต่อเดือน</label>
+                      <input type="number" value={depreciationMonthly || ''} onChange={e => setDepreciationMonthly(Number(e.target.value) || 0)} className={`w-full p-2 rounded-xl border ${input}`} />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-slate-500 mb-0.5 block">ค่าประกันภัยต่อเดือน</label>
+                      <input type="number" value={insuranceMonthly || ''} onChange={e => setInsuranceMonthly(Number(e.target.value) || 0)} className={`w-full p-2 rounded-xl border ${input}`} />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-slate-500 mb-0.5 block">สำรองฉุกเฉิน (%)</label>
+                      <input type="number" value={contingencyPct || ''} onChange={e => setContingencyPct(Number(e.target.value) || 0)} className={`w-full p-2 rounded-xl border ${input}`} />
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentStep(2)}
+                    className="w-full py-2 rounded-xl border text-xs font-medium hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                  >
+                    ⬅ ย้อนกลับไปสัดส่วนกองทุน
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right Column: Executive Scorecard & Profit Breakdown (7 cols) */}
+        <div className="lg:col-span-6 space-y-4">
+          <div className={`p-6 rounded-3xl border transition-all relative overflow-hidden ${card}`}>
+            <div className="space-y-4">
+              {/* Header Analysis */}
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="text-base font-semibold">วิเคราะห์ผลตอบแทน 7 กองทุน</h3>
+                  <p className="text-xs text-slate-500 font-normal">7-Fund Net Profitability Scorecard</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-1 rounded-xl text-xs font-semibold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                    Margin: {calculations.netMargin}%
+                  </span>
+                </div>
+              </div>
+
+              {/* Top Highlights: Net Revenue & Net Profit */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-4 rounded-2xl bg-indigo-600 text-white shadow-md shadow-indigo-500/20">
+                  <p className="text-[11px] uppercase font-medium opacity-90 mb-0.5">ยอดขายสุทธิ / แพ็กเกจ</p>
+                  <p className="text-2xl font-bold font-mono">฿{calculations.netRevenue.toLocaleString()}</p>
+                  <p className="text-xs opacity-90 mt-1 font-normal">เฉลี่ย ฿{calculations.revenuePerMeal}/มื้อ</p>
+                </div>
+                <div className="p-4 rounded-2xl bg-pink-600 text-white shadow-md shadow-pink-500/20">
+                  <p className="text-[11px] uppercase font-medium opacity-90 mb-0.5">กำไรสุทธิเข้ากระเป๋า (19%)</p>
+                  <p className="text-2xl font-bold font-mono">฿{calculations.profitAmount.toLocaleString()}</p>
+                  <p className="text-xs opacity-90 mt-1 font-normal">กำไร ฿{calculations.profitPerMeal}/มื้อ 🔒</p>
+                </div>
+              </div>
+
+              {/* Per-Meal & Per-Round Metrics */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className={`p-3 rounded-2xl border text-center ${isDarkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                  <p className="text-[10px] text-slate-500 font-medium uppercase mb-0.5">ต้นทุนวัตถุดิบ/มื้อ</p>
+                  <p className="text-sm font-semibold text-emerald-600 font-mono">
+                    ฿{meals > 0 ? (calculations.materialAmount / meals).toFixed(2) : '0'}
+                  </p>
+                </div>
+                <div className={`p-3 rounded-2xl border text-center ${isDarkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                  <p className="text-[10px] text-slate-500 font-medium uppercase mb-0.5">ค่าแรงคนทำ/มื้อ</p>
+                  <p className="text-sm font-semibold text-blue-600 font-mono">
+                    ฿{meals > 0 ? (calculations.laborAmount / meals).toFixed(2) : '0'}
+                  </p>
+                </div>
+                <div className={`p-3 rounded-2xl border text-center ${isDarkMode ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                  <p className="text-[10px] text-slate-500 font-medium uppercase mb-0.5">งบช่วยส่ง Grab/รอบ</p>
+                  <p className="text-sm font-semibold text-orange-600 font-mono">
+                    ฿{calculations.subsidyPerRound}
+                  </p>
+                </div>
+              </div>
+
+              {/* Full 7-Fund Amounts Table */}
+              <div className={`p-4 rounded-2xl border space-y-2 ${isDarkMode ? 'bg-slate-900/30 border-slate-700' : 'bg-slate-50 border-slate-100'}`}>
+                <div className="flex justify-between items-center mb-1">
+                  <h4 className="text-xs font-semibold uppercase text-slate-500">สรุปเงินที่แยกเข้าแต่ละกองทุน</h4>
+                  <span className="text-[11px] font-mono font-normal text-slate-400">1 แพ็กเกจ</span>
+                </div>
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-slate-600 dark:text-slate-300 font-normal flex items-center gap-1.5">🟢 กองทุนวัตถุดิบ ({materialPct}%)</span>
+                    <span className="font-mono font-semibold text-emerald-600">฿{calculations.materialAmount.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600 dark:text-slate-300 font-normal flex items-center gap-1.5">🟡 ค่าบิล & ถุงซีล ({packagingPct}%)</span>
+                    <span className="font-mono font-semibold text-amber-600">฿{calculations.packagingAmount.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600 dark:text-slate-300 font-normal flex items-center gap-1.5">🔵 ค่าแรงคนทำ ({laborPct}%)</span>
+                    <span className="font-mono font-semibold text-blue-600">฿{calculations.laborAmount.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600 dark:text-slate-300 font-normal flex items-center gap-1.5">🛵 ช่วยค่าส่ง Grab ({deliverySubPct}%)</span>
+                    <span className="font-mono font-semibold text-orange-600">฿{calculations.deliverySubAmount.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600 dark:text-slate-300 font-normal flex items-center gap-1.5">📢 งบการตลาด ({marketingPct}%)</span>
+                    <span className="font-mono font-semibold text-purple-600">฿{calculations.marketingAmount.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600 dark:text-slate-300 font-normal flex items-center gap-1.5">🛠️ ทุนสำรอง/ซ่อม ({maintenancePct}%)</span>
+                    <span className="font-mono font-semibold text-slate-600">฿{calculations.maintenanceAmount.toLocaleString()}</span>
+                  </div>
+                  <div className="h-px bg-slate-200 dark:bg-slate-700 my-1" />
+                  <div className="flex justify-between font-semibold">
+                    <span className="text-pink-600 flex items-center gap-1.5">🔴 กำไรสุทธิเข้ากระเป๋า ({profitPct}%)</span>
+                    <span className="font-mono font-bold text-pink-600">฿{calculations.profitAmount.toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2.5 pt-1">
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  className={`flex-1 py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 border transition-all ${
+                    isDarkMode ? 'border-slate-700 hover:bg-slate-800 text-slate-400' : 'border-slate-200 hover:bg-slate-100 text-slate-600'
+                  }`}
+                >
+                  <RotateCcw size={14} /> รีเซ็ต
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveDraft}
+                  className={`flex-1 py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 border transition-all ${
+                    isDarkMode ? 'border-indigo-500/20 bg-indigo-500/10 text-indigo-400' : 'border-indigo-100 bg-indigo-50 text-indigo-600'
+                  }`}
+                >
+                  <Save size={14} /> บันทึกร่าง
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveStrategy}
+                  disabled={isSubmitting}
+                  className="flex-[2] py-3 rounded-xl bg-emerald-600 text-white font-black text-xs shadow-lg shadow-emerald-600/30 hover:bg-emerald-700 transition-all flex items-center justify-center gap-1.5"
+                >
+                  {isSubmitting ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                  บันทึกสูตรและโปรโมชั่น
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };

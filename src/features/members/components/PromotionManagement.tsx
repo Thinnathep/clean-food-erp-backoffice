@@ -98,7 +98,7 @@ export const PromotionManagement: React.FC = () => {
     healthGoal: 'ไม่ระบุ',
     allergyNotes: '',
     memberType: 'pinto', // pinto, retail, or promo
-    deliveryDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+    deliveryDays: ['Mon', 'Thu'],
     googleMapsUrl: '',
     distanceKm: '' as string | number,
     locationType: 'inside', // inside or outside
@@ -165,9 +165,13 @@ export const PromotionManagement: React.FC = () => {
     }
   };
 
-  const applyDaysPreset = (preset: 'mon-sat' | 'everyday' | 'mon-fri') => {
-    let days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    if (preset === 'everyday') {
+  const applyDaysPreset = (preset: 'mon-thu' | 'mon-sat' | 'everyday' | 'mon-fri') => {
+    let days = ['Mon', 'Thu'];
+    if (preset === 'mon-thu') {
+      days = ['Mon', 'Thu'];
+    } else if (preset === 'mon-sat') {
+      days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    } else if (preset === 'everyday') {
       days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     } else if (preset === 'mon-fri') {
       days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
@@ -215,7 +219,8 @@ export const PromotionManagement: React.FC = () => {
     BASE_FARE: 25,
     BASE_INCLUDED_DISTANCE: 3,
     FEE_PER_KM_NORMAL: 4,
-    PROMO_FREE_DIST: 7.1
+    FEE_PER_KM_FAR: 8,
+    STORE_SUBSIDY_BASE: 35
   });
 
   const DAYS = [
@@ -261,10 +266,11 @@ export const PromotionManagement: React.FC = () => {
       if (data) {
         const val = data.value;
         setLogisticsConfig({
-          BASE_FARE: Number(val.base_fare),
-          BASE_INCLUDED_DISTANCE: Number(val.base_included_distance),
-          FEE_PER_KM_NORMAL: Number(val.fee_per_km_normal),
-          PROMO_FREE_DIST: 7.1
+          BASE_FARE: Number(val.base_fare || 25),
+          BASE_INCLUDED_DISTANCE: Number(val.base_included_distance || 3),
+          FEE_PER_KM_NORMAL: Number(val.fee_per_km_normal || 4),
+          FEE_PER_KM_FAR: Number(val.fee_per_km_far || 8),
+          STORE_SUBSIDY_BASE: 35
         });
       }
     } catch (err) { console.error('Error fetching logistics config:', err); }
@@ -275,32 +281,64 @@ export const PromotionManagement: React.FC = () => {
     fetchLogisticsConfig();
   }, [fetchPromotions, fetchLogisticsConfig]);
 
-  // Auto-calculate delivery fee for all types
+  // Auto-calculate delivery fee for all types with 30-35 THB store subsidy model
   useEffect(() => {
     if (isManualDeliveryFee) return;
     const dist = Number(customerInfo.distanceKm || 0);
     const promo = promotions.find(p => p.id === customerInfo.selectedPromoId);
     
-    // Determine rounds: Members/Promo use package days, Retail uses 1 round
+    // Determine rounds: Use package delivery_rounds, or fallback based on days (7d -> 3 rounds, 14d -> 5 rounds, 30d -> 11 rounds)
     let rounds = 1;
     if (customerInfo.memberType === 'pinto' || customerInfo.memberType === 'promo') {
-      rounds = promo ? promo.days_count : 14;
+      if (promo) {
+        if (promo.delivery_rounds && Number(promo.delivery_rounds) > 0) {
+          rounds = Number(promo.delivery_rounds);
+        } else if (promo.days_count === 7) {
+          rounds = 3;
+        } else if (promo.days_count === 14) {
+          rounds = 5;
+        } else if (promo.days_count === 30) {
+          rounds = 11;
+        } else {
+          rounds = Math.max(1, Math.ceil(promo.days_count / 3));
+        }
+      } else {
+        rounds = 5;
+      }
     }
     
     const baseExtra = customerInfo.locationType === 'outside' ? 20 : 0;
 
     let targetFee = 0;
-    if (dist <= logisticsConfig.PROMO_FREE_DIST && customerInfo.locationType === 'inside') {
-      targetFee = 0;
-    } else {
-      const excessDist = Math.max(0, dist - logisticsConfig.PROMO_FREE_DIST);
-      let feePerRound = logisticsConfig.BASE_FARE + baseExtra;
-      if (excessDist > logisticsConfig.BASE_INCLUDED_DISTANCE) {
-        const ex = excessDist - logisticsConfig.BASE_INCLUDED_DISTANCE;
-        feePerRound += ex * logisticsConfig.FEE_PER_KM_NORMAL;
+    if (customerInfo.memberType === 'pinto' || customerInfo.memberType === 'promo') {
+      // 1. Distance-based fare per round
+      let actualFarePerRound = (logisticsConfig.BASE_FARE || 25) + baseExtra;
+      const baseIncluded = logisticsConfig.BASE_INCLUDED_DISTANCE || 3;
+      if (dist > baseIncluded) {
+        const excessKm = dist - baseIncluded;
+        if (dist <= 8) {
+          actualFarePerRound += excessKm * (logisticsConfig.FEE_PER_KM_NORMAL || 4);
+        } else {
+          actualFarePerRound += (8 - baseIncluded) * (logisticsConfig.FEE_PER_KM_NORMAL || 4) + (dist - 8) * (logisticsConfig.FEE_PER_KM_FAR || 8);
+        }
       }
-      targetFee = Math.ceil(feePerRound * rounds);
+
+      // 2. Store subsidy model: Store covers 30-35 THB per round (from 9% Grab subsidy fund)
+      // 7-day pack (<= 3 rounds) = 30 THB/round, 14-day / 30-day (> 3 rounds) = 35 THB/round
+      const storeSubsidyPerRound = rounds <= 3 ? 30 : 35;
+
+      // 3. Customer pays only the excess beyond store subsidy
+      const customerFeePerRound = Math.max(0, actualFarePerRound - storeSubsidyPerRound);
+      targetFee = Math.ceil(customerFeePerRound * rounds);
+    } else {
+      let fee = (logisticsConfig.BASE_FARE || 25) + baseExtra;
+      const baseIncluded = logisticsConfig.BASE_INCLUDED_DISTANCE || 3;
+      if (dist > baseIncluded) {
+        fee += (dist - baseIncluded) * (logisticsConfig.FEE_PER_KM_NORMAL || 4);
+      }
+      targetFee = Math.ceil(fee);
     }
+
     setCustomerInfo(prev => prev.deliveryFee === targetFee ? prev : { ...prev, deliveryFee: targetFee });
   }, [customerInfo.distanceKm, customerInfo.memberType, customerInfo.selectedPromoId, logisticsConfig, promotions, customerInfo.locationType, isManualDeliveryFee]);
 
@@ -356,7 +394,14 @@ export const PromotionManagement: React.FC = () => {
       const packageName = promo ? promo.name : (customerInfo.memberType === 'retail' ? 'ออเดอร์รายย่อย' : 'ออเดอร์ทั่วไป (Custom)');
       const mealsCount = promo ? promo.meals_count : (customerInfo.memberType === 'retail' ? 1 : 0);
       const daysCount = promo ? promo.days_count : (customerInfo.memberType === 'retail' ? 1 : 14);
-      
+      // Calculate rounds plan (supporting 6, 6, 3 remainder format)
+      const roundsCount = promo?.delivery_rounds || (daysCount === 7 ? 3 : (daysCount === 14 ? 5 : (daysCount === 30 ? 11 : Math.max(1, Math.ceil(daysCount / 3)))));
+      let roundsPlan = [6, 6, 6];
+      if (daysCount === 7) roundsPlan = [6, 6, 3];
+      else if (daysCount === 14) roundsPlan = [6, 6, 6, 6, 6];
+      else if (daysCount === 30) roundsPlan = [6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 3];
+      else roundsPlan = Array(roundsCount).fill(Math.ceil((mealsCount || 1) / roundsCount));
+
       const { error: pkgError } = await supabase.from('pinto_packages').insert({
         member_id: memberId,
         package_name: packageName,
@@ -368,6 +413,9 @@ export const PromotionManagement: React.FC = () => {
         promotion_id: promo?.id || null,
         start_date: customerInfo.startDate,
         delivery_slot: customerInfo.deliverySlot,
+        delivery_days: customerInfo.deliveryDays,
+        delivery_rounds: roundsCount,
+        delivery_rounds_plan: roundsPlan,
         status: 'active',
         phone: customerInfo.phone,
         internal_notes: `วันส่ง: ${customerInfo.deliveryDays.join(', ')} | ระยะทาง: ${customerInfo.distanceKm || 0} กม. | พื้นที่: ${customerInfo.locationType === 'inside' ? 'ในเมือง' : 'นอกเมือง'} | Maps: ${customerInfo.googleMapsUrl}`
@@ -383,7 +431,7 @@ export const PromotionManagement: React.FC = () => {
         selectedPromoId: '',
         healthGoal: 'ไม่ระบุ', allergyNotes: '',
         memberType: 'pinto',
-        deliveryDays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+        deliveryDays: ['Mon', 'Thu'],
         googleMapsUrl: '', distanceKm: '', locationType: 'inside', deliveryFee: '',
         packagePrice: ''
       });
@@ -869,10 +917,17 @@ ${customerInfo.googleMapsUrl ? `📍 พิกัด: ${customerInfo.googleMapsU
                               <span className="text-[10px] text-slate-400">ปุ่มลัด:</span>
                               <button 
                                 type="button"
+                                onClick={() => applyDaysPreset('mon-thu')}
+                                className="px-2 py-0.5 text-[10px] font-bold bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg border border-emerald-300 transition-all"
+                              >
+                                จ-พฤ ✓
+                              </button>
+                              <button 
+                                type="button"
                                 onClick={() => applyDaysPreset('mon-sat')}
                                 className="px-2 py-0.5 text-[10px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg border border-slate-200 transition-all"
                               >
-                                จ-ส (ปกติ)
+                                จ-ส
                               </button>
                               <button 
                                 type="button"

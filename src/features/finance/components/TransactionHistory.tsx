@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { POOL_CONFIG } from '../types';
+import { getPoolConfig } from '../types';
 import type { FundTransaction, PoolType } from '../types';
 import dayjs from 'dayjs';
 import { TrendingUp, TrendingDown, Search, Trash2, RefreshCw, AlertCircle } from 'lucide-react';
@@ -195,19 +195,22 @@ export const TransactionHistory: React.FC<Props> = ({
       {/* Filters Area */}
       <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-slate-800/50 border-slate-700' : 'bg-white border-slate-200 shadow-sm'}`}>
         <div className="flex flex-wrap gap-4 items-center">
-           <div className={`flex gap-1 p-1 rounded-xl ${isDarkMode ? 'bg-slate-900' : 'bg-slate-100'}`}>
-              <button onClick={() => setFilterPool('ALL')} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${filterPool === 'ALL' ? (isDarkMode ? 'bg-slate-700 text-white' : 'bg-white text-slate-800 shadow-sm') : 'text-slate-500'}`}>ทั้งหมด</button>
-              {(['MATERIAL', 'LABOR', 'OPS', 'PROFIT', 'DELIVERY'] as PoolType[]).map(pt => (
-                <button key={pt} onClick={() => setFilterPool(pt)} className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${filterPool === pt ? 'bg-emerald-500 text-white' : 'text-slate-500'}`}>
-                  {POOL_CONFIG[pt].icon}
-                </button>
-              ))}
-           </div>
+            <div className={`flex flex-wrap gap-1 p-1 rounded-xl ${isDarkMode ? 'bg-slate-900' : 'bg-slate-100'}`}>
+               <button onClick={() => setFilterPool('ALL')} className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${filterPool === 'ALL' ? (isDarkMode ? 'bg-slate-700 text-white font-semibold' : 'bg-white text-slate-800 shadow-sm font-semibold') : 'text-slate-500'}`}>ทั้งหมด</button>
+               {(['MATERIAL', 'PACKAGING_BILLS', 'LABOR', 'DELIVERY', 'MARKETING', 'MAINTENANCE', 'PROFIT'] as PoolType[]).map(pt => {
+                 const cfg = getPoolConfig(pt);
+                 return (
+                   <button key={pt} onClick={() => setFilterPool(pt)} title={cfg.label} className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-all ${filterPool === pt ? 'bg-emerald-500 text-white font-semibold' : 'text-slate-500 hover:bg-slate-200/50'}`}>
+                     {cfg.icon}
+                   </button>
+                 );
+               })}
+            </div>
 
            <div className={`flex gap-1 p-1 rounded-xl ${isDarkMode ? 'bg-slate-900' : 'bg-slate-100'}`}>
-              <button onClick={() => setFilterDirection('ALL')} className={`px-3 py-1.5 rounded-lg text-xs font-bold ${filterDirection === 'ALL' ? 'bg-slate-700 text-white' : 'text-slate-500'}`}>ทั้งหมด</button>
-              <button onClick={() => setFilterDirection('IN')} className={`px-3 py-1.5 rounded-lg text-xs font-bold ${filterDirection === 'IN' ? 'bg-emerald-500 text-white' : 'text-slate-500'}`}>เข้า</button>
-              <button onClick={() => setFilterDirection('OUT')} className={`px-3 py-1.5 rounded-lg text-xs font-bold ${filterDirection === 'OUT' ? 'bg-red-500 text-white' : 'text-slate-500'}`}>ออก</button>
+              <button onClick={() => setFilterDirection('ALL')} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${filterDirection === 'ALL' ? 'bg-slate-700 text-white font-semibold' : 'text-slate-500'}`}>ทั้งหมด</button>
+              <button onClick={() => setFilterDirection('IN')} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${filterDirection === 'IN' ? 'bg-emerald-500 text-white font-semibold' : 'text-slate-500'}`}>เข้า</button>
+              <button onClick={() => setFilterDirection('OUT')} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${filterDirection === 'OUT' ? 'bg-red-500 text-white font-semibold' : 'text-slate-500'}`}>ออก</button>
            </div>
 
            <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} className={`p-2 rounded-xl text-xs border ${isDarkMode ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-slate-200'}`} />
@@ -218,18 +221,18 @@ export const TransactionHistory: React.FC<Props> = ({
            </div>
         </div>
         
-        <div className="flex gap-4 mt-4 pt-4 border-t border-slate-700/20">
-           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{monthTx.length} รายการ</span>
-           <span className="text-[10px] font-bold text-emerald-500 uppercase">เข้า ฿{totalIn.toLocaleString()}</span>
-           <span className="text-[10px] font-bold text-red-500 uppercase">ออก ฿{totalOut.toLocaleString()}</span>
-           <span className="text-[10px] font-bold text-cyan-500 uppercase ml-auto">สุทธิ ฿{(totalIn - totalOut).toLocaleString()}</span>
+        <div className="flex gap-4 mt-4 pt-4 border-t border-slate-700/20 text-xs">
+           <span className="font-medium text-slate-500">{monthTx.length} รายการ</span>
+           <span className="font-medium text-emerald-600 font-mono">เข้า ฿{totalIn.toLocaleString()}</span>
+           <span className="font-medium text-red-600 font-mono">ออก ฿{totalOut.toLocaleString()}</span>
+           <span className="font-semibold text-cyan-600 font-mono ml-auto">สุทธิ ฿{(totalIn - totalOut).toLocaleString()}</span>
         </div>
       </div>
 
       {/* Bills Section */}
       {monthBuckets.length > 0 && (filterPool === 'ALL' || filterDirection === 'IN') && (
         <div className="space-y-3">
-          <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 flex items-center gap-2">
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500 flex items-center gap-2">
             <AlertCircle size={14} /> รายการบิลรายรับ ({monthBuckets.length})
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -239,12 +242,12 @@ export const TransactionHistory: React.FC<Props> = ({
                 <div key={b.id} className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-slate-800/40 border-slate-700' : 'bg-white border-slate-200 shadow-sm'}`}>
                    <div className="flex justify-between items-start">
                       <div>
-                        <p className="text-sm font-bold">{b.description || `บิล ${b.source_type}`}</p>
-                        <p className="text-[10px] text-slate-500 mt-1">{dayjs(b.created_at).format('DD MMM YYYY HH:mm')}</p>
+                        <p className="text-sm font-semibold">{b.description || `บิล ${b.source_type}`}</p>
+                        <p className="text-xs text-slate-400 mt-0.5 font-normal">{dayjs(b.created_at).format('DD MMM YYYY HH:mm')}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-black text-emerald-500 underline decoration-emerald-500/30 underline-offset-4">฿{b.gross_amount.toLocaleString()}</p>
-                        {!hasTx && <span className="text-[8px] font-black bg-amber-500 text-white px-1.5 py-0.5 rounded-full mt-1 inline-block animate-pulse">ยังไม่ได้แยกเงิน</span>}
+                        <p className="text-sm font-semibold font-mono text-emerald-600">฿{b.gross_amount.toLocaleString()}</p>
+                        {!hasTx && <span className="text-[10px] font-medium bg-amber-500 text-white px-2 py-0.5 rounded-full mt-1 inline-block">ยังไม่ได้แยกเงิน</span>}
                       </div>
                    </div>
                    <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-700/10">
@@ -286,7 +289,7 @@ export const TransactionHistory: React.FC<Props> = ({
            ) : (
              <div className="divide-y divide-slate-700/10">
                 {monthTx.map(t => {
-                  const cfg = POOL_CONFIG[t.pool_type as PoolType];
+                  const cfg = getPoolConfig(t.pool_type);
                   const isIn = t.direction === 'IN';
                   return (
                     <div key={t.id} className="p-4 flex items-center justify-between hover:bg-slate-500/5 transition-colors">

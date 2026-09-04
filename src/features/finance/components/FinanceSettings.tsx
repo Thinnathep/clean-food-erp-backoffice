@@ -273,16 +273,13 @@ export const FinanceSettings: React.FC<Props> = ({ configs, onRefresh, isDarkMod
         return;
       }
 
-      // 2. Group by pool
-      const poolStats: Record<string, { in: number; out: number }> = {
-        MATERIAL: { in: 0, out: 0 },
-        LABOR: { in: 0, out: 0 },
-        OPS: { in: 0, out: 0 },
-        PROFIT: { in: 0, out: 0 },
-        DELIVERY: { in: 0, out: 0 }
-      };
+      // 2. Group by pool dynamically
+      const poolStats: Record<string, { in: number; out: number }> = {};
 
       txs.forEach(t => {
+        if (!poolStats[t.pool_type]) {
+          poolStats[t.pool_type] = { in: 0, out: 0 };
+        }
         if (t.direction === 'IN') poolStats[t.pool_type].in += t.amount;
         else poolStats[t.pool_type].out += t.amount;
       });
@@ -363,7 +360,7 @@ export const FinanceSettings: React.FC<Props> = ({ configs, onRefresh, isDarkMod
             <span>การกำหนดสัดส่วนการแยกเงิน (Split Models)</span>
           </div>
           <p className="text-slate-600 text-[11px] leading-relaxed">
-            • สัดส่วนผลรวมทั้ง 4 กองทุน (วัตถุดิบ + แรงงาน + ดำเนินงาน + กำไร) ต้องเท่ากับ <strong>100%</strong> พอดีเสมอ<br />
+            • สัดส่วนผลรวม 7 กองทุน (วัตถุดิบ + บิล/ถุงซีล + แรงงาน + จัดส่ง + ตลาด + ซ่อมบำรุง + กำไร) ต้องเท่ากับ <strong>100%</strong> พอดีเสมอ<br />
             • สูตรเริ่มต้น (Default Model) จะถูกนำไปใช้แยกเงินอัตโนมัติเมื่อมีการบันทึกรายรับจากแพ็กเกจหรือหน้าร้าน
           </p>
         </div>

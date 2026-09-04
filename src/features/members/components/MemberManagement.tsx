@@ -4,7 +4,7 @@ import {
   Calendar, ChevronRight, ChevronLeft, Edit3, 
   X, Save, Clock, Package, 
   CheckCircle2, AlertCircle, Trash2, ShieldAlert,
-  Heart, Award, Zap
+  Heart, Award, Zap, Truck, Sparkles, Check
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useMemberStore } from '../../../store/memberStore';
@@ -14,6 +14,17 @@ import { formatDisplayDate } from '../../../lib/dateUtils';
 import type { Member } from '../../../types';
 import Swal from 'sweetalert2';
 import { supabase } from '../../../config/supabase';
+import { 
+  DEFAULT_DELIVERY_DAYS,
+  DEFAULT_DELIVERY_TIME_SLOT,
+  DAY_NAMES_SHORT_TH,
+  CORE_PACKAGE_DELIVERY_MODELS,
+  calculateDeliveryRounds,
+  getDeliveryPlanSummary,
+  formatActiveDaysLabel,
+  generateDeliverySchedule,
+  getStoreDeliveryScheduleConfig
+} from '../../logistics/services/deliveryScheduleService';
 
 export const MemberManagement: React.FC = () => {
   const { 
@@ -120,12 +131,27 @@ export const MemberManagement: React.FC = () => {
 
   const [editMember, setEditMember] = useState<Member | null>(null);
   
-  const [newPackage, setNewPackage] = useState({
+  const [storeDeliveryDays, setStoreDeliveryDays] = useState<number[]>(DEFAULT_DELIVERY_DAYS);
+
+  const [newPackage, setNewPackage] = useState<{
+    package_name: string;
+    meals_total: number;
+    price: number;
+    promotion_id: string;
+    start_date: string;
+    end_date: string;
+    delivery_slot: string;
+    delivery_days: number[];
+    buddy_member_id: string;
+  }>({
     package_name: '',
-    meals_total: 14,
+    meals_total: 15,
+    price: 0,
+    promotion_id: '',
     start_date: dayjs().format('YYYY-MM-DD'),
     end_date: dayjs().add(14, 'day').format('YYYY-MM-DD'),
-    delivery_slot: '11:00 - 13:00',
+    delivery_slot: DEFAULT_DELIVERY_TIME_SLOT,
+    delivery_days: DEFAULT_DELIVERY_DAYS,
     buddy_member_id: ''
   });
 
@@ -139,6 +165,19 @@ export const MemberManagement: React.FC = () => {
       .then(({ data }) => {
         if (data) setPromotions(data);
       });
+
+    getStoreDeliveryScheduleConfig().then(cfg => {
+      if (cfg && cfg.active_days && cfg.active_days.length > 0) {
+        setStoreDeliveryDays(cfg.active_days);
+        setNewPackage(prev => ({
+          ...prev,
+          delivery_days: cfg.active_days,
+          delivery_slot: cfg.delivery_time_slot || DEFAULT_DELIVERY_TIME_SLOT
+        }));
+      }
+    }).catch(err => {
+      console.warn('Could not load store delivery schedule config:', err);
+    });
   }, [loadMemberData, loadMenus]);
 
   const filteredMembers = useMemo(() => {
@@ -286,6 +325,20 @@ export const MemberManagement: React.FC = () => {
     }
   };
 
+  const handleOpenAddPackageModal = () => {
+    const memberDeliveryDays = Array.isArray(selectedMember?.preferred_delivery_days) && selectedMember.preferred_delivery_days.length > 0
+      ? selectedMember.preferred_delivery_days
+      : storeDeliveryDays;
+    const memberSlot = selectedMember?.delivery_time || DEFAULT_DELIVERY_TIME_SLOT;
+
+    setNewPackage(prev => ({
+      ...prev,
+      delivery_days: memberDeliveryDays,
+      delivery_slot: memberSlot
+    }));
+    setIsAddPackageModalOpen(true);
+  };
+
   const handleAddPackage = async () => {
     if (!selectedMemberId || !newPackage.package_name) return;
     try {
@@ -295,17 +348,27 @@ export const MemberManagement: React.FC = () => {
         didOpen: () => { Swal.showLoading(); }
       });
 
+      const meals = Number(newPackage.meals_total) || 15;
+      const rounds = calculateDeliveryRounds(meals, 6);
+      const deliveryDays = newPackage.delivery_days?.length ? newPackage.delivery_days : storeDeliveryDays;
+      const daysCount = Math.max(1, dayjs(newPackage.end_date).diff(dayjs(newPackage.start_date), 'day'));
+
       await addPackage({
         member_id: selectedMemberId,
         package_name: newPackage.package_name,
-        meals_total: newPackage.meals_total,
-        meals_remaining: newPackage.meals_total,
-        days_total: dayjs(newPackage.end_date).diff(dayjs(newPackage.start_date), 'day'),
-        days_remaining: dayjs(newPackage.end_date).diff(dayjs(newPackage.start_date), 'day'),
+        meals_total: meals,
+        meals_remaining: meals,
+        days_total: daysCount,
+        days_remaining: daysCount,
         start_date: newPackage.start_date,
         end_date: newPackage.end_date,
+        price_paid: Number(newPackage.price) || 0,
+        promotion_id: newPackage.promotion_id || undefined,
         status: 'active',
-        delivery_slot: newPackage.delivery_slot,
+        delivery_slot: newPackage.delivery_slot || DEFAULT_DELIVERY_TIME_SLOT,
+        delivery_days: deliveryDays,
+        delivery_rounds: rounds.length,
+        delivery_rounds_plan: rounds,
         buddy_member_id: newPackage.buddy_member_id || undefined
       });
       
@@ -313,8 +376,9 @@ export const MemberManagement: React.FC = () => {
       
       Swal.fire({
         icon: 'success',
-        title: 'เปิดแพ็กเกจสำเร็จ',
-        timer: 1500,
+        title: 'เปิดแพ็กเกจสำเร็จ ✨',
+        text: `${newPackage.package_name} • ${getDeliveryPlanSummary(rounds)}`,
+        timer: 2000,
         showConfirmButton: false
       });
     } catch (err: any) {
@@ -566,6 +630,10 @@ export const MemberManagement: React.FC = () => {
                         <span>รอบส่ง: {selectedMember.delivery_time || '11:00 - 13:00'}</span>
                       </div>
                       <div className="flex items-center gap-1.5">
+                        <Truck size={14} className="text-emerald-600" />
+                        <span>วันส่ง: <strong className="text-slate-800 font-semibold">{formatActiveDaysLabel(selectedMember.preferred_delivery_days || storeDeliveryDays)}</strong></span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
                         <span className="w-4 h-4 rounded-full bg-[#00B900] text-white flex items-center justify-center text-[9px] font-bold">L</span>
                         <span>LINE: {selectedMember.line_id || (selectedMember as any).line_display_name || 'ไม่ระบุ'}</span>
                       </div>
@@ -715,7 +783,7 @@ export const MemberManagement: React.FC = () => {
                     </div>
 
                     <button 
-                      onClick={() => setIsAddPackageModalOpen(true)}
+                      onClick={handleOpenAddPackageModal}
                       className="w-full sm:w-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center justify-center gap-1.5 active:scale-95"
                     >
                       <Plus size={16} strokeWidth={2.5} /> เปิดแพ็กเกจใหม่
@@ -804,15 +872,74 @@ export const MemberManagement: React.FC = () => {
                               </div>
 
                               <div className="flex flex-wrap justify-between gap-2 text-[11px] text-slate-500 pt-1 border-t border-slate-200/50">
-                                <span className="flex items-center gap-1">
-                                  <Calendar size={12} className="text-slate-400" />
+                                <span className="flex items-center gap-1 font-medium text-slate-700">
+                                  <Calendar size={12} className="text-slate-500" />
                                   {formatDisplayDate(pkg.start_date)} - {formatDisplayDate(pkg.end_date)}
                                 </span>
-                                <span className="flex items-center gap-1 font-medium">
-                                  <Clock size={12} className="text-slate-400" />
-                                  {pkg.delivery_slot || '11:00 - 13:00'}
+                                <span className="flex items-center gap-1 font-medium text-slate-700">
+                                  <Clock size={12} className="text-slate-500" />
+                                  {pkg.delivery_slot || DEFAULT_DELIVERY_TIME_SLOT}
                                 </span>
                               </div>
+
+                              {/* Delivery Schedule & Dynamic Rounds Breakdown */}
+                              {(() => {
+                                const rounds = (pkg.delivery_rounds_plan && pkg.delivery_rounds_plan.length > 0)
+                                  ? pkg.delivery_rounds_plan
+                                  : calculateDeliveryRounds(pkg.meals_total || 15, 6);
+                                const planSummary = getDeliveryPlanSummary(rounds);
+                                const activeDays = (pkg.delivery_days && pkg.delivery_days.length > 0)
+                                  ? pkg.delivery_days
+                                  : storeDeliveryDays;
+                                const schedule = pkg.start_date
+                                  ? generateDeliverySchedule(pkg.start_date, rounds, activeDays)
+                                  : [];
+
+                                return (
+                                  <div className="pt-2.5 border-t border-slate-200/60 space-y-2">
+                                    <div className="flex flex-wrap items-center justify-between gap-1 text-[11px]">
+                                      <span className="font-semibold text-slate-800 flex items-center gap-1.5">
+                                        <Truck size={13} className="text-emerald-600 shrink-0" />
+                                        <span>รอบวันจัดส่ง: <strong className="text-slate-900 font-bold">{formatActiveDaysLabel(activeDays)}</strong></span>
+                                      </span>
+                                      <span className="text-[10px] text-emerald-900 font-bold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                                        {rounds.length} รอบ ({pkg.meals_total} มื้อ)
+                                      </span>
+                                    </div>
+                                    <div className="text-[10px] text-slate-700 font-medium">
+                                      {planSummary}
+                                    </div>
+                                    <div className="flex flex-wrap gap-1 pt-0.5">
+                                      {rounds.map((roundQty, idx) => {
+                                        const isRemainder = roundQty < 6;
+                                        const roundDate = schedule[idx]?.deliveryDate;
+                                        return (
+                                          <span
+                                            key={idx}
+                                            className={`px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold flex items-center gap-1 border ${
+                                              isRemainder
+                                                ? 'bg-amber-100 text-amber-900 border-amber-300'
+                                                : 'bg-white text-slate-800 border-slate-200 shadow-2xs'
+                                            }`}
+                                          >
+                                            <span>รอบ {idx + 1}: {roundQty} ถุง</span>
+                                            {roundDate && (
+                                              <span className="text-slate-600 font-normal">
+                                                ({dayjs(roundDate).format('DD/MM')})
+                                              </span>
+                                            )}
+                                            {isRemainder && (
+                                              <span className="bg-amber-200 text-amber-900 text-[9px] px-1 rounded font-black">
+                                                เศษ
+                                              </span>
+                                            )}
+                                          </span>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                );
+                              })()}
                             </div>
                           </div>
                         );
@@ -1058,6 +1185,41 @@ export const MemberManagement: React.FC = () => {
                   </select>
                 </div>
 
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1 flex items-center justify-between">
+                    <span>วันจัดส่งประจำของลูกค้า (ค่าเริ่มต้น: จันทร์ & พฤหัสบดี)</span>
+                    <span className="text-[10px] text-emerald-800 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                      {formatActiveDaysLabel(editMember.preferred_delivery_days?.length ? editMember.preferred_delivery_days : storeDeliveryDays)}
+                    </span>
+                  </label>
+                  <div className="grid grid-cols-7 gap-1">
+                    {[1, 2, 3, 4, 5, 6, 7].map((d) => {
+                      const currentDays = editMember.preferred_delivery_days?.length ? editMember.preferred_delivery_days : storeDeliveryDays;
+                      const isSelected = currentDays.includes(d);
+                      return (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => {
+                            const next = isSelected
+                              ? (currentDays.length > 1 ? currentDays.filter(x => x !== d) : currentDays)
+                              : [...currentDays, d].sort((a, b) => a - b);
+                            setEditMember({ ...editMember, preferred_delivery_days: next });
+                          }}
+                          className={`py-1.5 rounded-xl text-xs font-bold transition-all border flex flex-col items-center justify-center gap-0.5 ${
+                            isSelected
+                              ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                              : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                          }`}
+                        >
+                          <span>{DAY_NAMES_SHORT_TH[d]}</span>
+                          <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-transparent'}`} />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-[11px] font-bold text-emerald-700 uppercase mb-1">เป้าหมายสุขภาพ</label>
                   <input 
@@ -1127,16 +1289,65 @@ export const MemberManagement: React.FC = () => {
             </div>
 
             <div className="p-6 overflow-y-auto space-y-4 custom-scrollbar flex-1 text-xs">
+              {/* Quick Pinto Package Presets */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                    แพ็กเกจหลัก Clean Food CR (Quick Presets)
+                  </label>
+                  <span className="text-[10px] text-emerald-800 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                    จันทร์ & พฤหัสฯ (รอบละ 6 + เศษ)
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {CORE_PACKAGE_DELIVERY_MODELS.map((pkg) => {
+                    const isSelected = newPackage.package_name === pkg.name;
+                    return (
+                      <button
+                        key={pkg.id}
+                        type="button"
+                        onClick={() => {
+                          setNewPackage({
+                            ...newPackage,
+                            package_name: pkg.name,
+                            meals_total: pkg.mealsTotal,
+                            price: pkg.price,
+                            promotion_id: '',
+                            end_date: dayjs(newPackage.start_date).add(pkg.daysTotal, 'day').format('YYYY-MM-DD'),
+                            buddy_member_id: ''
+                          });
+                          setSelectedPromotion(null);
+                        }}
+                        className={`p-2.5 rounded-xl border text-left transition-all ${
+                          isSelected
+                            ? 'bg-emerald-50 border-emerald-500 text-emerald-950 ring-2 ring-emerald-500/20 shadow-xs'
+                            : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-white hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between text-[11px] font-bold">
+                          <span className="truncate">{pkg.name.split('(')[0].trim()}</span>
+                          <span className="text-emerald-800 font-mono">฿{pkg.price.toLocaleString()}</span>
+                        </div>
+                        <div className="text-[10px] text-slate-700 font-medium mt-1 flex justify-between items-center">
+                          <span>{pkg.mealsTotal} มื้อ ({pkg.roundsCount} รอบ)</span>
+                          <span className="font-mono text-emerald-800 font-bold">[{pkg.roundQuantities.join(', ')}] ถุง</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Promotion Select Dropdown */}
               <div>
-                <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">เลือกโปรโมชั่นหลัก</label>
+                <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">หรือเลือกจากโปรโมชั่นที่เปิดใช้งาน</label>
                 <div className="relative">
                   <div 
                     onClick={() => setIsPromoDropdownOpen(!isPromoDropdownOpen)}
                     className="w-full p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl text-xs font-bold text-emerald-800 flex items-center justify-between cursor-pointer hover:border-emerald-400 transition-all"
                   >
                     <span className="truncate">
-                      {newPackage.package_name ? newPackage.package_name.replace('- ', '') : '-- เลือกโปรโมชั่น --'}
+                      {newPackage.package_name ? newPackage.package_name.replace('- ', '') : '-- เลือกโปรโมชั่นอื่นๆ --'}
                     </span>
                     <span className="text-emerald-600 text-[10px]">▼</span>
                   </div>
@@ -1162,8 +1373,10 @@ export const MemberManagement: React.FC = () => {
                                 setNewPackage({
                                   ...newPackage,
                                   package_name: `- ${p.name} = ฿${p.price}`,
-                                  meals_total: p.meals_count,
-                                  end_date: dayjs(newPackage.start_date).add(p.days_count, 'day').format('YYYY-MM-DD'),
+                                  meals_total: Number(p.meals_count) || 15,
+                                  price: Number(p.price) || 0,
+                                  promotion_id: p.id,
+                                  end_date: dayjs(newPackage.start_date).add(p.days_count || 14, 'day').format('YYYY-MM-DD'),
                                   buddy_member_id: isBuddyPromo ? newPackage.buddy_member_id : ''
                                 });
                                 setSelectedPromotion(p);
@@ -1183,7 +1396,7 @@ export const MemberManagement: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">มื้อรวม</label>
                   <input 
@@ -1194,7 +1407,16 @@ export const MemberManagement: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">รอบส่งปกติ</label>
+                  <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">ราคา (บาท)</label>
+                  <input 
+                    type="number"
+                    value={newPackage.price}
+                    onChange={(e) => setNewPackage({...newPackage, price: parseFloat(e.target.value) || 0})}
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono font-bold outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1">รอบเวลาส่ง</label>
                   <input 
                     type="text"
                     value={newPackage.delivery_slot}
@@ -1223,6 +1445,162 @@ export const MemberManagement: React.FC = () => {
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:border-emerald-500"
                   />
                 </div>
+              </div>
+
+              {/* Delivery Days Selector & Dynamic Rounds Remainder Calculation */}
+              <div className="p-3.5 bg-emerald-50/70 rounded-2xl border border-emerald-200/90 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-emerald-950 flex items-center gap-1.5 uppercase tracking-wider">
+                    <Truck size={15} className="text-emerald-700" />
+                    รอบวันจัดส่ง & การกระจายรอบส่ง (Delivery Schedule)
+                  </label>
+                  <span className="text-[10px] font-bold text-emerald-900 bg-emerald-100/90 px-2 py-0.5 rounded-full border border-emerald-200">
+                    {formatActiveDaysLabel(newPackage.delivery_days || [1, 4])}
+                  </span>
+                </div>
+
+                {/* Preset Day Buttons */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[10px] text-slate-600">
+                    <span className="font-semibold text-slate-700">เลือกวันจัดส่ง (ค่าเริ่มต้น: จันทร์ & พฤหัสบดี)</span>
+                    <div className="flex flex-wrap gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setNewPackage({ ...newPackage, delivery_days: [1, 4] })}
+                        className={`px-2 py-0.5 rounded text-[10px] font-semibold transition-all ${
+                          (newPackage.delivery_days?.length === 2 && newPackage.delivery_days.includes(1) && newPackage.delivery_days.includes(4))
+                            ? "bg-emerald-700 text-white shadow-xs"
+                            : "bg-white text-slate-700 hover:bg-emerald-100/80 border border-emerald-200"
+                        }`}
+                      >
+                        จันทร์ & พฤหัสฯ (ร้าน)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNewPackage({ ...newPackage, delivery_days: [1, 3, 5] })}
+                        className={`px-2 py-0.5 rounded text-[10px] font-semibold transition-all ${
+                          (newPackage.delivery_days?.length === 3 && newPackage.delivery_days.includes(1) && newPackage.delivery_days.includes(3) && newPackage.delivery_days.includes(5))
+                            ? "bg-emerald-700 text-white shadow-xs"
+                            : "bg-white text-slate-700 hover:bg-emerald-100/80 border border-emerald-200"
+                        }`}
+                      >
+                        จ., พ., ศ.
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNewPackage({ ...newPackage, delivery_days: [1, 2, 3, 4, 5, 6, 7] })}
+                        className={`px-2 py-0.5 rounded text-[10px] font-semibold transition-all ${
+                          newPackage.delivery_days?.length === 7
+                            ? "bg-emerald-700 text-white shadow-xs"
+                            : "bg-white text-slate-700 hover:bg-emerald-100/80 border border-emerald-200"
+                        }`}
+                      >
+                        ทุกวัน
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 7-day checkboxes */}
+                  <div className="grid grid-cols-7 gap-1">
+                    {[1, 2, 3, 4, 5, 6, 7].map((dayNum) => {
+                      const isSelected = (newPackage.delivery_days || []).includes(dayNum);
+                      return (
+                        <button
+                          key={dayNum}
+                          type="button"
+                          onClick={() => {
+                            const current = newPackage.delivery_days || [1, 4];
+                            let next: number[];
+                            if (isSelected) {
+                              if (current.length === 1) {
+                                Swal.fire({
+                                  icon: 'warning',
+                                  title: 'ต้องเลือกอย่างน้อย 1 วัน',
+                                  text: 'กรุณาเลือกวันจัดส่งอย่างน้อย 1 วัน',
+                                  confirmButtonColor: '#10b981'
+                                });
+                                return;
+                              }
+                              next = current.filter(d => d !== dayNum);
+                            } else {
+                              next = [...current, dayNum].sort((a, b) => a - b);
+                            }
+                            setNewPackage({ ...newPackage, delivery_days: next });
+                          }}
+                          className={`py-1.5 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5 ${
+                            isSelected
+                              ? 'bg-emerald-600 text-white shadow-sm ring-1 ring-emerald-500'
+                              : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+                          }`}
+                        >
+                          <span>{DAY_NAMES_SHORT_TH[dayNum]}</span>
+                          <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-transparent'}`} />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Dynamic Rounds & Remainder Calculation */}
+                {(() => {
+                  const meals = Number(newPackage.meals_total) || 15;
+                  const rounds = calculateDeliveryRounds(meals, 6);
+                  const planSummary = getDeliveryPlanSummary(rounds);
+                  const schedule = generateDeliverySchedule(
+                    newPackage.start_date,
+                    rounds,
+                    newPackage.delivery_days || [1, 4]
+                  );
+
+                  return (
+                    <div className="pt-2 border-t border-emerald-200/60 space-y-2">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-bold text-emerald-950 flex items-center gap-1">
+                          <Sparkles size={13} className="text-emerald-600" />
+                          <span>การกระจายรอบจัดส่ง:</span>
+                        </span>
+                        <span className="font-bold font-mono text-emerald-900 bg-white px-2 py-0.5 rounded border border-emerald-200">
+                          {rounds.length} รอบ ({meals} มื้อ)
+                        </span>
+                      </div>
+
+                      <div className="text-[10px] text-emerald-900 font-semibold bg-white/80 p-2 rounded-xl border border-emerald-200">
+                        {planSummary}
+                      </div>
+
+                      {/* Visual Round Pills with remainder tag */}
+                      <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto custom-scrollbar p-0.5">
+                        {rounds.map((roundQty, idx) => {
+                          const isRemainder = roundQty < 6;
+                          const roundDate = schedule[idx]?.deliveryDate;
+                          return (
+                            <span
+                              key={idx}
+                              className={`px-2 py-1 rounded-lg text-[10px] font-mono font-bold inline-flex items-center gap-1 border ${
+                                isRemainder
+                                  ? 'bg-amber-100 text-amber-900 border-amber-300 shadow-2xs'
+                                  : 'bg-white text-slate-800 border-slate-200 shadow-2xs'
+                              }`}
+                            >
+                              <span>รอบ {idx + 1}:</span>
+                              <span className="text-emerald-800">{roundQty} ถุง</span>
+                              {roundDate && (
+                                <span className="text-slate-600 font-medium">
+                                  ({dayjs(roundDate).format('DD/MM')})
+                                </span>
+                              )}
+                              {isRemainder && (
+                                <span className="text-[9px] bg-amber-200 text-amber-900 px-1 py-0.2 rounded font-black">
+                                  เศษ
+                                </span>
+                              )}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Buddy Promotion Option */}
@@ -1275,6 +1653,31 @@ export const MemberManagement: React.FC = () => {
                   </div>
                 </div>
               )}
+
+              {/* Summary Card */}
+              <div className="p-3.5 bg-slate-900 text-white rounded-2xl space-y-2 shadow-sm">
+                <div className="flex items-center justify-between text-[11px] text-slate-300">
+                  <span className="flex items-center gap-1 font-semibold text-emerald-400">
+                    <Check size={13} /> สรุปแพ็กเกจที่จะบันทึก
+                  </span>
+                  <span className="font-bold font-mono text-white text-sm">
+                    ฿{Number(newPackage.price || 0).toLocaleString()}
+                  </span>
+                </div>
+                <div className="text-xs font-bold text-white truncate">
+                  {newPackage.package_name || 'ยังไม่ได้ระบุชื่อแพ็กเกจ'}
+                </div>
+                <div className="grid grid-cols-2 gap-2 pt-1.5 border-t border-slate-800 text-[11px] text-slate-300">
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">จำนวนมื้อรวม:</span>
+                    <strong className="text-emerald-400 font-bold">{newPackage.meals_total} มื้อ ({calculateDeliveryRounds(Number(newPackage.meals_total) || 15, 6).length} รอบ)</strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">รอบวันส่ง:</span>
+                    <strong className="text-white font-bold">{formatActiveDaysLabel(newPackage.delivery_days || [1, 4])}</strong>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2.5">

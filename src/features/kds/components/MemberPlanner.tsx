@@ -38,6 +38,12 @@ import { fetchMemberSchedules, bulkImportSchedules } from "../../../features/kds
 import type { MemberMealSchedule, PintoPackage } from "../../../types";
 import { SmartImportModal } from "./SmartImportModal";
 import { AdvancedTemplateModal } from "./AdvancedTemplateModal";
+import { 
+  calculateDeliveryRounds, 
+  getDeliveryPlanSummary, 
+  generateDeliverySchedule,
+  formatActiveDaysLabel
+} from "../../../features/logistics/services/deliveryScheduleService";
 
 export const MemberPlanner: React.FC = () => {
   // Authentication & Role
@@ -81,6 +87,8 @@ export const MemberPlanner: React.FC = () => {
   const [packageUpdates, setPackageUpdates] = useState<{
     package_name: string;
     meals_total: number;
+    delivery_days: number[];
+    delivery_slot: string;
   } | null>(null);
 
   // Delivery Schedule Configuration State
@@ -96,31 +104,44 @@ export const MemberPlanner: React.FC = () => {
     mode: "mon_thu",
   });
   const [promotionsList, setPromotionsList] = useState<any[]>([]);
-  const [selectedPromoPresetId, setSelectedPromoPresetId] = useState<string>("pinto_14d_28m");
+  const [selectedPromoPresetId, setSelectedPromoPresetId] = useState<string>("pinto_7d_15m");
 
   const STANDARD_PINTO_PRESETS = [
-    { id: 'pinto_14d_28m', name: 'ผูกปิ่นโต 14 วัน (28 มื้อ)', meals_count: 28, days_count: 14, price: 1899, popular: true, tag: 'ยอดนิยม 🔥', desc: 'ทานวันละ 2 มื้อ (กลางวัน + เย็น)' },
-    { id: 'pinto_7d_14m', name: 'ผูกปิ่นโต 7 วัน (14 มื้อ)', meals_count: 14, days_count: 7, price: 990, popular: false, tag: 'ทดลองทาน', desc: 'คอร์สสั้น 1 สัปดาห์' },
-    { id: 'pinto_30d_60m', name: 'ผูกปิ่นโต 30 วัน (60 มื้อ)', meals_count: 60, days_count: 30, price: 3799, popular: false, tag: 'สุดคุ้ม ⭐️', desc: 'คอร์สรายเดือนประหยัดสูงสุด' },
+    { id: 'pinto_7d_15m', name: 'ผูกปิ่นโต 7 วัน (15 มื้อ)', meals_count: 15, days_count: 7, price: 999, popular: true, tag: 'ทดลองทาน 🔥', desc: 'จัดส่ง 3 รอบ: 6 + 6 + 3 ถุง (จันทร์ & พฤหัสฯ)' },
+    { id: 'pinto_14d_30m', name: 'ผูกปิ่นโต 14 วัน (30 มื้อ)', meals_count: 30, days_count: 14, price: 1899, popular: true, tag: 'ยอดนิยม ⭐', desc: 'จัดส่ง 5 รอบ: รอบละ 6 ถุง (จันทร์ & พฤหัสฯ)' },
+    { id: 'pinto_30d_63m', name: 'ผูกปิ่นโต 1 เดือน (63 มื้อ)', meals_count: 63, days_count: 30, price: 3999, popular: false, tag: 'สุดคุ้ม ⭐️', desc: 'จัดส่ง 11 รอบ: 10 รอบละ 6 ถุง + 1 รอบ 3 ถุง' },
     { id: 'promo_4box', name: 'โปรโมชั่น 4 กล่อง (299 บ.)', meals_count: 4, days_count: 1, price: 299, popular: false, tag: 'โปร 4 กล่อง', desc: 'เฉลี่ยกล่องละ ฿74.75' },
     { id: 'promo_6box', name: 'โปรโมชั่น 6 กล่อง (399 บ.)', meals_count: 6, days_count: 1, price: 399, popular: false, tag: 'โปร 6 กล่อง', desc: 'เฉลี่ยกล่องละ ฿66.50' },
     { id: 'promo_7box', name: 'โปรโมชั่น 7 กล่อง (459 บ.)', meals_count: 7, days_count: 1, price: 459, popular: false, tag: 'โปร 7 กล่อง', desc: 'เฉลี่ยกล่องละ ฿65.57' },
-    { id: 'custom', name: 'กำหนดเอง (Custom Plan)', meals_count: 14, days_count: 14, price: 0, popular: false, tag: 'กำหนดเอง', desc: 'ระบุชื่อและจำนวนมื้อเอง' },
+    { id: 'custom', name: 'กำหนดเอง (Custom Plan)', meals_count: 15, days_count: 7, price: 0, popular: false, tag: 'กำหนดเอง', desc: 'ระบุชื่อและจำนวนมื้อเอง' },
   ];
 
   // Modal State: New Package
   const [isAddPackageModalOpen, setIsAddPackageModalOpen] = useState(false);
   const [isSmartImportOpen, setIsSmartImportOpen] = useState(false);
   const [isAdvancedTemplateModalOpen, setIsAdvancedTemplateModalOpen] = useState(false);
-  const [newPackage, setNewPackage] = useState({
+  const [newPackage, setNewPackage] = useState<{
+    member_id: string;
+    package_name: string;
+    meals_total: number;
+    price: number;
+    promotion_id: string;
+    start_date: string;
+    end_date: string;
+    is_custom: boolean;
+    delivery_days: number[];
+    delivery_slot: string;
+  }>({
     member_id: "",
-    package_name: "ผูกปิ่นโต 14 วัน (28 มื้อ)",
-    meals_total: 28,
-    price: 1899,
+    package_name: "ผูกปิ่นโต 7 วัน (15 มื้อ)",
+    meals_total: 15,
+    price: 999,
     promotion_id: "",
     start_date: dayjs().format("YYYY-MM-DD"),
-    end_date: dayjs().add(14, "day").format("YYYY-MM-DD"),
+    end_date: dayjs().add(7, "day").format("YYYY-MM-DD"),
     is_custom: false,
+    delivery_days: [1, 4], // Monday (1) & Thursday (4) by default
+    delivery_slot: "11:00 - 13:00",
   });
 
   // Search & Filter State
@@ -580,10 +601,22 @@ export const MemberPlanner: React.FC = () => {
 
   const handleOpenProfile = () => {
     if (!selectedPackage?.members) return;
-    setMemberUpdates({ ...selectedPackage.members });
+    const currentMember = Array.isArray(selectedPackage.members)
+      ? selectedPackage.members[0]
+      : selectedPackage.members;
+
+    setMemberUpdates({ ...currentMember });
+    const initialDeliveryDays = (selectedPackage.delivery_days && selectedPackage.delivery_days.length > 0)
+      ? selectedPackage.delivery_days
+      : (currentMember?.preferred_delivery_days && currentMember.preferred_delivery_days.length > 0)
+        ? currentMember.preferred_delivery_days
+        : [1, 4];
+
     setPackageUpdates({
       package_name: selectedPackage.package_name,
       meals_total: selectedPackage.meals_total,
+      delivery_days: initialDeliveryDays,
+      delivery_slot: selectedPackage.delivery_slot || '11:00 - 13:00',
     });
     setIsProfileModalOpen(true);
   };
@@ -605,8 +638,17 @@ export const MemberPlanner: React.FC = () => {
     if (!confirmResult.isConfirmed) return;
 
     try {
+      const currentMemberId = Array.isArray(selectedPackage.members)
+        ? selectedPackage.members[0]?.id
+        : selectedPackage.members.id;
+
       // 1. Update Member Profile
-      await updateProfile(selectedPackage.members.id, memberUpdates);
+      await updateProfile(currentMemberId, {
+        ...memberUpdates,
+        preferred_delivery_days: packageUpdates.delivery_days,
+      });
+
+      const rounds = calculateDeliveryRounds(packageUpdates.meals_total, 6);
 
       // 2. Update Package Details (if needed)
       const { error } = await supabase
@@ -614,6 +656,10 @@ export const MemberPlanner: React.FC = () => {
         .update({
           package_name: packageUpdates.package_name,
           meals_total: packageUpdates.meals_total,
+          delivery_days: packageUpdates.delivery_days,
+          delivery_slot: packageUpdates.delivery_slot,
+          delivery_rounds: rounds.length,
+          delivery_rounds_plan: rounds,
         })
         .eq("id", selectedPackage.id);
 
@@ -683,11 +729,15 @@ export const MemberPlanner: React.FC = () => {
         dayjs(newPackage.end_date).diff(dayjs(newPackage.start_date), "day")
       );
 
+      const meals = Number(newPackage.meals_total) || 15;
+      const rounds = calculateDeliveryRounds(meals, 6);
+      const deliveryDays = newPackage.delivery_days?.length ? newPackage.delivery_days : [1, 4];
+
       await addPackage({
         member_id: newPackage.member_id,
         package_name: newPackage.package_name,
-        meals_total: Number(newPackage.meals_total) || 14,
-        meals_remaining: Number(newPackage.meals_total) || 14,
+        meals_total: meals,
+        meals_remaining: meals,
         days_total: daysCount,
         days_remaining: daysCount,
         start_date: newPackage.start_date,
@@ -695,10 +745,14 @@ export const MemberPlanner: React.FC = () => {
         price_paid: Number(newPackage.price) || 0,
         promotion_id: newPackage.promotion_id || undefined,
         status: "active",
+        delivery_days: deliveryDays,
+        delivery_rounds: rounds.length,
+        delivery_rounds_plan: rounds,
+        delivery_slot: newPackage.delivery_slot || "11:00 - 13:00",
       });
 
       setIsAddPackageModalOpen(false);
-      toast.success(`เปิดแพ็กเกจ "${newPackage.package_name}" เรียบร้อยแล้ว ✨`);
+      toast.success(`เปิดแพ็กเกจ "${newPackage.package_name}" (${getDeliveryPlanSummary(rounds)}) เรียบร้อยแล้ว ✨`);
     } catch (error: any) {
       toast.error("เกิดข้อผิดพลาด: " + error.message);
     }
@@ -948,7 +1002,8 @@ export const MemberPlanner: React.FC = () => {
                         "bg-blue-50 text-blue-700 border border-blue-200";
                     } else if (
                       pkg.meals_total === 60 ||
-                      pkg.meals_total === 62
+                      pkg.meals_total === 62 ||
+                      pkg.meals_total === 63
                     ) {
                       statusBadgeClass =
                         "bg-purple-50 text-purple-700 border border-purple-200";
@@ -1195,7 +1250,26 @@ export const MemberPlanner: React.FC = () => {
                 {weekDays.map((day) => {
                   const daySchedules = getSchedulesForDate(day.date);
                   const dayOfWeek = dayjs(day.date).isoWeekday(); // 1=Mon ... 7=Sun
-                  const isDeliveryDay = deliveryConfig.active_days.includes(dayOfWeek);
+                  
+                  // Package-specific delivery days or store default [1, 4]
+                  const pkgDeliveryDays = (selectedPackage?.delivery_days && selectedPackage.delivery_days.length > 0)
+                    ? selectedPackage.delivery_days
+                    : (selectedPackage?.members?.preferred_delivery_days && selectedPackage.members.preferred_delivery_days.length > 0)
+                      ? selectedPackage.members.preferred_delivery_days
+                      : deliveryConfig.active_days;
+                  const isDeliveryDay = pkgDeliveryDays.includes(dayOfWeek);
+
+                  // Calculate scheduled round and bag count for this package if active
+                  let roundInfo: any = null;
+                  if (selectedPackage && selectedPackage.meals_total > 0 && selectedPackage.start_date) {
+                    const rList = calculateDeliveryRounds(selectedPackage.meals_total, 6);
+                    const scheduleList = generateDeliverySchedule(
+                      selectedPackage.start_date,
+                      rList,
+                      pkgDeliveryDays
+                    );
+                    roundInfo = scheduleList.find((r) => r.deliveryDate === day.date);
+                  }
 
                   return (
                     <div key={day.date} className="flex flex-col h-full">
@@ -1204,7 +1278,9 @@ export const MemberPlanner: React.FC = () => {
                           day.isToday
                             ? "border-blue-400 shadow-md ring-2 ring-blue-500/10"
                             : isDeliveryDay
-                              ? "border-emerald-200/90 shadow-sm"
+                              ? roundInfo?.isRemainder
+                                ? "border-amber-300 shadow-sm ring-1 ring-amber-400/20"
+                                : "border-emerald-200/90 shadow-sm"
                               : "border-slate-200/80 shadow-2xs opacity-95"
                         } overflow-hidden flex flex-col h-full group/card transition-all`}
                       >
@@ -1214,7 +1290,9 @@ export const MemberPlanner: React.FC = () => {
                             day.isToday
                               ? "bg-blue-600 text-white shadow-inner"
                               : isDeliveryDay
-                                ? "bg-emerald-50/60 border-emerald-100 group-hover/card:bg-emerald-50/90"
+                                ? roundInfo?.isRemainder
+                                  ? "bg-amber-50/70 border-amber-200 group-hover/card:bg-amber-50/90"
+                                  : "bg-emerald-50/60 border-emerald-100 group-hover/card:bg-emerald-50/90"
                                 : "bg-slate-50 border-slate-100 group-hover/card:bg-slate-100"
                           }`}
                         >
@@ -1229,9 +1307,12 @@ export const MemberPlanner: React.FC = () => {
                                 <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded flex items-center gap-0.5 ${
                                   day.isToday
                                     ? "bg-white/20 text-white border border-white/30"
-                                    : "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                    : roundInfo?.isRemainder
+                                      ? "bg-amber-100 text-amber-900 border border-amber-300 font-bold"
+                                      : "bg-emerald-100 text-emerald-800 border border-emerald-200"
                                 }`}>
-                                  <Truck size={10} /> วันส่ง
+                                  <Truck size={10} /> 
+                                  {roundInfo ? `รอบ ${roundInfo.roundNumber} (${roundInfo.quantity} ถุง)${roundInfo.isRemainder ? ' [เศษ]' : ''}` : 'วันส่ง'}
                                 </span>
                               ) : (
                                 <span className="text-[9px] font-medium px-1.5 py-0.5 rounded bg-slate-200/70 text-slate-500">
@@ -1508,6 +1589,184 @@ export const MemberPlanner: React.FC = () => {
                     className="w-full px-4 py-3 bg-white border border-emerald-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all text-sm font-semibold text-slate-900"
                   />
                 </div>
+              </div>
+
+              {/* Delivery Days & Rounds Settings for Package */}
+              <div className="p-4 bg-emerald-50/70 rounded-2xl border border-emerald-200/80 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-emerald-900 flex items-center gap-1.5 uppercase">
+                    <Truck size={14} className="text-emerald-600" />
+                    วันจัดส่ง & รอบส่งอาหาร (แพ็กเกจนี้)
+                  </label>
+                  <span className="text-[10px] font-bold text-emerald-800 bg-white px-2 py-0.5 rounded-full border border-emerald-200 shadow-xs">
+                    {formatActiveDaysLabel(packageUpdates?.delivery_days || [1, 4])}
+                  </span>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px] text-slate-600">
+                    <span>เลือกวันจัดส่ง (ค่าเริ่มต้น: จันทร์ & พฤหัสบดี)</span>
+                    <div className="flex gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPackageUpdates({
+                            ...packageUpdates!,
+                            delivery_days: [1, 4],
+                          })
+                        }
+                        className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all ${
+                          (packageUpdates?.delivery_days?.length === 2 &&
+                            packageUpdates.delivery_days.includes(1) &&
+                            packageUpdates.delivery_days.includes(4))
+                            ? "bg-emerald-600 text-white font-bold"
+                            : "bg-white text-slate-600 hover:bg-emerald-100 border border-emerald-200"
+                        }`}
+                      >
+                        จันทร์ & พฤหัสฯ (ร้าน)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPackageUpdates({
+                            ...packageUpdates!,
+                            delivery_days: [1, 3, 5],
+                          })
+                        }
+                        className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all ${
+                          (packageUpdates?.delivery_days?.length === 3 &&
+                            packageUpdates.delivery_days.includes(1) &&
+                            packageUpdates.delivery_days.includes(3) &&
+                            packageUpdates.delivery_days.includes(5))
+                            ? "bg-emerald-600 text-white font-bold"
+                            : "bg-white text-slate-600 hover:bg-emerald-100 border border-emerald-200"
+                        }`}
+                      >
+                        จ/พ/ศ
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-7 gap-1.5">
+                    {[
+                      { day: 1, name: "จันทร์", short: "จ" },
+                      { day: 2, name: "อังคาร", short: "อ" },
+                      { day: 3, name: "พุธ", short: "พ" },
+                      { day: 4, name: "พฤหัสฯ", short: "พฤ" },
+                      { day: 5, name: "ศุกร์", short: "ศ" },
+                      { day: 6, name: "เสาร์", short: "ส" },
+                      { day: 7, name: "อาทิตย์", short: "อา" },
+                    ].map(({ day, short, name }) => {
+                      const isSelected = (packageUpdates?.delivery_days || [1, 4]).includes(day);
+                      return (
+                        <button
+                          key={day}
+                          type="button"
+                          onClick={() => {
+                            const current = packageUpdates?.delivery_days || [1, 4];
+                            let next: number[];
+                            if (isSelected) {
+                              if (current.length === 1) {
+                                toast.warning("ต้องเลือกวันจัดส่งอย่างน้อย 1 วัน");
+                                return;
+                              }
+                              next = current.filter((d) => d !== day);
+                            } else {
+                              next = [...current, day].sort((a, b) => a - b);
+                            }
+                            setPackageUpdates({
+                              ...packageUpdates!,
+                              delivery_days: next,
+                            });
+                          }}
+                          className={`py-2 px-1 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5 ${
+                            isSelected
+                              ? "bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-500/30"
+                              : "bg-white text-slate-600 border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/50"
+                          }`}
+                          title={name}
+                        >
+                          <span>{short}</span>
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${isSelected ? "bg-white" : "bg-transparent"}`}
+                          />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-700 block">
+                      รอบเวลาจัดส่งแพ็กเกจ
+                    </label>
+                    <select
+                      value={packageUpdates?.delivery_slot || "11:00 - 13:00"}
+                      onChange={(e) => {
+                        setPackageUpdates({
+                          ...packageUpdates!,
+                          delivery_slot: e.target.value,
+                        });
+                        setMemberUpdates({
+                          ...memberUpdates,
+                          delivery_time: e.target.value,
+                        });
+                      }}
+                      className="w-full px-3 py-2 bg-white border border-emerald-200 rounded-xl text-xs outline-none focus:border-emerald-500 font-medium text-slate-800"
+                    >
+                      <option value="11:00 - 13:00">11:00 - 13:00 (รอบเที่ยง)</option>
+                      <option value="15:00 - 17:00">15:00 - 17:00 (รอบเย็น)</option>
+                      <option value="09:00 - 11:00">09:00 - 11:00 (รอบเช้า)</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-700 block">
+                      แผนรอบจัดส่งคำนวณอัตโนมัติ
+                    </label>
+                    <div className="p-2 bg-white border border-emerald-200 rounded-xl text-xs font-bold text-emerald-800">
+                      {getDeliveryPlanSummary(
+                        calculateDeliveryRounds(packageUpdates?.meals_total || 0, 6)
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Round remainder badge breakdown */}
+                {(() => {
+                  const rounds = calculateDeliveryRounds(packageUpdates?.meals_total || 0, 6);
+                  if (rounds.length === 0) return null;
+                  return (
+                    <div className="pt-2 border-t border-emerald-200/60">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-900 mb-1.5 flex items-center justify-between">
+                        <span>รอบส่ง ({rounds.length} รอบ | สูงสุด 6 ถุง/รอบ)</span>
+                        <span className="font-normal text-slate-500">รวม {packageUpdates?.meals_total} มื้อ</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto custom-scrollbar p-0.5">
+                        {rounds.map((roundQty, idx) => {
+                          const isRemainder = roundQty < 6;
+                          return (
+                            <span
+                              key={idx}
+                              className={`px-2 py-1 rounded-lg text-xs font-bold inline-flex items-center gap-1 border ${
+                                isRemainder
+                                  ? "bg-amber-100/90 text-amber-900 border-amber-300"
+                                  : "bg-emerald-100/80 text-emerald-900 border-emerald-200"
+                              }`}
+                            >
+                              <span>รอบ {idx + 1}:</span>
+                              <span>{roundQty} ถุง</span>
+                              {isRemainder && (
+                                <span className="text-[9px] bg-amber-200 text-amber-800 px-1 py-0.2 rounded">รอบเศษ</span>
+                              )}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -2088,6 +2347,168 @@ export const MemberPlanner: React.FC = () => {
                 </div>
               </div>
 
+              {/* Step 3.5: Delivery Schedule & Dynamic Rounds */}
+              <div className="p-4 bg-emerald-50/60 rounded-2xl border border-emerald-200/80 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-emerald-900 flex items-center gap-1.5 uppercase tracking-wider">
+                    <Truck size={14} className="text-emerald-600" />
+                    กำหนดวันจัดส่ง & รอบส่งอาหาร
+                  </label>
+                  <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full">
+                    {formatActiveDaysLabel(newPackage.delivery_days || [1, 4])}
+                  </span>
+                </div>
+
+                {/* Day Selector Pills */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[10px] text-slate-500">
+                    <span>เลือกวันจัดส่ง (ค่าเริ่มต้น: จันทร์ & พฤหัสบดี)</span>
+                    <div className="flex gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setNewPackage({ ...newPackage, delivery_days: [1, 4] })}
+                        className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all ${
+                          (newPackage.delivery_days?.length === 2 && newPackage.delivery_days.includes(1) && newPackage.delivery_days.includes(4))
+                            ? "bg-emerald-600 text-white font-bold"
+                            : "bg-white text-slate-600 hover:bg-emerald-100 border border-emerald-200"
+                        }`}
+                      >
+                        จันทร์ & พฤหัสฯ (ร้าน)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNewPackage({ ...newPackage, delivery_days: [1, 3, 5] })}
+                        className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all ${
+                          (newPackage.delivery_days?.length === 3 && newPackage.delivery_days.includes(1) && newPackage.delivery_days.includes(3) && newPackage.delivery_days.includes(5))
+                            ? "bg-emerald-600 text-white font-bold"
+                            : "bg-white text-slate-600 hover:bg-emerald-100 border border-emerald-200"
+                        }`}
+                      >
+                        จ/พ/ศ
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-7 gap-1.5">
+                    {[
+                      { day: 1, name: "จันทร์", short: "จ" },
+                      { day: 2, name: "อังคาร", short: "อ" },
+                      { day: 3, name: "พุธ", short: "พ" },
+                      { day: 4, name: "พฤหัสฯ", short: "พฤ" },
+                      { day: 5, name: "ศุกร์", short: "ศ" },
+                      { day: 6, name: "เสาร์", short: "ส" },
+                      { day: 7, name: "อาทิตย์", short: "อา" },
+                    ].map(({ day, short, name }) => {
+                      const isSelected = (newPackage.delivery_days || []).includes(day);
+                      return (
+                        <button
+                          key={day}
+                          type="button"
+                          onClick={() => {
+                            const current = newPackage.delivery_days || [1, 4];
+                            let next: number[];
+                            if (isSelected) {
+                              if (current.length === 1) {
+                                toast.warning("ต้องเลือกวันจัดส่งอย่างน้อย 1 วัน");
+                                return;
+                              }
+                              next = current.filter(d => d !== day);
+                            } else {
+                              next = [...current, day].sort((a, b) => a - b);
+                            }
+                            setNewPackage({ ...newPackage, delivery_days: next });
+                          }}
+                          className={`py-2 px-1 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5 ${
+                            isSelected
+                              ? "bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-500/30"
+                              : "bg-white text-slate-600 border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/50"
+                          }`}
+                          title={name}
+                        >
+                          <span>{short}</span>
+                          <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? "bg-white" : "bg-transparent"}`} />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Delivery Slot */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600">
+                      ช่วงเวลาจัดส่ง
+                    </label>
+                    <select
+                      value={newPackage.delivery_slot || "11:00 - 13:00"}
+                      onChange={(e) => setNewPackage({ ...newPackage, delivery_slot: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-emerald-200 rounded-xl text-xs outline-none focus:border-emerald-500 font-medium"
+                    >
+                      <option value="11:00 - 13:00">11:00 - 13:00 (รอบเที่ยง)</option>
+                      <option value="15:00 - 17:00">15:00 - 17:00 (รอบเย็น)</option>
+                      <option value="09:00 - 11:00">09:00 - 11:00 (รอบเช้า)</option>
+                    </select>
+                  </div>
+
+                  {/* Calculated Rounds Plan Preview */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-600">
+                      แผนรอบจัดส่ง ({calculateDeliveryRounds(Number(newPackage.meals_total) || 15, 6).length} รอบ)
+                    </label>
+                    <div className="p-2 bg-white border border-emerald-200 rounded-xl text-xs font-medium text-slate-700">
+                      <div className="text-[11px] font-bold text-emerald-800">
+                        {getDeliveryPlanSummary(calculateDeliveryRounds(Number(newPackage.meals_total) || 15, 6))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Dynamic Rounds Breakdown Pills */}
+                {(() => {
+                  const rounds = calculateDeliveryRounds(Number(newPackage.meals_total) || 15, 6);
+                  const schedule = generateDeliverySchedule(
+                    newPackage.start_date, 
+                    rounds, 
+                    newPackage.delivery_days || [1, 4]
+                  );
+                  return (
+                    <div className="pt-2 border-t border-emerald-200/60">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-900 mb-1.5 flex items-center justify-between">
+                        <span>รายละเอียดถุงในแต่ละรอบ (สูงสุด 6 ถุง/รอบ)</span>
+                        <span className="font-normal text-slate-500">รวม {newPackage.meals_total} มื้อ</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto custom-scrollbar p-0.5">
+                        {rounds.map((roundQty, idx) => {
+                          const isRemainder = roundQty < 6;
+                          const roundDate = schedule[idx]?.deliveryDate;
+                          return (
+                            <span
+                              key={idx}
+                              className={`px-2 py-1 rounded-lg text-xs font-bold inline-flex items-center gap-1 border ${
+                                isRemainder
+                                  ? "bg-amber-100/90 text-amber-900 border-amber-300"
+                                  : "bg-emerald-100/80 text-emerald-900 border-emerald-200"
+                              }`}
+                            >
+                              <span>รอบ {idx + 1}:</span>
+                              <span>{roundQty} ถุง</span>
+                              {roundDate && (
+                                <span className="text-[10px] opacity-75 font-normal">
+                                  ({dayjs(roundDate).format("DD/MM")})
+                                </span>
+                              )}
+                              {isRemainder && (
+                                <span className="text-[9px] bg-amber-200 text-amber-800 px-1 py-0.2 rounded">รอบเศษ</span>
+                              )}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
               {/* Step 4: Summary Card */}
               <div className="p-4 bg-emerald-950 text-white rounded-2xl shadow-sm space-y-2">
                 <div className="flex items-center justify-between text-xs text-emerald-300">
@@ -2106,21 +2527,27 @@ export const MemberPlanner: React.FC = () => {
                     ฿{Number(newPackage.price || 0).toLocaleString()}
                   </span>
                 </div>
-                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-emerald-800/60 text-xs text-emerald-200">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-emerald-800/60 text-xs text-emerald-200">
                   <div>
                     <span className="text-emerald-400 block text-[10px]">จำนวนมื้อรวม</span>
                     <strong className="text-white text-sm font-semibold">{newPackage.meals_total} มื้อ</strong>
                   </div>
                   <div>
-                    <span className="text-emerald-400 block text-[10px]">เฉลี่ยต่อมื้อ</span>
+                    <span className="text-emerald-400 block text-[10px]">รอบจัดส่ง</span>
                     <strong className="text-white text-sm font-semibold">
-                      ฿{newPackage.meals_total > 0 && newPackage.price > 0 ? (newPackage.price / newPackage.meals_total).toFixed(1) : "0"}
+                      {calculateDeliveryRounds(Number(newPackage.meals_total) || 15, 6).length} รอบ
                     </strong>
                   </div>
                   <div>
-                    <span className="text-emerald-400 block text-[10px]">ระยะเวลา</span>
+                    <span className="text-emerald-400 block text-[10px]">วันจัดส่ง</span>
+                    <strong className="text-white text-xs font-semibold">
+                      {formatActiveDaysLabel(newPackage.delivery_days || [1, 4])}
+                    </strong>
+                  </div>
+                  <div>
+                    <span className="text-emerald-400 block text-[10px]">เฉลี่ยต่อมื้อ</span>
                     <strong className="text-white text-sm font-semibold">
-                      {Math.max(1, dayjs(newPackage.end_date).diff(dayjs(newPackage.start_date), "day"))} วัน
+                      ฿{newPackage.meals_total > 0 && newPackage.price > 0 ? (newPackage.price / newPackage.meals_total).toFixed(1) : "0"}
                     </strong>
                   </div>
                 </div>

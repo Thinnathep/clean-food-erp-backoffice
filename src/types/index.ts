@@ -65,6 +65,7 @@ export interface Member {
   age_range?: string;
   occupation?: string;
   delivery_time?: string;
+  preferred_delivery_days?: number[];
   source?: string;
   referral_member_id?: string;
   food_preferences?: string[] | any;
@@ -111,6 +112,9 @@ export interface PintoPackage {
   end_date: string;
   status: 'active' | 'paused' | 'cancelled' | 'completed';
   delivery_slot?: string;
+  delivery_days?: number[];
+  delivery_rounds?: number;
+  delivery_rounds_plan?: number[];
   internal_notes?: string;
   created_at?: string;
   updated_at?: string;

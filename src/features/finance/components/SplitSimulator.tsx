@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { supabase } from '../../../config/supabase';
-import { POOL_CONFIG } from '../types';
+import { getPoolConfig } from '../types';
 import type { SplitConfig, PoolType } from '../types';
 import { toast } from 'sonner';
 import { 
@@ -12,11 +12,11 @@ interface Props {
   isDarkMode?: boolean;
 }
 
-// Pinto package presets
+// Pinto package presets (อัปเดต 04/08/2569)
 const PINTO_PRESETS = [
-  { label: '📦 7 วัน (15 มื้อ)', price: 999, meals: 15 },
-  { label: '📦 14 วัน (30 มื้อ)', price: 1899, meals: 30 },
-  { label: '📦 1 เดือน (62 มื้อ)', price: 3999, meals: 62 },
+  { label: '📦 7 วัน (15 มื้อ)', price: 999, meals: 15, rounds: 3 },
+  { label: '📦 14 วัน (30 มื้อ)', price: 1899, meals: 30, rounds: 5 },
+  { label: '📦 1 เดือน (63 มื้อ)', price: 3999, meals: 63, rounds: 11 },
 ];
 
 // Muscle package presets
@@ -27,37 +27,58 @@ const MUSCLE_PRESETS = [
 ];
 
 export const SplitSimulator: React.FC<Props> = ({ isDarkMode = false }) => {
-  const [amount, setAmount] = useState(999);
+  const [amount, setAmount] = useState(1899);
   const [deliveryFee, setDeliveryFee] = useState(0);
-  const [materialPct, setMaterialPct] = useState(35);
-  const [laborPct, setLaborPct] = useState(15);
-  const [opsPct, setOpsPct] = useState(20);
-  const [profitPct, setProfitPct] = useState(30);
-  const [meals, setMeals] = useState(15);
-  
-  // Advanced Simulation State
-  const [targetProfitPerMeal, setTargetProfitPerMeal] = useState(30);
+  const [meals, setMeals] = useState(30);
+  const [rounds, setRounds] = useState(5);
+
+  // 7 Funds Percentages (Standard 04/08/2569)
+  const [materialPct, setMaterialPct] = useState(40);
+  const [packagingPct, setPackagingPct] = useState(10);
+  const [laborPct, setLaborPct] = useState(14);
+  const [deliverySubPct, setDeliverySubPct] = useState(9);
+  const [marketingPct, setMarketingPct] = useState(4);
+  const [maintenancePct, setMaintenancePct] = useState(4);
+  const [profitPct, setProfitPct] = useState(19);
+  const [opsPct, setOpsPct] = useState(0);
 
   const net = amount - deliveryFee;
+
   const materialAmt = +(net * materialPct / 100).toFixed(2);
+  const packagingAmt = +(net * packagingPct / 100).toFixed(2);
   const laborAmt = +(net * laborPct / 100).toFixed(2);
+  const deliverySubAmt = +(net * deliverySubPct / 100).toFixed(2);
+  const marketingAmt = +(net * marketingPct / 100).toFixed(2);
+  const maintenanceAmt = +(net * maintenancePct / 100).toFixed(2);
   const opsAmt = +(net * opsPct / 100).toFixed(2);
-  const profitAmt = +(net - materialAmt - laborAmt - opsAmt).toFixed(2);
+  const profitAmt = +(net - materialAmt - packagingAmt - laborAmt - deliverySubAmt - marketingAmt - maintenanceAmt - opsAmt).toFixed(2);
+
+  const totalPct = materialPct + packagingPct + laborPct + deliverySubPct + marketingPct + maintenancePct + profitPct + opsPct;
+
   const perMeal = meals > 0 ? +(net / meals).toFixed(2) : 0;
   const profitPerMeal = meals > 0 ? +(profitAmt / meals).toFixed(2) : 0;
-  const totalPct = materialPct + laborPct + opsPct + profitPct;
+  const subsidyPerRound = rounds > 0 ? +(deliverySubAmt / rounds).toFixed(2) : 0;
 
   // Business Health Logic
-  const healthScore = profitPct >= 30 ? 'GOOD' : profitPct >= 20 ? 'OK' : 'LOW';
-  const marketingBudgetPerMeal = +(opsAmt * 0.5 / (meals || 1)).toFixed(2); // Assume 50% of Ops is Ads
+  const healthScore = profitPct >= 18 ? 'EXCELLENT' : profitPct >= 12 ? 'GOOD' : profitPct >= 5 ? 'OK' : 'LOW';
 
-  // Price Suggestion based on target profit
-  const suggestedPrice = meals > 0 ? Math.ceil(((targetProfitPerMeal * meals) / (profitPct / 100)) + deliveryFee) : 0;
-
-  const applyPreset = (price: number, m?: number) => {
+  const applyPreset = (price: number, m?: number, r?: number) => {
     setAmount(price);
     if (m) setMeals(m);
+    if (r) setRounds(r);
     setDeliveryFee(0);
+  };
+
+  const applyStandard7Funds = () => {
+    setMaterialPct(40);
+    setPackagingPct(10);
+    setLaborPct(14);
+    setDeliverySubPct(9);
+    setMarketingPct(4);
+    setMaintenancePct(4);
+    setProfitPct(19);
+    setOpsPct(0);
+    toast.success('ใช้สูตรมาตรฐาน 04/08/2569 (7 กองทุน) เรียบร้อย');
   };
 
   const handleSaveConfig = async () => {
@@ -68,16 +89,20 @@ export const SplitSimulator: React.FC<Props> = ({ isDarkMode = false }) => {
       const { error } = await supabase.from('erp_split_configs').insert({
         config_name: name,
         material_pct: materialPct,
+        packaging_pct: packagingPct,
         labor_pct: laborPct,
-        ops_pct: opsPct,
+        delivery_sub_pct: deliverySubPct,
+        marketing_pct: marketingPct,
+        maintenance_pct: maintenancePct,
         profit_pct: profitPct,
-        promotion_type: 'PINTO', // Default
+        ops_pct: opsPct,
+        promotion_type: meals > 1 ? 'PINTO' : 'RETAIL',
         is_active: true,
-        is_default: false
+        is_default: false,
+        notes: 'บันทึกจาก Split Simulator'
       });
       if (error) throw error;
       toast.success('บันทึกสูตรเรียบร้อยแล้ว!');
-      window.location.reload(); // Refresh to get new configs
     } catch (err: any) {
       toast.error('บันทึกไม่สำเร็จ: ' + err.message);
     }
@@ -88,265 +113,267 @@ export const SplitSimulator: React.FC<Props> = ({ isDarkMode = false }) => {
   const heading = isDarkMode ? 'text-white' : 'text-slate-800';
   const subtext = isDarkMode ? 'text-slate-400' : 'text-slate-500';
 
+  const fundItems = [
+    { pt: 'MATERIAL' as PoolType, val: materialPct, set: setMaterialPct, amt: materialAmt, tip: 'ต้นทุนอาหาร (25-26฿/มื้อ)' },
+    { pt: 'PACKAGING_BILLS' as PoolType, val: packagingPct, set: setPackagingPct, amt: packagingAmt, tip: 'ถุงซีล 2 ชั้น + ค่าไฟ + ค่าแก๊ส' },
+    { pt: 'LABOR' as PoolType, val: laborPct, set: setLaborPct, amt: laborAmt, tip: 'ค่าตอบแทนทีมครัว (~8.8-9.3฿/มื้อ)' },
+    { pt: 'DELIVERY' as PoolType, val: deliverySubPct, set: setDeliverySubPct, amt: deliverySubAmt, tip: 'ช่วยค่าส่ง Grab (~30-34฿/รอบ)' },
+    { pt: 'MARKETING' as PoolType, val: marketingPct, set: setMarketingPct, amt: marketingAmt, tip: 'งบยิงแอด/คอนเทนต์ TikTok' },
+    { pt: 'MAINTENANCE' as PoolType, val: maintenancePct, set: setMaintenancePct, amt: maintenanceAmt, tip: 'ทุนสำรองซ่อมเครื่องซีล/ตู้เย็น' },
+    { pt: 'PROFIT' as PoolType, val: profitPct, set: setProfitPct, amt: profitAmt, tip: 'กำไรสุทธิ 19% 🔒' },
+  ];
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pb-20">
       {/* Left Column: Inputs & Presets (Span 5) */}
       <div className="lg:col-span-5 space-y-6">
         <div className={`rounded-3xl border p-6 transition-all ${card}`}>
-          <h3 className={`text-lg font-bold mb-4 flex items-center gap-2 ${heading}`}>
-            <Calculator size={22} className="text-cyan-400" /> เครื่องมือจำลองการแยกเงิน 4 กองทุน
-          </h3>
-
-          {/* 💡 Helper Guide Banner */}
-          <div className="mb-5 p-3.5 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 text-xs space-y-1.5">
-            <div className="flex items-center gap-2 text-cyan-800 font-bold">
-              <Calculator size={14} className="text-cyan-700 shrink-0" />
-              <span>เครื่องมือจำลองและทดสอบการแยกเงิน 4 กองทุน</span>
-            </div>
-            <p className="text-slate-600 text-[11px] leading-relaxed">
-              • ปรับเปลี่ยนราคาแพ็กเกจ ค่าส่ง และสัดส่วน % เพื่อดูผลลัพธ์การกระจายเงินเข้า 4 กองทุนแบบ Real-time<br />
-              • สามารถบันทึกเป็นสูตรโปรโมชั่นใหม่สำหรับใช้ในระบบได้ทันที
-            </p>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className={`text-base font-semibold flex items-center gap-2 ${heading}`}>
+              <Calculator size={20} className="text-emerald-500" /> จำลองการแยกเงิน 7 กองทุน
+            </h3>
+            <button
+              type="button"
+              onClick={applyStandard7Funds}
+              className="text-[11px] font-medium px-2.5 py-1 rounded-xl bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 hover:bg-emerald-500/20 flex items-center gap-1 transition-all"
+            >
+              <Sparkles size={12} /> รีเซ็ตสูตร 04/08/2569
+            </button>
           </div>
 
           {/* Quick presets */}
-          <div className="space-y-6">
-             <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">📦 เลือกแพ็กเกจมาตรฐาน</p>
-                <div className="grid grid-cols-2 gap-2">
-                   {PINTO_PRESETS.map(p => (
-                      <button key={p.price} onClick={() => applyPreset(p.price, p.meals)}
-                         className={`px-3 py-2.5 rounded-2xl text-xs border transition-all text-left ${
-                           amount === p.price 
-                             ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500' 
-                             : isDarkMode 
-                               ? 'bg-slate-900/40 border-slate-700 text-slate-400 hover:border-emerald-500/50' 
-                               : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-emerald-300'
-                         }`}>
-                         <div className="font-bold">{p.label}</div>
-                         <div>฿{p.price.toLocaleString()}</div>
-                      </button>
-                   ))}
-                </div>
-             </div>
+          <div className="space-y-4">
+            <div>
+              <p className="text-xs font-bold text-slate-800 uppercase tracking-wide mb-2">📦 แพ็กเกจมาตรฐาน 04/08/2569</p>
+              <div className="grid grid-cols-3 gap-2">
+                {PINTO_PRESETS.map(p => (
+                  <button
+                    key={p.price}
+                    onClick={() => applyPreset(p.price, p.meals, p.rounds)}
+                    className={`p-2.5 rounded-2xl text-xs border transition-all text-left ${
+                      amount === p.price 
+                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 font-bold shadow-sm ring-1 ring-emerald-500/20' 
+                        : isDarkMode 
+                          ? 'bg-slate-900/40 border-slate-700 text-slate-200 hover:border-emerald-500/50' 
+                          : 'bg-slate-100 border-slate-300 text-slate-800 font-semibold hover:border-emerald-400'
+                    }`}
+                  >
+                    <div className="font-bold text-xs truncate">{p.label}</div>
+                    <div className="text-xs font-mono font-bold mt-0.5">฿{p.price.toLocaleString()}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
 
-             <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">🏋️ สายเพิ่มกล้าม (Muscle)</p>
-                <div className="grid grid-cols-1 gap-2">
-                   {MUSCLE_PRESETS.map(p => (
-                      <button key={p.label} onClick={() => applyPreset(p.price, p.meals)}
-                         className={`px-4 py-3 rounded-2xl text-xs border transition-all flex justify-between items-center ${
-                           amount === p.price 
-                             ? 'bg-orange-500/10 border-orange-500/30 text-orange-500' 
-                             : isDarkMode 
-                               ? 'bg-slate-900/40 border-slate-700 text-slate-400 hover:border-orange-500/50' 
-                               : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-orange-300'
-                         }`}>
-                         <span className="font-bold">{p.label}</span>
-                         <span className="font-bold">฿{p.price.toLocaleString()}</span>
-                      </button>
-                   ))}
-                </div>
-             </div>
+            <div>
+              <p className="text-xs font-bold text-slate-800 uppercase tracking-wide mb-2">🏋️ แพ็กเกจเพิ่มกล้ามเนื้อ (Muscle)</p>
+              <div className="grid grid-cols-3 gap-2">
+                {MUSCLE_PRESETS.map(p => (
+                  <button
+                    key={p.price}
+                    onClick={() => applyPreset(p.price, p.meals, 5)}
+                    className={`p-2.5 rounded-2xl text-xs border transition-all text-left ${
+                      amount === p.price 
+                        ? 'bg-purple-500/10 border-purple-500/30 text-purple-700 font-bold shadow-sm ring-1 ring-purple-500/20' 
+                        : isDarkMode 
+                          ? 'bg-slate-900/40 border-slate-700 text-slate-200 hover:border-purple-500/50' 
+                          : 'bg-slate-100 border-slate-300 text-slate-800 font-semibold hover:border-purple-400'
+                    }`}
+                  >
+                    <div className="font-bold text-xs truncate">{p.label}</div>
+                    <div className="text-xs font-mono font-bold mt-0.5">฿{p.price.toLocaleString()}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Inputs: Amount, Meals, Delivery Rounds */}
+            <div className="grid grid-cols-3 gap-2 pt-1">
+              <div>
+                <label className="text-xs font-bold text-slate-700 mb-1 block">ยอดเงินรวม (฿)</label>
+                <input
+                  type="number"
+                  value={amount || ''}
+                  onChange={e => setAmount(Number(e.target.value) || 0)}
+                  className={`w-full p-2 rounded-xl border text-xs font-bold font-mono outline-none ${isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-700 mb-1 block">จำนวนมื้อ</label>
+                <input
+                  type="number"
+                  value={meals || ''}
+                  onChange={e => setMeals(Number(e.target.value) || 0)}
+                  className={`w-full p-2 rounded-xl border text-xs font-bold font-mono outline-none ${isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-700 mb-1 block">รอบส่งจริง</label>
+                <input
+                  type="number"
+                  value={rounds || ''}
+                  onChange={e => setRounds(Number(e.target.value) || 0)}
+                  className={`w-full p-2 rounded-xl border text-xs font-bold font-mono outline-none ${isDarkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
+                />
+              </div>
+            </div>
           </div>
 
-          <div className={`h-px my-6 ${isDarkMode ? 'bg-slate-700/30' : 'bg-slate-100'}`} />
+          <div className={`h-px my-5 ${isDarkMode ? 'bg-slate-700/30' : 'bg-slate-200'}`} />
 
-          {/* Sliders */}
-          <div className="space-y-4">
-             <div className="flex justify-between items-end mb-2">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">📐 ปรับแต่งสัดส่วน</p>
-                <span className={`text-xs font-bold ${totalPct === 100 ? 'text-emerald-500' : 'text-red-500'}`}>รวม {totalPct}%</span>
-             </div>
-             {([
-              { key: 'MATERIAL' as PoolType, val: materialPct, set: setMaterialPct },
-              { key: 'LABOR' as PoolType, val: laborPct, set: setLaborPct },
-              { key: 'OPS' as PoolType, val: opsPct, set: setOpsPct },
-              { key: 'PROFIT' as PoolType, val: profitPct, set: setProfitPct },
-            ]).map(item => {
-              const cfg = POOL_CONFIG[item.key];
+          {/* Sliders for 7 funds */}
+          <div className="space-y-3">
+            <div className="flex justify-between items-end mb-1">
+              <p className="text-xs font-bold text-slate-700 uppercase tracking-widest">📐 ปรับสัดส่วน 7 กองทุน</p>
+              <span className={`text-xs font-black ${totalPct === 100 ? 'text-emerald-500' : 'text-red-500'}`}>
+                รวม {totalPct}%
+              </span>
+            </div>
+
+            {fundItems.map(item => {
+              const cfg = getPoolConfig(item.pt);
               return (
-                <div key={item.key} className="space-y-1">
+                <div key={item.pt} className="space-y-1">
                   <div className="flex justify-between text-xs font-medium">
-                     <span className="flex items-center gap-1.5" style={{ color: cfg.color }}>{cfg.icon} {cfg.label}</span>
-                     <span style={{ color: cfg.color }}>{item.val}%</span>
+                    <span className="flex items-center gap-1.5 text-[11px] font-bold" style={{ color: cfg.color }}>
+                      {cfg.icon} {cfg.label}
+                    </span>
+                    <span className="font-mono font-bold" style={{ color: cfg.color }}>{item.val}%</span>
                   </div>
-                  <input type="range" min={0} max={60} value={item.val}
+                  <input
+                    type="range"
+                    min={0}
+                    max={60}
+                    value={item.val}
                     onChange={e => item.set(Number(e.target.value))}
-                    className="w-full h-1.5 rounded-full appearance-none cursor-pointer bg-slate-100"
-                    style={{ accentColor: cfg.color }} />
+                    className="w-full h-1.5 rounded-full appearance-none cursor-pointer bg-slate-100 dark:bg-slate-700"
+                    style={{ accentColor: cfg.color }}
+                  />
                 </div>
               );
             })}
           </div>
-        </div>
 
-        {/* Dynamic Advice Card */}
-        <div className={`rounded-3xl border p-6 transition-all shadow-lg ${
-          isDarkMode 
-            ? 'bg-gradient-to-br from-indigo-950 to-purple-950 border-indigo-500/20' 
-            : 'bg-gradient-to-br from-indigo-500 to-purple-600 border-transparent'
-        } text-white`}>
-           <div className="flex items-center gap-2 mb-4">
-              <Sparkles size={20} className="text-yellow-300 animate-pulse" />
-              <h3 className="font-bold">ที่ปรึกษา AI (Thinking Outside)</h3>
-           </div>
-           
-           <div className="space-y-4 text-sm">
-              <div className="bg-white/10 rounded-2xl p-4 border border-white/10">
-                 <p className="text-indigo-100 text-xs mb-1">💡 งบโฆษณาที่แนะนำ</p>
-                 <p className="font-bold text-lg">฿{marketingBudgetPerMeal} <span className="text-xs font-normal">/ มื้อ</span></p>
-                 <p className="text-[10px] opacity-70 mt-1">* คิดจาก 50% ของงบค่าบิล (Ops)</p>
-              </div>
-
-              <div className="bg-white/10 rounded-2xl p-4 border border-white/10">
-                 <p className="text-indigo-100 text-xs mb-1">🎯 ตั้งเป้ากำไรใหม่</p>
-                 <div className="flex items-center gap-2">
-                    <input 
-                       type="number" 
-                       value={targetProfitPerMeal}
-                       onChange={e => setTargetProfitPerMeal(Number(e.target.value))}
-                       className="w-16 bg-white/20 border-none rounded-lg p-1 text-center font-bold outline-none"
-                    />
-                    <span>฿ / มื้อ</span>
-                 </div>
-                 <p className="text-[10px] mt-2 text-indigo-100">
-                    ควรตั้งราคาขายที่: <span className="text-yellow-300 font-bold">฿{suggestedPrice.toLocaleString()}</span>
-                 </p>
-              </div>
-
-              <button 
-                onClick={handleSaveConfig}
-                className="w-full py-3 bg-white/20 hover:bg-white/30 border border-white/30 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2"
-              >
-                 <PlusCircle size={14} /> บันทึกสัดส่วนนี้เป็น "สูตรใหม่"
-              </button>
-           </div>
+          <button
+            type="button"
+            onClick={handleSaveConfig}
+            className="w-full py-2.5 mt-5 rounded-2xl bg-indigo-600 text-white text-xs font-bold shadow-md hover:bg-indigo-700 transition-all flex items-center justify-center gap-1.5"
+          >
+            <PlusCircle size={14} /> บันทึกเป็นสูตรโปรโมชั่นใหม่
+          </button>
         </div>
       </div>
 
-      {/* Right Column: Visualizer & Breakdown (Span 7) */}
+      {/* Right Column: Calculations & Visual Bars (Span 7) */}
       <div className="lg:col-span-7 space-y-6">
-        <div className={`rounded-3xl border p-6 transition-all h-full ${card}`}>
-          {/* Top Bar Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-             <div className={`text-center p-4 rounded-2xl border transition-all ${
-               isDarkMode ? 'bg-slate-900/60 border-slate-700/50' : 'bg-slate-50 border-slate-100'
-             }`}>
-                <p className="text-[10px] font-bold text-slate-400 mb-1">ยอดสุทธิ</p>
-                <p className={`text-lg font-bold ${isDarkMode ? 'text-slate-100' : 'text-slate-800'}`}>฿{net.toLocaleString()}</p>
-             </div>
-             <div className={`text-center p-4 rounded-2xl border transition-all ${
-               isDarkMode ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-slate-50 border-slate-100'
-             }`}>
-                <p className="text-[10px] font-bold text-slate-400 mb-1">ราคาเฉลี่ย</p>
-                <p className="text-lg font-bold text-emerald-500">฿{perMeal.toLocaleString()}</p>
-             </div>
-             <div className={`text-center p-4 rounded-2xl border transition-all ${
-               isDarkMode ? 'bg-blue-500/10 border-blue-500/20' : 'bg-slate-50 border-slate-100'
-             }`}>
-                <p className="text-[10px] font-bold text-slate-400 mb-1">กำไร / มื้อ</p>
-                <p className="text-lg font-bold text-blue-500">฿{profitPerMeal.toLocaleString()}</p>
-             </div>
-             <div className={`text-center p-4 rounded-2xl border transition-all ${
-               isDarkMode ? 'bg-slate-900/60 border-slate-700/50' : 'bg-slate-50 border-slate-100'
-             }`}>
-                <p className="text-[10px] font-bold text-slate-400 mb-1">Business Health</p>
-                <div className={`text-xs font-bold mt-1 px-2 py-1 rounded-full inline-block ${
-                   healthScore === 'GOOD' ? 'bg-emerald-500/20 text-emerald-500' :
-                   healthScore === 'OK' ? 'bg-blue-500/20 text-blue-500' : 'bg-red-500/20 text-red-500'
+        <div className={`rounded-3xl border p-6 transition-all ${card}`}>
+          {/* Key Metric Highlights */}
+          <div className="grid grid-cols-3 gap-3 mb-6">
+            <div className={`text-center p-3.5 rounded-2xl border ${isDarkMode ? 'bg-slate-900/60 border-slate-700/50' : 'bg-slate-50 border-slate-100'}`}>
+              <p className="text-[10px] font-semibold text-slate-600 mb-0.5 uppercase">ราคาเฉลี่ย/มื้อ</p>
+              <p className="text-xl font-bold text-indigo-600 font-mono">฿{perMeal.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            </div>
+            <div className={`text-center p-3.5 rounded-2xl border ${isDarkMode ? 'bg-slate-900/60 border-slate-700/50' : 'bg-slate-50 border-slate-100'}`}>
+              <p className="text-[10px] font-semibold text-slate-600 mb-0.5 uppercase">กำไรสุทธิ/มื้อ</p>
+              <p className="text-xl font-bold text-pink-600 font-mono">฿{profitPerMeal.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            </div>
+            <div className={`text-center p-3.5 rounded-2xl border ${isDarkMode ? 'bg-slate-900/60 border-slate-700/50' : 'bg-slate-50 border-slate-100'}`}>
+              <p className="text-[10px] font-semibold text-slate-600 mb-0.5 uppercase">งบส่ง Grab/รอบ</p>
+              <p className="text-xl font-bold text-orange-600 font-mono">฿{subsidyPerRound.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            </div>
+          </div>
+
+          {/* Visual Split Bar */}
+          <div className="mb-6">
+            <div className="flex justify-between items-center mb-2">
+              <h3 className={`text-xs font-semibold uppercase tracking-wider ${subtext}`}>🎨 สัดส่วนแยกเงิน 7 กองทุน</h3>
+              <div className="flex items-center gap-2">
+                <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${
+                  healthScore === 'EXCELLENT' ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' :
+                  healthScore === 'GOOD' ? 'bg-blue-500/10 text-blue-600 border border-blue-500/20' :
+                  healthScore === 'OK' ? 'bg-amber-500/10 text-amber-600 border border-amber-500/20' :
+                  'bg-red-500/10 text-red-600 border border-red-500/20'
                 }`}>
-                   {healthScore}
-                </div>
-             </div>
+                  สุขภาพกำไร: {healthScore}
+                </span>
+                <span className="text-xs font-mono font-medium text-slate-600">Total: ฿{net.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+            </div>
+            <div className="flex h-12 rounded-2xl overflow-hidden shadow-inner">
+              {fundItems.map(item => {
+                const cfg = getPoolConfig(item.pt);
+                return (
+                  <div
+                    key={item.pt}
+                    style={{ width: `${item.val}%`, backgroundColor: cfg.color }}
+                    className="h-full flex items-center justify-center text-[10px] font-semibold text-white transition-all overflow-hidden relative group"
+                    title={`${cfg.label}: ฿${item.amt.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${item.val}%)`}
+                  >
+                    {item.val >= 7 && (
+                      <span className="truncate px-1">{item.val}%</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
-          {/* Visual split bar (Big) */}
-          <div className="mb-8">
-             <div className="flex justify-between items-center mb-3">
-                <h3 className={`text-sm font-bold ${subtext}`}>🎨 แผนภาพการจัดสรรเงิน</h3>
-                <span className="text-[10px] text-slate-400">Total Pool: ฿{net.toLocaleString()}</span>
-             </div>
-             <div className="flex h-16 rounded-2xl overflow-hidden shadow-2xl shadow-indigo-500/10">
-               {([
-                 { pt: 'MATERIAL' as PoolType, pct: materialPct, amt: materialAmt },
-                 { pt: 'LABOR' as PoolType, pct: laborPct, amt: laborAmt },
-                 { pt: 'OPS' as PoolType, pct: opsPct, amt: opsAmt },
-                 { pt: 'PROFIT' as PoolType, pct: profitPct, amt: profitAmt },
-               ]).map(item => {
-                 const cfg = POOL_CONFIG[item.pt];
-                 return (
-                   <div key={item.pt} className="flex flex-col items-center justify-center text-[10px] font-bold text-white transition-all overflow-hidden relative group"
-                     style={{ width: `${item.pct}%`, backgroundColor: cfg.color, minWidth: item.pct > 0 ? 40 : 0 }}>
-                     {item.pct >= 10 && (
-                        <div className="flex flex-col items-center animate-in fade-in zoom-in duration-500">
-                           <span className="opacity-80 mb-0.5">{cfg.icon}</span>
-                           <span>{item.pct}%</span>
-                        </div>
-                     )}
-                     <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                   </div>
-                 );
-               })}
-             </div>
-          </div>
-
-          {/* Deep Breakdown */}
-          <div className="space-y-4">
-             <div className="flex items-center gap-2 mb-4">
-                <Target size={16} className="text-slate-400" />
-                <h4 className="text-sm font-bold text-slate-500">เจาะลึกรายกองทุน</h4>
-             </div>
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {([
-                  { pt: 'MATERIAL' as PoolType, amt: materialAmt, pct: materialPct, tip: 'ต้นทุนอาหารและแพ็กเกจ' },
-                  { pt: 'LABOR' as PoolType, amt: laborAmt, pct: laborPct, tip: 'ค่าแรงแม่บ้านและทีมงาน' },
-                  { pt: 'OPS' as PoolType, amt: opsAmt, pct: opsPct, tip: 'ค่าบิล ค่าน้ำไฟ ค่าโฆษณา และจิปาถะ' },
-                  { pt: 'PROFIT' as PoolType, amt: profitAmt, pct: profitPct, tip: 'กำไรสุทธิหลังหักค่าใช้จ่าย' },
-                ]).map(item => {
-                  const cfg = POOL_CONFIG[item.pt];
-                  return (
-                    <div key={item.pt} className={`p-4 rounded-2xl border transition-all ${
-                      isDarkMode 
-                        ? 'bg-slate-900/40 border-slate-700/50 hover:bg-slate-800/60 hover:border-slate-500/50' 
-                        : 'bg-slate-50/50 border-slate-100 hover:bg-white hover:shadow-lg hover:border-transparent'
-                    }`}>
-                       <div className="flex items-center justify-between mb-2">
-                          <span className="flex items-center gap-2 text-xs font-bold" style={{ color: cfg.color }}>
-                             {cfg.icon} {cfg.label}
-                          </span>
-                          <span className="text-xs font-bold text-slate-500">{item.pct}%</span>
-                       </div>
-                       <div className="flex items-end justify-between">
-                          <div>
-                             <p className={`text-lg font-bold ${isDarkMode ? 'text-slate-100' : 'text-slate-800'}`}>฿{item.amt.toLocaleString()}</p>
-                             <p className="text-[10px] text-slate-500 mt-1 italic">{item.tip}</p>
-                          </div>
-                          {meals > 1 && (
-                             <div className="text-right">
-                                <p className={`text-[10px] font-bold px-2 py-1 rounded-lg shadow-sm ${
-                                  isDarkMode ? 'bg-slate-950 text-slate-400 border border-slate-800' : 'bg-white text-slate-500'
-                                }`}>฿{(item.amt / meals).toFixed(2)}/มื้อ</p>
-                             </div>
-                          )}
-                       </div>
+          {/* 7-Fund Deep Breakdown Cards */}
+          <div className="space-y-3">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+              <Target size={14} /> เจาะลึกจำนวนเงินแต่ละกองทุน
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {fundItems.map(item => {
+                const cfg = getPoolConfig(item.pt);
+                return (
+                  <div
+                    key={item.pt}
+                    className={`p-3.5 rounded-2xl border transition-all ${
+                      isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-slate-50/70 border-slate-100'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: cfg.color }}>
+                        {cfg.icon} {cfg.label}
+                      </span>
+                      <span className="text-xs font-mono font-bold text-slate-700">{item.val}%</span>
                     </div>
-                  );
-                })}
-             </div>
+                    <div className="flex justify-between items-end">
+                      <div>
+                        <p className="text-base font-bold font-mono" style={{ color: cfg.color }}>
+                          ฿{item.amt.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
+                        <p className="text-xs text-slate-600 mt-0.5 font-medium">{item.tip}</p>
+                      </div>
+                      {meals > 0 && item.pt !== 'DELIVERY' && (
+                        <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 text-slate-700 border border-slate-200 dark:border-slate-700">
+                          ฿{(item.amt / meals).toFixed(2)}/มื้อ
+                        </span>
+                      )}
+                      {item.pt === 'DELIVERY' && rounds > 0 && (
+                        <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 text-orange-700 border border-orange-200 dark:border-orange-900/40">
+                          ฿{(item.amt / rounds).toFixed(2)}/รอบ
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
-          {/* Safety Check */}
-          <div className={`mt-8 p-4 rounded-2xl flex items-center gap-4 border transition-all ${
-             totalPct === 100 
-              ? isDarkMode ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-emerald-50 text-emerald-700 border border-emerald-100' 
-              : isDarkMode ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-red-50 text-red-700 border border-red-100'
+          {/* Balance Check */}
+          <div className={`mt-6 p-3.5 rounded-2xl flex items-center gap-3 border ${
+            totalPct === 100 
+              ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' 
+              : 'bg-red-500/10 text-red-600 border-red-500/20'
           }`}>
-             {totalPct === 100 ? <ShieldCheck size={24} /> : <AlertCircle size={24} />}
-             <div>
-                <p className="text-sm font-bold">{totalPct === 100 ? 'สัดส่วนถูกต้อง' : 'สัดส่วนยังไม่ครบ 100%'}</p>
-                <p className="text-[10px] opacity-70">ระบบกำลังคำนวณตามสัดส่วนปัจจุบัน {totalPct}%</p>
-             </div>
+            {totalPct === 100 ? <ShieldCheck size={20} /> : <AlertCircle size={20} />}
+            <div>
+              <p className="text-xs font-semibold">{totalPct === 100 ? 'สัดส่วนครบ 100.00% สมบูรณ์' : `สัดส่วนยังไม่ครบ 100% (ปัจจุบัน ${totalPct}%)`}</p>
+              <p className="text-[11px] opacity-80 font-normal">สูตรมาตรฐาน 04/08/2569 รับประกันความถูกต้องทางคณิตศาสตร์และการเงิน</p>
+            </div>
           </div>
         </div>
       </div>

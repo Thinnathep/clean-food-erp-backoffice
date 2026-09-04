@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../../config/supabase';
 import { useAuthStore } from '../../../store/authStore';
-import { POOL_CONFIG } from '../types';
+import { getPoolConfig } from '../types';
 import type { FundPool, RevenueBucket, FundTransaction, SplitConfig, PoolType } from '../types';
 import { FundPoolCards } from './FundPoolCards.tsx';
 import { RevenueRecorder } from './RevenueRecorder.tsx';
@@ -48,6 +48,7 @@ export const FinanceDashboard: React.FC<{ initialTab?: TabKey }> = ({ initialTab
   const [configs, setConfigs] = useState<SplitConfig[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState(dayjs().format('YYYY-MM'));
+  const [selectedDate, setSelectedDate] = useState(dayjs().format('YYYY-MM-DD'));
 
   const fetchAll = useCallback(async () => {
     setIsLoading(true);
@@ -195,46 +196,74 @@ export const FinanceDashboard: React.FC<{ initialTab?: TabKey }> = ({ initialTab
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-xl sm:text-2xl font-black tracking-tight font-display text-slate-900">
-                    ระบบบัญชี & 4 กองทุน
+                  <h1 className="text-xl sm:text-2xl font-bold tracking-tight font-display text-slate-900">
+                    ระบบบัญชี & 7 กองทุน
                   </h1>
-                  <span className="hidden sm:inline-block text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">
-                    4-Fund System
+                  <span className="hidden sm:inline-block text-[11px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-full font-medium tracking-wide">
+                    มาตรฐาน 04/08/2569
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 font-medium">จัดการแยกกองทุน 35/15/20/30, บันทึกรายรับ-รายจ่าย, กระทบยอดเงินสด และงบ P&L</p>
+                <p className="text-xs text-slate-700 font-semibold">จัดการแยกเงิน 7 กองทุน (40/10/14/9/4/4/19), บันทึกรายรับ-รายจ่าย, กระทบยอดเงินสด และงบ P&L</p>
               </div>
             </div>
 
             {/* Controls: Month Selector, Sync, Export */}
             <div className="flex flex-wrap items-center gap-2">
               
-              {/* Month Switcher */}
-              <div className="flex items-center rounded-xl border border-slate-200 bg-white overflow-hidden shadow-xs">
-                <button
-                  type="button"
-                  onClick={() => setSelectedMonth(m => dayjs(m).subtract(1, 'month').format('YYYY-MM'))}
-                  className="p-2 transition-colors hover:bg-slate-50 text-slate-500"
-                  title="เดือนก่อนหน้า"
-                >
-                  <ChevronLeft size={16} />
-                </button>
-                <input
-                  type="month"
-                  value={selectedMonth}
-                  onChange={e => setSelectedMonth(e.target.value)}
-                  className="text-xs font-bold px-2 py-1.5 outline-none text-center border-x font-mono bg-transparent border-slate-200 text-slate-800"
-                  style={{ minWidth: '120px' }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setSelectedMonth(m => dayjs(m).add(1, 'month').format('YYYY-MM'))}
-                  className="p-2 transition-colors hover:bg-slate-50 text-slate-500"
-                  title="เดือนถัดไป"
-                >
-                  <ChevronRight size={16} />
-                </button>
-              </div>
+              {/* Period Switcher (Day for cash_recon, Month for monthly views) */}
+              {activeTab === 'cash_recon' ? (
+                <div className="flex items-center rounded-xl border border-slate-300 bg-white overflow-hidden shadow-xs">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDate(d => dayjs(d).subtract(1, 'day').format('YYYY-MM-DD'))}
+                    className="p-2 transition-colors hover:bg-slate-100 text-slate-700"
+                    title="วันก่อนหน้า"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={e => setSelectedDate(e.target.value)}
+                    className="text-xs font-bold px-2 py-1.5 outline-none text-center border-x font-mono bg-transparent border-slate-300 text-slate-900"
+                    style={{ minWidth: '135px' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDate(d => dayjs(d).add(1, 'day').format('YYYY-MM-DD'))}
+                    className="p-2 transition-colors hover:bg-slate-100 text-slate-700"
+                    title="วันถัดไป"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center rounded-xl border border-slate-300 bg-white overflow-hidden shadow-xs">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedMonth(m => dayjs(m).subtract(1, 'month').format('YYYY-MM'))}
+                    className="p-2 transition-colors hover:bg-slate-100 text-slate-700"
+                    title="เดือนก่อนหน้า"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <input
+                    type="month"
+                    value={selectedMonth}
+                    onChange={e => setSelectedMonth(e.target.value)}
+                    className="text-xs font-bold px-2 py-1.5 outline-none text-center border-x font-mono bg-transparent border-slate-300 text-slate-900"
+                    style={{ minWidth: '120px' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setSelectedMonth(m => dayjs(m).add(1, 'month').format('YYYY-MM'))}
+                    className="p-2 transition-colors hover:bg-slate-100 text-slate-700"
+                    title="เดือนถัดไป"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              )}
 
               {/* Sync Balances */}
               <button 
@@ -285,14 +314,14 @@ export const FinanceDashboard: React.FC<{ initialTab?: TabKey }> = ({ initialTab
                       <AlertTriangle size={20} />
                     </div>
                     <div className="space-y-2">
-                      <h4 className="text-sm font-black uppercase tracking-wide text-rose-800">
+                      <h4 className="text-sm font-semibold uppercase tracking-wide text-rose-800">
                         แจ้งเตือน: เงินในบางกองทุนต่ำกว่าเกณฑ์!
                       </h4>
                       <div className="flex flex-wrap gap-2 pt-0.5">
                         {visiblePools
                           .filter(p => p.target_amount > 0 && p.current_balance < (p.target_amount * 0.2))
                           .map(p => {
-                            const displayName = p.display_name === 'ค่าดำเนินการ' ? 'ค่าบิล' : p.display_name;
+                            const displayName = p.display_name || getPoolConfig(p.pool_type).label;
                             const isRemainingFloat = p.current_balance % 1 !== 0;
                             const formattedBalance = p.current_balance.toLocaleString(undefined, { 
                               minimumFractionDigits: isRemainingFloat ? 2 : 0, 
@@ -303,9 +332,9 @@ export const FinanceDashboard: React.FC<{ initialTab?: TabKey }> = ({ initialTab
                                 key={p.id} 
                                 className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl border border-rose-200 bg-white text-xs shadow-xs transition-all"
                               >
-                                <span className="font-black text-rose-600">{displayName}</span>
+                                <span className="font-semibold text-rose-600">{displayName}</span>
                                 <span className="text-rose-200">|</span>
-                                <span className="font-extrabold text-slate-700">
+                                <span className="font-semibold font-mono text-slate-700">
                                   เหลือ ฿{formattedBalance}
                                 </span>
                               </span>
@@ -326,10 +355,10 @@ export const FinanceDashboard: React.FC<{ initialTab?: TabKey }> = ({ initialTab
                   <SummaryCard label="ยอดคงเหลือรวม" value={totalBalance} color="#0891b2" icon={<Wallet size={16} />} />
                 </div>
 
-                {/* 5 Fund Pools Cards */}
+                {/* 7 Fund Pools Cards */}
                 <div>
                   <h3 className="text-xs font-bold uppercase tracking-wider mb-3 text-slate-700">
-                    สถานะยอดเงิน 4 กองทุน & กองทุนจัดส่ง
+                    สถานะยอดเงิน 7 กองทุน & การจัดส่ง
                   </h3>
                   <FundPoolCards pools={visiblePools} isCEO={isCEO} transactions={transactions} isDarkMode={false} onRefresh={fetchAll} />
                 </div>
@@ -345,14 +374,18 @@ export const FinanceDashboard: React.FC<{ initialTab?: TabKey }> = ({ initialTab
                     สัดส่วนรายรับแยกกองทุนประจำเดือน ({dayjs(selectedMonth).format('MMMM YYYY')})
                   </h3>
                   <div className="w-full h-4 rounded-full overflow-hidden flex bg-slate-100 shadow-inner">
-                    {(['MATERIAL', 'LABOR', 'OPS', 'PROFIT'] as PoolType[]).map(pt => {
+                    {(['MATERIAL', 'PACKAGING_BILLS', 'LABOR', 'DELIVERY', 'MARKETING', 'MAINTENANCE', 'PROFIT'] as PoolType[]).map(pt => {
                       const pool = pools.find(p => p.pool_type === pt);
-                      const cfg = POOL_CONFIG[pt];
+                      const cfg = getPoolConfig(pt);
                       const totalIn = buckets.reduce((sum, b) => {
-                        if (pt === 'MATERIAL') return sum + b.material_amount;
-                        if (pt === 'LABOR') return sum + b.labor_amount;
-                        if (pt === 'OPS') return sum + b.ops_amount;
-                        if (pt === 'PROFIT') return sum + b.profit_amount;
+                        if (pt === 'MATERIAL') return sum + (b.material_amount || 0);
+                        if (pt === 'PACKAGING_BILLS') return sum + (b.packaging_amount || 0);
+                        if (pt === 'LABOR') return sum + (b.labor_amount || 0);
+                        if (pt === 'DELIVERY') return sum + (b.delivery_sub_amount || 0);
+                        if (pt === 'MARKETING') return sum + (b.marketing_amount || 0);
+                        if (pt === 'MAINTENANCE') return sum + (b.maintenance_amount || 0);
+                        if (pt === 'PROFIT') return sum + (b.profit_amount || 0);
+                        if (pt === 'OPS') return sum + (b.ops_amount || 0);
                         return sum;
                       }, 0);
                       const netRev = monthIncome - monthDeliveryFees;
@@ -367,13 +400,13 @@ export const FinanceDashboard: React.FC<{ initialTab?: TabKey }> = ({ initialTab
                       );
                     })}
                   </div>
-                  <div className="flex flex-wrap gap-4 mt-3 text-xs">
-                    {(['MATERIAL', 'LABOR', 'OPS', 'PROFIT'] as PoolType[]).map(pt => {
-                      const cfg = POOL_CONFIG[pt];
+                  <div className="flex flex-wrap gap-x-4 gap-y-2 mt-3 text-xs">
+                    {(['MATERIAL', 'PACKAGING_BILLS', 'LABOR', 'DELIVERY', 'MARKETING', 'MAINTENANCE', 'PROFIT'] as PoolType[]).map(pt => {
+                      const cfg = getPoolConfig(pt);
                       return (
                         <div key={pt} className="flex items-center gap-1.5">
-                          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cfg.color }} />
-                          <span className="text-[11px] font-medium text-slate-600">{cfg.label} ({cfg.defaultPct}%)</span>
+                          <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: cfg.color }} />
+                          <span className="text-[11px] font-medium text-slate-600">{cfg.icon} {cfg.label} ({cfg.defaultPct}%)</span>
                         </div>
                       );
                     })}
@@ -384,9 +417,21 @@ export const FinanceDashboard: React.FC<{ initialTab?: TabKey }> = ({ initialTab
 
             {activeTab === 'income' && <RevenueRecorder configs={configs} onSaved={fetchAll} isDarkMode={false} />}
             {activeTab === 'expense' && <ExpenseRecorder onSaved={fetchAll} isDarkMode={false} />}
-            {activeTab === 'cash_recon' && <CashReconciliation isDarkMode={false} />}
+            {activeTab === 'cash_recon' && (
+              <CashReconciliation 
+                isDarkMode={false} 
+                selectedDate={selectedDate} 
+                onDateChange={setSelectedDate} 
+              />
+            )}
             {activeTab === 'invoices' && <InvoiceManager isDarkMode={false} />}
-            {activeTab === 'pl' && <PLStatement isDarkMode={false} />}
+            {activeTab === 'pl' && (
+              <PLStatement 
+                isDarkMode={false} 
+                selectedMonth={selectedMonth} 
+                onMonthChange={setSelectedMonth} 
+              />
+            )}
             {activeTab === 'history' && (
               <TransactionHistory 
                 transactions={transactions} 
@@ -421,12 +466,12 @@ function SummaryCard({ label, value, color, icon, isCount = false }: {
   return (
     <div className="p-4 rounded-2xl border border-slate-200/80 bg-white hover:border-slate-300 hover:shadow-md transition-all shadow-xs flex flex-col justify-between">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-500">{label}</span>
+        <span className="text-xs font-bold text-slate-700">{label}</span>
         <div className="p-1.5 rounded-xl bg-slate-50 border border-slate-100" style={{ color }}>
           {icon}
         </div>
       </div>
-      <div className="font-mono text-base sm:text-lg font-black" style={{ color }}>
+      <div className="font-mono text-base sm:text-lg font-bold" style={{ color }}>
         {isCount ? value : `฿${value.toLocaleString(undefined, { 
           minimumFractionDigits: isFloatingValue ? 2 : 0, 
           maximumFractionDigits: 2 
