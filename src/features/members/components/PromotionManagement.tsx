@@ -323,9 +323,9 @@ export const PromotionManagement: React.FC = () => {
         }
       }
 
-      // 2. Store subsidy model: Store covers 30-35 THB per round (from 9% Grab subsidy fund)
-      // 7-day pack (<= 3 rounds) = 30 THB/round, 14-day / 30-day (> 3 rounds) = 35 THB/round
-      const storeSubsidyPerRound = rounds <= 3 ? 30 : 35;
+      // 2. Store subsidy model: Store covers 35 THB per round (from Delivery / Grab subsidy fund)
+      // 7-day (3 rounds = 105฿), 14-day (5 rounds = 175฿), 30-day (11 rounds = 385฿), Box packs (1 round = 35฿)
+      const storeSubsidyPerRound = 35;
 
       // 3. Customer pays only the excess beyond store subsidy
       const customerFeePerRound = Math.max(0, actualFarePerRound - storeSubsidyPerRound);

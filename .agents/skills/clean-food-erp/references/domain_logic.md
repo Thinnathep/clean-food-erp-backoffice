@@ -31,20 +31,27 @@ $$\text{Deducted Quantity}_i = \text{Actual Produced Quantity} \times \frac{\tex
 
 ---
 
-## 2. 4-Fund Revenue Split Calculation (การแยกเงิน 4 กอง)
+## 2. 7-Fund Revenue Split Calculation (การแยกเงิน 7 กองทุนมาตรฐาน)
 
 เมื่อมีรายรับจากการขายแพ็กเกจหรือออเดอร์ (`payments` status = `VERIFIED`):
 
-1. หักค่าจัดส่งออกก่อนเพื่อแยกเข้า `DELIVERY_POOL`:
-   $$\text{Net Sales} = \text{Gross Amount} - \text{Delivery Fee}$$
+ระบบจะกระจายรายได้เข้า 7 กองทุนหลักตามสัดส่วน `erp_split_configs` (อิงตาราง `erp_fund_pools`):
 
-2. กระจายเงินเข้า 4 กองทุนหลักตามสัดส่วน `erp_split_configs`:
-   - **Material Pool (35%)**: $\text{Material Amount} = \text{Net Sales} \times 0.35$
-   - **Labor Pool (15%)**: $\text{Labor Amount} = \text{Net Sales} \times 0.15$
-   - **Operations Pool (20%)**: $\text{Ops Amount} = \text{Net Sales} \times 0.20$
-   - **Profit Pool (30%)**: $\text{Profit Amount} = \text{Net Sales} \times 0.30$
+1. **วัตถุดิบ (Raw Materials Pool - 40%)**: $\text{Material} = \text{Price} \times 0.40$
+2. **ค่าบิล & ถุงซีล (Packaging & Seal Pool - 10%)**: $\text{Packaging} = \text{Price} \times 0.10$
+3. **ค่าแรงคนทำ (Labor Pool - 14%)**: $\text{Labor} = \text{Price} \times 0.14$
+4. **ค่าจัดส่ง / ช่วยส่ง Grab (Delivery Subsidy Pool)**: $35\text{ บาท/รอบส่ง}$
+   - ปิ่นโต 7 วัน (3 รอบ): 105 บาท (11%)
+   - ปิ่นโต 14 วัน (5 รอบ): 175 บาท (9%)
+   - ปิ่นโต 1 เดือน (11 รอบ): 385 บาท (10%)
+   - แพ็ค 4 กล่อง (1 รอบ): 35 บาท (12%)
+   - แพ็ค 6 กล่อง (1 รอบ): 35 บาท (9%)
+   - แพ็ค 7 กล่อง (1 รอบ): 35 บาท (8%)
+5. **งบการตลาด (Marketing Pool - 4%)**: $\text{Marketing} = \text{Price} \times 0.04$
+6. **ทุนสำรอง / ซ่อมบำรุง (Reserve & Ops Pool - 4%)**: $\text{Reserve} = \text{Price} \times 0.04$
+7. **กำไรสุทธิ (Net Profit Pool)**: ส่วนที่เหลือ (16% – 20% ตามแพ็กเกจ)
 
-3. อัปเดต `erp_fund_pools` และบันทึกลง `erp_revenue_buckets` & `erp_fund_transactions`
+บันทึกลง `erp_fund_pools`, `erp_revenue_buckets`, และ `erp_fund_transactions` ตรงตามยอดเงินบาททุกประการ
 
 ---
 

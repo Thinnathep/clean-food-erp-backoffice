@@ -1,6 +1,6 @@
 ---
 name: clean-food-erp
-description: AI ERP Architect & Specialist dedicated exclusively to Clean Food Chiang Rai Backoffice ERP. Trigger whenever working on, modifying, auditing, planning, or refactoring ANY part of the Clean Food CR ERP system — including KDS kitchen operations, inventory & BOM, procurement & suppliers, member CRM & Pinto packages, logistics & delivery dispatch, 4-fund accounting & P&L, multi-tenant configs, RLS security policies, and Supabase database queries. Always consult this skill to understand the business constitution, 84 SQL tables, domain rules, financial split models, and modern ERP design standards.
+description: AI ERP Architect & Specialist dedicated exclusively to Clean Food Chiang Rai Backoffice ERP. Trigger whenever working on, modifying, auditing, planning, or refactoring ANY part of the Clean Food CR ERP system — including KDS kitchen operations, inventory & BOM, procurement & suppliers, member CRM & Pinto packages, logistics & delivery dispatch, 7-fund accounting & P&L, multi-tenant configs, RLS security policies, and Supabase database queries. Always consult this skill to understand the business constitution, 84 SQL tables, domain rules, financial split models, and modern ERP design standards.
 ---
 
 # Clean Food CR — Dedicated AI ERP Specialist Skill
@@ -75,17 +75,23 @@ description: AI ERP Architect & Specialist dedicated exclusively to Clean Food C
 
 ---
 
-## 4. 4-Fund Pool Split Engine (หัวใจด้านการเงินและบัญชี)
+## 4. 7-Fund Pool Split Engine (หัวใจด้านการเงินและบัญชี)
 
-Clean Food CR ใช้โมเดลบริหารเงินสดแบบ **4-Fund Allocation** แยกเงินรายได้ทุกบาทเข้ากองทุนเฉพาะ:
+Clean Food CR ใช้โมเดลบริหารเงินสดแบบ **7-Fund Allocation** แยกเงินรายได้ทุกบาทเข้ากองทุนเฉพาะอย่างแม่นยำ:
 
-$$\text{Net Revenue} = \text{Gross Amount} - \text{Delivery Fee}$$
-
-$$\text{Material Fund (35\%)} = \text{Net Revenue} \times 0.35 \quad \text{(สำรองซื้อวัตถุดิบและบรรจุภัณฑ์)}$$
-$$\text{Labor Fund (15\%)} = \text{Net Revenue} \times 0.15 \quad \text{(ค่าจ้างพนักงานและสวัสดิการ)}$$
-$$\text{Ops Fund (20\%)} = \text{Net Revenue} \times 0.20 \quad \text{(ค่าน้ำ ค่าไฟ ค่าเช่า ค่าการตลาด)}$$
-$$\text{Profit Fund (30\%)} = \text{Net Revenue} \times 0.30 \quad \text{(กำไรสุทธิและเงินสำรองฉุกเฉิน)}$$
-$$\text{Delivery Pool (100\% ของค่าส่ง)} = \text{Delivery Fee} \quad \text{(สำหรับจ่ายค่าน้ำมันและไรเดอร์)}$$
+1. 🟢 **วัตถุดิบ (Raw Materials Pool - 40%)**: คงที่ 40% ทุกแพ็กเกจ สำหรับสำรองซื้อวัตถุดิบทำอาหาร
+2. 🟡 **ค่าบิล & ถุงซีล (Packaging & Seal Pool - 10%)**: คงที่ 10% ทุกแพ็กเกจ สำหรับบรรจุภัณฑ์ ถุงสูญญากาศ สติกเกอร์
+3. 🔵 **ค่าแรงคนทำ (Labor Pool - 14%)**: คงที่ 14% ทุกแพ็กเกจ สำหรับค่าจ้างและค่าตอบแทนทีมครัว
+4. 🛵 **ค่าจัดส่ง / ช่วยส่ง Grab (Delivery Subsidy Pool)**: **35 บาทต่อรอบส่ง** สำหรับอุดหนุนค่าส่งให้ลูกค้า
+   - 7 วัน (3 รอบ): 105 บาท (11%)
+   - 14 วัน (5 รอบ): 175 บาท (9%)
+   - 1 เดือน (11 รอบ): 385 บาท (10%)
+   - แพ็ค 4 กล่อง (1 รอบ): 35 บาท (12%)
+   - แพ็ค 6 กล่อง (1 รอบ): 35 บาท (9%)
+   - แพ็ค 7 กล่อง (1 รอบ): 35 บาท (8%)
+5. 📢 **งบการตลาด (Marketing Pool - 4%)**: คงที่ 4% ทุกแพ็กเกจ สำหรับยิงแอดและโปรโมต
+6. 🛠️ **ทุนสำรอง / ซ่อมบำรุง (Reserve & Ops Pool - 4%)**: คงที่ 4% ทุกแพ็กเกจ สำหรับซ่อมแซมอุปกรณ์และสำรองฉุกเฉิน
+7. 🔴 **กำไรสุทธิ (Net Profit Pool)**: ส่วนที่เหลือ (16% – 20% ตามแพ็กเกจ) รวมครบ 100% ตรงตามยอดบาททุกสตางค์
 
 ---
 

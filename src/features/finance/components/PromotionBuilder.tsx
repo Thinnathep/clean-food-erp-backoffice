@@ -11,69 +11,31 @@ interface Props {
   isDarkMode?: boolean;
 }
 
-// 📦 Standard Packages Presets (04/08/2569)
-const STANDARD_PRESETS = [
-  {
-    id: 'pinto_7d',
-    name: 'ผูกปิ่นโต 7 วัน (15 มื้อ)',
-    code: 'PINTO_7D_999',
-    price: 999,
-    meals: 15,
-    deliveryRounds: 3,
-    days: 7,
-    tag: 'ทดลองทาน 7 วัน',
-    desc: 'จัดส่ง 3 รอบ (6 + 6 + 3 ถุง) | เฉลี่ย 66.60 ฿/มื้อ | ช่วยส่ง Grab ~30 ฿/รอบ',
-    split: {
-      material: 40,
-      packaging: 10,
-      labor: 14,
-      deliverySub: 9,
-      marketing: 4,
-      maintenance: 4,
-      profit: 19
-    }
+import { STANDARD_7FUND_PACKAGES } from '../types';
+
+// 📦 Standard Packages Presets (7 กองทุน & ช่วยค่าส่ง 35฿/รอบ)
+const STANDARD_PRESETS = STANDARD_7FUND_PACKAGES.map(p => ({
+  id: p.id,
+  name: p.name,
+  code: p.code,
+  price: p.price,
+  meals: p.meals,
+  deliveryRounds: p.rounds,
+  days: p.days,
+  tag: p.tag,
+  desc: p.desc,
+  split: {
+    material: p.splitPct.material,
+    packaging: p.splitPct.packaging,
+    labor: p.splitPct.labor,
+    deliverySub: p.splitPct.deliverySub,
+    marketing: p.splitPct.marketing,
+    maintenance: p.splitPct.maintenance,
+    profit: p.splitPct.profit
   },
-  {
-    id: 'pinto_14d',
-    name: 'ผูกปิ่นโต 14 วัน (30 มื้อ)',
-    code: 'PINTO_14D_1899',
-    price: 1899,
-    meals: 30,
-    deliveryRounds: 5,
-    days: 14,
-    tag: 'ยอดนิยม 🔥',
-    desc: 'จัดส่ง 5 รอบ (รอบละ 6 ถุง) | เฉลี่ย 63.30 ฿/มื้อ | ช่วยส่ง Grab ~34.18 ฿/รอบ',
-    split: {
-      material: 40,
-      packaging: 10,
-      labor: 14,
-      deliverySub: 9,
-      marketing: 4,
-      maintenance: 4,
-      profit: 19
-    }
-  },
-  {
-    id: 'pinto_30d',
-    name: 'ผูกปิ่นโต 1 เดือน (63 มื้อ)',
-    code: 'PINTO_30D_3999',
-    price: 3999,
-    meals: 63,
-    deliveryRounds: 11,
-    days: 30,
-    tag: 'สุดคุ้ม ⭐️',
-    desc: 'จัดส่ง 11 รอบ (10 รอบละ 6 ถุง + 1 รอบ 3 ถุง) | เฉลี่ย 63.48 ฿/มื้อ | ช่วยส่ง Grab ~32.72 ฿/รอบ',
-    split: {
-      material: 40,
-      packaging: 10,
-      labor: 14,
-      deliverySub: 9,
-      marketing: 4,
-      maintenance: 4,
-      profit: 19
-    }
-  },
-];
+  splitAmount: p.splitAmount
+}));
+
 
 const DEFAULTS = {
   promoName: 'ผูกปิ่นโต 14 วัน (30 มื้อ)',
@@ -202,14 +164,23 @@ export const PromotionBuilder: React.FC<Props> = ({ isDarkMode = false }) => {
     const vatAmount = includeVat ? +(afterGp * 7 / 107).toFixed(2) : 0;
     const netRevenue = +(afterGp - vatAmount).toFixed(2);
 
-    // 7 Funds amounts
-    const materialAmount = +(netRevenue * materialPct / 100).toFixed(2);
-    const packagingAmount = +(netRevenue * packagingPct / 100).toFixed(2);
-    const laborAmount = +(netRevenue * laborPct / 100).toFixed(2);
-    const deliverySubAmount = +(netRevenue * deliverySubPct / 100).toFixed(2);
-    const marketingAmount = +(netRevenue * marketingPct / 100).toFixed(2);
-    const maintenanceAmount = +(netRevenue * maintenancePct / 100).toFixed(2);
-    const profitAmount = +(netRevenue * profitPct / 100).toFixed(2);
+    // 7 Funds amounts (Exact integer Baht when matching standard packages with 0 GP / No VAT)
+    const matchedStd = STANDARD_PRESETS.find(p => 
+      p.price === price &&
+      p.meals === meals &&
+      p.split.deliverySub === deliverySubPct &&
+      p.split.profit === profitPct &&
+      gpPercentage === 0 &&
+      !includeVat
+    );
+
+    const materialAmount = matchedStd ? matchedStd.splitAmount.material : +(netRevenue * materialPct / 100).toFixed(2);
+    const packagingAmount = matchedStd ? matchedStd.splitAmount.packaging : +(netRevenue * packagingPct / 100).toFixed(2);
+    const laborAmount = matchedStd ? matchedStd.splitAmount.labor : +(netRevenue * laborPct / 100).toFixed(2);
+    const deliverySubAmount = matchedStd ? matchedStd.splitAmount.deliverySub : +(netRevenue * deliverySubPct / 100).toFixed(2);
+    const marketingAmount = matchedStd ? matchedStd.splitAmount.marketing : +(netRevenue * marketingPct / 100).toFixed(2);
+    const maintenanceAmount = matchedStd ? matchedStd.splitAmount.maintenance : +(netRevenue * maintenancePct / 100).toFixed(2);
+    const profitAmount = matchedStd ? matchedStd.splitAmount.profit : +(netRevenue * profitPct / 100).toFixed(2);
 
     const totalAllocatedPct = materialPct + packagingPct + laborPct + deliverySubPct + marketingPct + maintenancePct + profitPct;
     const totalCost = +(materialAmount + packagingAmount + laborAmount + deliverySubAmount + marketingAmount + maintenanceAmount).toFixed(2);
@@ -353,7 +324,7 @@ export const PromotionBuilder: React.FC<Props> = ({ isDarkMode = false }) => {
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {STANDARD_PRESETS.map(preset => {
             const isSelected = activePreset === preset.id;
             return (

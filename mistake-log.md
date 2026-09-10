@@ -47,5 +47,19 @@
 - **สาเหตุ & สิ่งที่แก้ไข**:
   1. ในตาราง `members` ไม่มีคอลัมน์ชื่อ `nickname` (ฟิลด์ชื่อเล่น/LINE ชื่อจริงใน DB คือ `line_display_name`) -> อัปเดตการ Select, Update, Insert ใน `DropPointManagement.tsx` และ `PromotionManagement.tsx` ให้ใช้ `line_display_name` พร้อม Fallback
   2. การตั้งค่า `loading="lazy"` ให้รูปภาพทั้งหมดใน `MenuManagement.tsx` ทำให้ Chrome Deferred Image Events และแสดง Intervention Warning -> แก้ไข `MenuCard` ให้รูป 8 รายการแรกโหลดแบบ `eager` ส่วนที่เหลือโหลดแบบ `lazy`, เพิ่ม `decoding="async"`, และใส่ `onError` fallback ป้องกันหน้าจอค้างหรือรูปแตก
-  3. ยกระดับชุด Unit Test ใน `scripts/test-erp-domain.mjs` ครอบคลุมทั้ง 5 โมดูลหลัก (การเงิน 4 กองทุน, สมาชิก & ปิ่นโต, ครัว KDS & Recipe BOM, โลจิสติกส์, จัดซื้อ & สต็อก) รวม 17 เคส ทดสอบ Business Logic เพียวๆ ทำให้รองรับการปรับเปลี่ยน UI ในอนาคตโดยไม่กระทบผลการทดสอบ
+
+## [2026-09-10] 7-Fund Financial Pool & Delivery Subsidy Architecture Alignment
+- **Trigger**: ตรวจสอบฝ่ายบัญชีและการเงินว่ากองทุนทั้ง 7 ตรงกันไหม รวมถึงระบบจัดส่ง (Delivery Subsidy) ตามแพ็กเกจ 7 วัน, 14 วัน, 1 เดือน และแพ็ค 4, 6, 7 กล่อง
+- **สิ่งที่ตรวจพบ & ความคลาดเคลื่อนเดิม**:
+  1. **สัดส่วนเดิมเป็น 4 กองทุน**: ใน `erp_split_configs`, `FinanceSettings.tsx`, และ `RevenueRecorder.tsx` ยังเป็นโมเดล 4 กองทุน (วัตถุดิบ 35%, ค่าแรง 15%, ดำเนินงาน 20%, กำไร 30%) ซึ่งไม่สะท้อนโครงสร้างค่าใช้จ่ายจริงของ Clean Food CR ที่แยกค่าบิล/ถุงซีล (10%), ช่วยส่ง Grab (35฿/รอบ), การตลาด (4%), และสำรอง/ซ่อมบำรุง (4%)
+  2. **ความไม่สอดคล้องของค่าช่วยส่งในระบบโลจิสติกส์**: ใน `PromotionManagement.tsx` มีโค้ดเดิมเขียน `rounds <= 3 ? 30 : 35` ทำให้แพ็กเกจ 7 วัน (3 รอบ) ได้รับเงินช่วยส่งเพียง 30฿/รอบ (90฿) ขัดกับเกณฑ์จริงของร้านที่กำหนดไว้ 35฿/รอบ (105฿ หรือ 11% ของ 999฿)
+  3. **OrderCalculator ราคาค้างเก่า**: เมนูด่วนเขียน `โปร 30 มื้อ (1799)` ซึ่งเป็นราคาเดิม ต้องปรับเป็น 1,899฿ และเพิ่มปุ่มด่วนสำหรับ 6 แพ็กเกจมาตรฐาน
+- **วิธีแก้ไข & การวางระบบป้องกัน**:
+  1. **Database-First Synchronization**: ซิงค์สูตรทั้ง 6 แพ็กเกจลง `public.erp_split_configs`, อัปเดต `public.promotions` ให้ผูก `split_config_id` และกำหนดรอบส่ง/ค่าช่วยส่งตรงเป๊ะ, พร้อมจัดเรียงลำดับ `public.erp_fund_pools` ครบ 7 กองทุน
+  2. **Logistics Alignment**: ปรับ `storeSubsidyPerRound` ใน `PromotionManagement.tsx` ให้เป็น 35฿ คงที่ทุกแพ็กเกจ เพื่อให้ตรงกับการหักเงินเข้ากองทุน Delivery Subsidy
+
+## [2026-09-10] Domain Context: "MAKE" refers to MAKE by KBank in Thai Banking/Finance
+- **Trigger**: ผู้ใช้แจ้งว่าใช้ "make ในการจัดการบัญชี" และยอดรายรับรายจ่าย
+- **สิ่งที่ตรวจพบ**: AI นึกถึง Make.com (automation tool) ก่อน แต่ในบริบทของพ่อค้าแม่ค้าและร้านอาหารไทยในปัจจุบัน "MAKE" หมายถึง **แอป MAKE by KBank** (ธนาคารกสิกรไทย) ที่มีฟีเจอร์ Cloud Pocket, Chat with Banking, และ Export Statement
+- **วิธีป้องกัน**: ในบริบทการเงิน บัญชีร้านอาหาร และการรับโอนเงินของคนไทย ให้ระลึกถึงแอป MAKE by KBank เสมอ ซึ่งฟังก์ชัน Cloud Pocket สอดคล้องกับระบบ 7 Fund ของ ERP ร้านเราโดยตรง
 

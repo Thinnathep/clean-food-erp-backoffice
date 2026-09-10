@@ -16,14 +16,18 @@ export const FinanceSettings: React.FC<Props> = ({ configs, onRefresh, isDarkMod
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   
-  // Form State
+  // Form State for 7 Funds
   const [formData, setFormData] = useState({
     config_name: '',
-    promotion_type: 'PINTO',
-    material_pct: 35,
-    labor_pct: 15,
-    ops_pct: 20,
-    profit_pct: 30
+    promotion_type: 'PINTO' as 'PINTO' | 'MUSCLE' | 'RETAIL' | 'ADDON',
+    material_pct: 40,
+    packaging_pct: 10,
+    labor_pct: 14,
+    delivery_sub_pct: 9,
+    marketing_pct: 4,
+    maintenance_pct: 4,
+    ops_pct: 0,
+    profit_pct: 19
   });
 
   const handleEdit = (c: SplitConfig) => {
@@ -31,11 +35,16 @@ export const FinanceSettings: React.FC<Props> = ({ configs, onRefresh, isDarkMod
     setFormData({
       config_name: c.config_name,
       promotion_type: c.promotion_type,
-      material_pct: c.material_pct,
-      labor_pct: c.labor_pct,
-      ops_pct: c.ops_pct,
-      profit_pct: c.profit_pct
+      material_pct: c.material_pct ?? 40,
+      packaging_pct: c.packaging_pct ?? 10,
+      labor_pct: c.labor_pct ?? 14,
+      delivery_sub_pct: c.delivery_sub_pct ?? 9,
+      marketing_pct: c.marketing_pct ?? 4,
+      maintenance_pct: c.maintenance_pct ?? 4,
+      ops_pct: c.ops_pct ?? 0,
+      profit_pct: c.profit_pct ?? 19
     });
+    setShowAddForm(true);
   };
 
   const resetForm = () => {
@@ -44,10 +53,14 @@ export const FinanceSettings: React.FC<Props> = ({ configs, onRefresh, isDarkMod
     setFormData({
       config_name: '',
       promotion_type: 'PINTO',
-      material_pct: 35,
-      labor_pct: 15,
-      ops_pct: 20,
-      profit_pct: 30
+      material_pct: 40,
+      packaging_pct: 10,
+      labor_pct: 14,
+      delivery_sub_pct: 9,
+      marketing_pct: 4,
+      maintenance_pct: 4,
+      ops_pct: 0,
+      profit_pct: 19
     });
   };
 
@@ -61,8 +74,8 @@ export const FinanceSettings: React.FC<Props> = ({ configs, onRefresh, isDarkMod
     );
     if (isDuplicate) return toast.error('ชื่อสูตรนี้มีอยู่ในระบบแล้ว กรุณาใช้ชื่ออื่น');
 
-    const total = formData.material_pct + formData.labor_pct + formData.ops_pct + formData.profit_pct;
-    if (total !== 100) return toast.error(`สัดส่วนต้องรวมกันได้ 100% (ตอนนี้ ${total}%)`);
+    const total = formData.material_pct + formData.packaging_pct + formData.labor_pct + formData.delivery_sub_pct + formData.marketing_pct + formData.maintenance_pct + formData.ops_pct + formData.profit_pct;
+    if (total !== 100) return toast.error(`สัดส่วน 7 กองทุนต้องรวมกันได้ 100% (ตอนนี้ ${total}%)`);
 
     try {
       if (editingId) {
@@ -388,50 +401,109 @@ export const FinanceSettings: React.FC<Props> = ({ configs, onRefresh, isDarkMod
                     </select>
                  </div>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
                  <div>
-                    <label className="block text-[10px] font-bold text-emerald-500 mb-1">วัตถุดิบ (%)</label>
+                    <label className="block text-[10px] font-bold text-emerald-500 mb-1">🟢 วัตถุดิบ (%)</label>
                     <input type="number" value={formData.material_pct} onChange={e => setFormData({...formData, material_pct: Number(e.target.value)})}
                        className={`w-full p-2.5 rounded-xl border text-sm outline-none focus:border-emerald-500 ${input}`} />
                  </div>
                  <div>
-                    <label className="block text-[10px] font-bold text-blue-500 mb-1">ค่าแรง (%)</label>
+                    <label className="block text-[10px] font-bold text-amber-500 mb-1">🟡 ถุงซีล/บิล (%)</label>
+                    <input type="number" value={formData.packaging_pct} onChange={e => setFormData({...formData, packaging_pct: Number(e.target.value)})}
+                       className={`w-full p-2.5 rounded-xl border text-sm outline-none focus:border-emerald-500 ${input}`} />
+                 </div>
+                 <div>
+                    <label className="block text-[10px] font-bold text-blue-500 mb-1">🔵 ค่าแรง (%)</label>
                     <input type="number" value={formData.labor_pct} onChange={e => setFormData({...formData, labor_pct: Number(e.target.value)})}
                        className={`w-full p-2.5 rounded-xl border text-sm outline-none focus:border-emerald-500 ${input}`} />
                  </div>
                  <div>
-                    <label className="block text-[10px] font-bold text-amber-500 mb-1">ค่าบิล (%)</label>
-                    <input type="number" value={formData.ops_pct} onChange={e => setFormData({...formData, ops_pct: Number(e.target.value)})}
+                    <label className="block text-[10px] font-bold text-orange-500 mb-1">🛵 ส่ง Grab (%)</label>
+                    <input type="number" value={formData.delivery_sub_pct} onChange={e => setFormData({...formData, delivery_sub_pct: Number(e.target.value)})}
                        className={`w-full p-2.5 rounded-xl border text-sm outline-none focus:border-emerald-500 ${input}`} />
                  </div>
                  <div>
-                    <label className="block text-[10px] font-bold text-red-500 mb-1">กำไร (%)</label>
+                    <label className="block text-[10px] font-bold text-purple-500 mb-1">📢 ตลาด (%)</label>
+                    <input type="number" value={formData.marketing_pct} onChange={e => setFormData({...formData, marketing_pct: Number(e.target.value)})}
+                       className={`w-full p-2.5 rounded-xl border text-sm outline-none focus:border-emerald-500 ${input}`} />
+                 </div>
+                 <div>
+                    <label className="block text-[10px] font-bold text-slate-400 mb-1">🛠️ สำรอง (%)</label>
+                    <input type="number" value={formData.maintenance_pct} onChange={e => setFormData({...formData, maintenance_pct: Number(e.target.value)})}
+                       className={`w-full p-2.5 rounded-xl border text-sm outline-none focus:border-emerald-500 ${input}`} />
+                 </div>
+                 <div>
+                    <label className="block text-[10px] font-bold text-pink-500 mb-1">🔴 กำไรสุทธิ (%)</label>
                     <input type="number" value={formData.profit_pct} onChange={e => setFormData({...formData, profit_pct: Number(e.target.value)})}
                        className={`w-full p-2.5 rounded-xl border text-sm outline-none focus:border-emerald-500 ${input}`} />
                  </div>
               </div>
               
-              <div className="flex items-center justify-between mb-6">
-                  <button 
-                    type="button"
-                    onClick={() => setFormData({
-                      ...formData,
-                      material_pct: 40,
-                      labor_pct: 20,
-                      ops_pct: 15,
-                      profit_pct: 25
-                    })}
-                    className={`text-[10px] font-bold flex items-center gap-1 transition-all px-3 py-1.5 rounded-xl border border-dashed ${
-                      isDarkMode ? 'text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10' : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50'
-                    }`}
-                  >
-                     <Package size={14} /> ใช้สัดส่วนแนะนำ (Healthy Split 40/20/15/25)
-                  </button>
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+                  <div className="flex flex-wrap gap-2">
+                    <button 
+                      type="button"
+                      onClick={() => setFormData({
+                        ...formData,
+                        material_pct: 40,
+                        packaging_pct: 10,
+                        labor_pct: 14,
+                        delivery_sub_pct: 9,
+                        marketing_pct: 4,
+                        maintenance_pct: 4,
+                        ops_pct: 0,
+                        profit_pct: 19
+                      })}
+                      className={`text-[10px] font-bold flex items-center gap-1 transition-all px-2.5 py-1.5 rounded-xl border border-dashed ${
+                        isDarkMode ? 'text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10' : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50'
+                      }`}
+                    >
+                       <Package size={14} /> 14 วัน (40/10/14/9/4/4/19)
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => setFormData({
+                        ...formData,
+                        material_pct: 40,
+                        packaging_pct: 10,
+                        labor_pct: 14,
+                        delivery_sub_pct: 11,
+                        marketing_pct: 4,
+                        maintenance_pct: 4,
+                        ops_pct: 0,
+                        profit_pct: 17
+                      })}
+                      className={`text-[10px] font-bold flex items-center gap-1 transition-all px-2.5 py-1.5 rounded-xl border border-dashed ${
+                        isDarkMode ? 'text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10' : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50'
+                      }`}
+                    >
+                       <Package size={14} /> 7 วัน (40/10/14/11/4/4/17)
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => setFormData({
+                        ...formData,
+                        material_pct: 40,
+                        packaging_pct: 10,
+                        labor_pct: 14,
+                        delivery_sub_pct: 10,
+                        marketing_pct: 4,
+                        maintenance_pct: 4,
+                        ops_pct: 0,
+                        profit_pct: 18
+                      })}
+                      className={`text-[10px] font-bold flex items-center gap-1 transition-all px-2.5 py-1.5 rounded-xl border border-dashed ${
+                        isDarkMode ? 'text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10' : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50'
+                      }`}
+                    >
+                       <Package size={14} /> 1 เดือน (40/10/14/10/4/4/18)
+                    </button>
+                  </div>
                   <div className={`text-xs font-bold ${
-                     (formData.material_pct + formData.labor_pct + formData.ops_pct + formData.profit_pct) === 100 
+                     (formData.material_pct + formData.packaging_pct + formData.labor_pct + formData.delivery_sub_pct + formData.marketing_pct + formData.maintenance_pct + formData.ops_pct + formData.profit_pct) === 100 
                      ? 'text-emerald-500' : 'text-red-500'
                   }`}>
-                     รวม: {formData.material_pct + formData.labor_pct + formData.ops_pct + formData.profit_pct}%
+                     รวม 7 กองทุน: {formData.material_pct + formData.packaging_pct + formData.labor_pct + formData.delivery_sub_pct + formData.marketing_pct + formData.maintenance_pct + formData.ops_pct + formData.profit_pct}%
                   </div>
                </div>
 
@@ -465,14 +537,17 @@ export const FinanceSettings: React.FC<Props> = ({ configs, onRefresh, isDarkMod
                              isDarkMode ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-500'
                            }`}>{c.promotion_type}</span>
                        </td>
-                       <td className="px-6 py-4">
-                          <div className="flex gap-2">
-                             <span className="text-[10px] font-bold text-emerald-500">M:{c.material_pct}</span>
-                             <span className="text-[10px] font-bold text-blue-500">L:{c.labor_pct}</span>
-                             <span className="text-[10px] font-bold text-amber-500">O:{c.ops_pct}</span>
-                             <span className="text-[10px] font-bold text-red-500">P:{c.profit_pct}</span>
-                          </div>
-                       </td>
+                        <td className="px-6 py-4">
+                           <div className="flex flex-wrap gap-1 max-w-md">
+                              <span className="text-[10px] px-1.5 py-0.5 rounded font-bold bg-emerald-500/10 text-emerald-600">🟢 วัตถุดิบ {c.material_pct}%</span>
+                              <span className="text-[10px] px-1.5 py-0.5 rounded font-bold bg-amber-500/10 text-amber-600">🟡 ถุงซีล {c.packaging_pct || 0}%</span>
+                              <span className="text-[10px] px-1.5 py-0.5 rounded font-bold bg-blue-500/10 text-blue-600">🔵 ค่าแรง {c.labor_pct}%</span>
+                              <span className="text-[10px] px-1.5 py-0.5 rounded font-bold bg-orange-500/10 text-orange-600">🛵 จัดส่ง {c.delivery_sub_pct || 0}%</span>
+                              <span className="text-[10px] px-1.5 py-0.5 rounded font-bold bg-purple-500/10 text-purple-600">📢 ตลาด {c.marketing_pct || 0}%</span>
+                              <span className="text-[10px] px-1.5 py-0.5 rounded font-bold bg-slate-500/10 text-slate-600">🛠️ สำรอง {c.maintenance_pct || 0}%</span>
+                              <span className="text-[10px] px-1.5 py-0.5 rounded font-bold bg-pink-500/10 text-pink-600">🔴 กำไร {c.profit_pct}%</span>
+                           </div>
+                        </td>
                        <td className="px-6 py-4">
                           {c.is_default ? (
                              <span className="flex items-center gap-1 text-emerald-500 text-xs font-bold">

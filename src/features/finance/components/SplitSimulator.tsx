@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../../../config/supabase';
-import { getPoolConfig } from '../types';
-import type { SplitConfig, PoolType } from '../types';
+import { getPoolConfig, STANDARD_7FUND_PACKAGES } from '../types';
+import type { SplitConfig, PoolType, StandardPackageSplit } from '../types';
 import { toast } from 'sonner';
 import { 
   Calculator, Target, ShieldCheck, AlertCircle, Sparkles, PlusCircle
@@ -12,12 +12,11 @@ interface Props {
   isDarkMode?: boolean;
 }
 
-// Pinto package presets (อัปเดต 04/08/2569)
-const PINTO_PRESETS = [
-  { label: '📦 7 วัน (15 มื้อ)', price: 999, meals: 15, rounds: 3 },
-  { label: '📦 14 วัน (30 มื้อ)', price: 1899, meals: 30, rounds: 5 },
-  { label: '📦 1 เดือน (63 มื้อ)', price: 3999, meals: 63, rounds: 11 },
-];
+// Pinto package presets (7 กองทุน & ส่ง 35฿/รอบ)
+const PINTO_PRESETS = STANDARD_7FUND_PACKAGES.filter(p => p.type === 'PINTO');
+
+// Meal Pack Presets (4, 6, 7 กล่อง)
+const MEAL_PACK_PRESETS = STANDARD_7FUND_PACKAGES.filter(p => p.type === 'RETAIL');
 
 // Muscle package presets
 const MUSCLE_PRESETS = [
@@ -44,14 +43,23 @@ export const SplitSimulator: React.FC<Props> = ({ isDarkMode = false }) => {
 
   const net = amount - deliveryFee;
 
-  const materialAmt = +(net * materialPct / 100).toFixed(2);
-  const packagingAmt = +(net * packagingPct / 100).toFixed(2);
-  const laborAmt = +(net * laborPct / 100).toFixed(2);
-  const deliverySubAmt = +(net * deliverySubPct / 100).toFixed(2);
-  const marketingAmt = +(net * marketingPct / 100).toFixed(2);
-  const maintenanceAmt = +(net * maintenancePct / 100).toFixed(2);
+  // Exact integer Baht matching when selecting standard packages
+  const matchedStd = STANDARD_7FUND_PACKAGES.find(p => 
+    p.price === amount &&
+    p.meals === meals &&
+    p.splitPct.deliverySub === deliverySubPct &&
+    p.splitPct.profit === profitPct &&
+    deliveryFee === 0
+  );
+
+  const materialAmt = matchedStd ? matchedStd.splitAmount.material : +(net * materialPct / 100).toFixed(2);
+  const packagingAmt = matchedStd ? matchedStd.splitAmount.packaging : +(net * packagingPct / 100).toFixed(2);
+  const laborAmt = matchedStd ? matchedStd.splitAmount.labor : +(net * laborPct / 100).toFixed(2);
+  const deliverySubAmt = matchedStd ? matchedStd.splitAmount.deliverySub : +(net * deliverySubPct / 100).toFixed(2);
+  const marketingAmt = matchedStd ? matchedStd.splitAmount.marketing : +(net * marketingPct / 100).toFixed(2);
+  const maintenanceAmt = matchedStd ? matchedStd.splitAmount.maintenance : +(net * maintenancePct / 100).toFixed(2);
   const opsAmt = +(net * opsPct / 100).toFixed(2);
-  const profitAmt = +(net - materialAmt - packagingAmt - laborAmt - deliverySubAmt - marketingAmt - maintenanceAmt - opsAmt).toFixed(2);
+  const profitAmt = matchedStd ? matchedStd.splitAmount.profit : +(net - materialAmt - packagingAmt - laborAmt - deliverySubAmt - marketingAmt - maintenanceAmt - opsAmt).toFixed(2);
 
   const totalPct = materialPct + packagingPct + laborPct + deliverySubPct + marketingPct + maintenancePct + profitPct + opsPct;
 
@@ -61,6 +69,22 @@ export const SplitSimulator: React.FC<Props> = ({ isDarkMode = false }) => {
 
   // Business Health Logic
   const healthScore = profitPct >= 18 ? 'EXCELLENT' : profitPct >= 12 ? 'GOOD' : profitPct >= 5 ? 'OK' : 'LOW';
+
+  const applyPackagePreset = (pkg: StandardPackageSplit) => {
+    setAmount(pkg.price);
+    setMeals(pkg.meals);
+    setRounds(pkg.rounds);
+    setDeliveryFee(0);
+    setMaterialPct(pkg.splitPct.material);
+    setPackagingPct(pkg.splitPct.packaging);
+    setLaborPct(pkg.splitPct.labor);
+    setDeliverySubPct(pkg.splitPct.deliverySub);
+    setMarketingPct(pkg.splitPct.marketing);
+    setMaintenancePct(pkg.splitPct.maintenance);
+    setProfitPct(pkg.splitPct.profit);
+    setOpsPct(0);
+    toast.success(`โหลดข้อมูล ${pkg.name} สัดส่วน 7 กองทุนเรียบร้อย`);
+  };
 
   const applyPreset = (price: number, m?: number, r?: number) => {
     setAmount(price);
@@ -78,7 +102,7 @@ export const SplitSimulator: React.FC<Props> = ({ isDarkMode = false }) => {
     setMaintenancePct(4);
     setProfitPct(19);
     setOpsPct(0);
-    toast.success('ใช้สูตรมาตรฐาน 04/08/2569 (7 กองทุน) เรียบร้อย');
+    toast.success('ใช้สูตรมาตรฐาน 14 วัน (1,899฿) 7 กองทุนเรียบร้อย');
   };
 
   const handleSaveConfig = async () => {
@@ -144,12 +168,12 @@ export const SplitSimulator: React.FC<Props> = ({ isDarkMode = false }) => {
           {/* Quick presets */}
           <div className="space-y-4">
             <div>
-              <p className="text-xs font-bold text-slate-800 uppercase tracking-wide mb-2">📦 แพ็กเกจมาตรฐาน 04/08/2569</p>
+              <p className="text-xs font-bold text-slate-800 uppercase tracking-wide mb-2">📦 แพ็กเกจผูกปิ่นโต (ส่ง 35฿/รอบ)</p>
               <div className="grid grid-cols-3 gap-2">
                 {PINTO_PRESETS.map(p => (
                   <button
-                    key={p.price}
-                    onClick={() => applyPreset(p.price, p.meals, p.rounds)}
+                    key={p.id}
+                    onClick={() => applyPackagePreset(p)}
                     className={`p-2.5 rounded-2xl text-xs border transition-all text-left ${
                       amount === p.price 
                         ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 font-bold shadow-sm ring-1 ring-emerald-500/20' 
@@ -158,7 +182,29 @@ export const SplitSimulator: React.FC<Props> = ({ isDarkMode = false }) => {
                           : 'bg-slate-100 border-slate-300 text-slate-800 font-semibold hover:border-emerald-400'
                     }`}
                   >
-                    <div className="font-bold text-xs truncate">{p.label}</div>
+                    <div className="font-bold text-xs truncate">{p.name}</div>
+                    <div className="text-xs font-mono font-bold mt-0.5">฿{p.price.toLocaleString()}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-bold text-slate-800 uppercase tracking-wide mb-2">🍱 โปรโมชั่นแบบแพ็ค (ช่วยส่ง Grab 35฿)</p>
+              <div className="grid grid-cols-3 gap-2">
+                {MEAL_PACK_PRESETS.map(p => (
+                  <button
+                    key={p.id}
+                    onClick={() => applyPackagePreset(p)}
+                    className={`p-2.5 rounded-2xl text-xs border transition-all text-left ${
+                      amount === p.price 
+                        ? 'bg-amber-500/10 border-amber-500/30 text-amber-700 font-bold shadow-sm ring-1 ring-amber-500/20' 
+                        : isDarkMode 
+                          ? 'bg-slate-900/40 border-slate-700 text-slate-200 hover:border-amber-500/50' 
+                          : 'bg-slate-100 border-slate-300 text-slate-800 font-semibold hover:border-amber-400'
+                    }`}
+                  >
+                    <div className="font-bold text-xs truncate">{p.name}</div>
                     <div className="text-xs font-mono font-bold mt-0.5">฿{p.price.toLocaleString()}</div>
                   </button>
                 ))}

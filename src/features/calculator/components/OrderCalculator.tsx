@@ -242,16 +242,21 @@ export const OrderCalculator: React.FC = () => {
                 <div className="flex flex-wrap gap-2 mt-2">
                   <span className="text-[10px] font-bold text-slate-400 uppercase self-center mr-1">เมนูด่วน:</span>
                   {[
+                    { name: 'ปิ่นโต 7 วัน (15 มื้อ)', price: 999 },
+                    { name: 'ปิ่นโต 14 วัน (30 มื้อ)', price: 1899 },
+                    { name: 'ปิ่นโต 1 เดือน (60 มื้อ)', price: 3999 },
+                    { name: 'แพ็ค 4 กล่อง', price: 299 },
+                    { name: 'แพ็ค 6 กล่อง', price: 399 },
+                    { name: 'แพ็ค 7 กล่อง', price: 459 },
                     { name: 'อกไก่ปั่น', price: 59 },
                     { name: 'ข้าวกล่องคลีน', price: 79 },
-                    { name: 'โปร 30 มื้อ', price: 1799 }
                   ].map(menu => (
                     <button
                       key={menu.name}
                       onClick={() => setItems([...items, { id: crypto.randomUUID(), name: menu.name, price: menu.price, quantity: 1 }])}
                       className="px-2.5 py-1 bg-white border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 text-slate-600 text-[11px] font-bold rounded-lg transition-all"
                     >
-                      + {menu.name}
+                      + {menu.name} ({menu.price.toLocaleString()}฿)
                     </button>
                   ))}
                 </div>

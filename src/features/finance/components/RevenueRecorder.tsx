@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../config/supabase';
-import { getPoolConfig } from '../types';
+import { getPoolConfig, STANDARD_7FUND_PACKAGES } from '../types';
 import type { SplitConfig, PoolType } from '../types';
 import type { Member } from '../../../types';
 import { toast } from 'sonner';
@@ -13,11 +13,23 @@ interface Props {
   isDarkMode?: boolean;
 }
 
-const PINTO_PRESETS = [
-  { label: '7 วัน (15 มื้อ)', price: 999, meals: 15, days: 7 },
-  { label: '14 วัน (30 มื้อ)', price: 1899, meals: 30, days: 14 },
-  { label: '1 เดือน (63 มื้อ)', price: 3999, meals: 63, days: 30 },
-];
+const PINTO_PRESETS = STANDARD_7FUND_PACKAGES.filter(p => p.type === 'PINTO').map(p => ({
+  label: p.name,
+  price: p.price,
+  meals: p.meals,
+  days: p.days,
+  rounds: p.rounds,
+  code: p.code
+}));
+
+const MEAL_PACK_PRESETS = STANDARD_7FUND_PACKAGES.filter(p => p.type === 'RETAIL').map(p => ({
+  label: p.name,
+  price: p.price,
+  meals: p.meals,
+  days: p.days,
+  rounds: p.rounds,
+  code: p.code
+}));
 
 const MUSCLE_PRESETS = [
   { label: '14 วัน (62 มื้อ) - Promo', price: 7399, meals: 62, days: 14 },
@@ -89,21 +101,36 @@ export const RevenueRecorder: React.FC<Props> = ({ configs, onSaved, isDarkMode 
   const opsPct = activeConfig?.ops_pct ?? 0;
   const profitPct = activeConfig?.profit_pct ?? 19;
 
-  const materialAmt = +(net * materialPct / 100).toFixed(2);
-  const packagingAmt = +(net * packagingPct / 100).toFixed(2);
-  const laborAmt = +(net * laborPct / 100).toFixed(2);
-  const deliverySubAmt = +(net * deliverySubPct / 100).toFixed(2);
-  const marketingAmt = +(net * marketingPct / 100).toFixed(2);
-  const maintenanceAmt = +(net * maintenancePct / 100).toFixed(2);
-  const opsAmt = +(net * opsPct / 100).toFixed(2);
-  const profitAmt = +(net - materialAmt - packagingAmt - laborAmt - deliverySubAmt - marketingAmt - maintenanceAmt - opsAmt).toFixed(2);
+  // Exact integer Baht matching when selecting standard packages
+  const matchedStd = STANDARD_7FUND_PACKAGES.find(p => 
+    p.price === gross &&
+    delivery === 0 &&
+    !hasVat
+  );
 
-  const handleApplyPreset = (p: { price: number; label: string; days: number }) => {
+  const materialAmt = matchedStd ? matchedStd.splitAmount.material : +(net * materialPct / 100).toFixed(2);
+  const packagingAmt = matchedStd ? matchedStd.splitAmount.packaging : +(net * packagingPct / 100).toFixed(2);
+  const laborAmt = matchedStd ? matchedStd.splitAmount.labor : +(net * laborPct / 100).toFixed(2);
+  const deliverySubAmt = matchedStd ? matchedStd.splitAmount.deliverySub : +(net * deliverySubPct / 100).toFixed(2);
+  const marketingAmt = matchedStd ? matchedStd.splitAmount.marketing : +(net * marketingPct / 100).toFixed(2);
+  const maintenanceAmt = matchedStd ? matchedStd.splitAmount.maintenance : +(net * maintenancePct / 100).toFixed(2);
+  const opsAmt = +(net * opsPct / 100).toFixed(2);
+  const profitAmt = matchedStd ? matchedStd.splitAmount.profit : +(net - materialAmt - packagingAmt - laborAmt - deliverySubAmt - marketingAmt - maintenanceAmt - opsAmt).toFixed(2);
+
+  const handleApplyPreset = (p: { price: number; label: string; days: number; code?: string }) => {
     setGrossAmount(p.price.toString());
     setDescription(p.label);
     setSelectedDays(p.days);
     if (periodStart) {
       setPeriodEnd(dayjs(periodStart).add(p.days - 1, 'day').format('YYYY-MM-DD'));
+    }
+    // Auto-select corresponding split config if exists
+    const matchingCfg = standardConfigs.find(c => 
+      c.config_name.includes(p.price.toString()) || 
+      (p.label && c.config_name.includes(p.label.split(' ')[0]))
+    );
+    if (matchingCfg) {
+      setSelectedConfigId(matchingCfg.id);
     }
   };
 
@@ -354,25 +381,79 @@ export const RevenueRecorder: React.FC<Props> = ({ configs, onSaved, isDarkMode 
           </div>
 
           {/* Quick Presets */}
-          {(sourceType === 'PACKAGE' || sourceType === 'MUSCLE_CUSTOM') && (
-            <div>
-              <label className={`block text-xs font-semibold mb-2 ${subtext}`}>เลือกแพ็กเกจด่วน (Presets)</label>
-              <div className="flex flex-wrap gap-2">
-                {(sourceType === 'PACKAGE' ? PINTO_PRESETS : MUSCLE_PRESETS).map(p => (
-                  <button
-                    key={p.label}
-                    type="button"
-                    onClick={() => handleApplyPreset(p)}
-                    className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
-                      isDarkMode 
-                        ? 'bg-slate-900/40 border-slate-700 text-slate-200 hover:border-emerald-500/50 hover:bg-emerald-500/5' 
-                        : 'bg-slate-100 border-slate-300 text-slate-800 hover:bg-emerald-50 hover:border-emerald-400 hover:text-emerald-800'
-                    }`}
-                  >
-                    {p.label}
-                  </button>
-                ))}
+          {(sourceType === 'PACKAGE' || sourceType === 'ORDER' || sourceType === 'MUSCLE_CUSTOM') && (
+            <div className="space-y-3">
+              <label className={`block text-xs font-semibold ${subtext}`}>เลือกแพ็กเกจด่วน (Presets 7 กองทุน)</label>
+              
+              {/* Pinto Presets */}
+              <div>
+                <span className="text-[10px] font-bold text-slate-500 uppercase">📦 ผูกปิ่นโต (ส่ง 35฿/รอบ):</span>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {PINTO_PRESETS.map(p => (
+                    <button
+                      key={p.code}
+                      type="button"
+                      onClick={() => handleApplyPreset(p)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                        grossAmount === p.price.toString()
+                          ? 'bg-emerald-500/10 border-emerald-500 text-emerald-600 font-bold ring-1 ring-emerald-500/20'
+                          : isDarkMode 
+                            ? 'bg-slate-900/40 border-slate-700 text-slate-200 hover:border-emerald-500/50' 
+                            : 'bg-slate-100 border-slate-300 text-slate-800 hover:bg-emerald-50 hover:border-emerald-400'
+                      }`}
+                    >
+                      {p.label} (฿{p.price.toLocaleString()})
+                    </button>
+                  ))}
+                </div>
               </div>
+
+              {/* Meal Pack Presets */}
+              <div>
+                <span className="text-[10px] font-bold text-slate-500 uppercase">🍱 โปรโมชั่นแบบแพ็ค (ช่วยส่ง Grab 35฿):</span>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {MEAL_PACK_PRESETS.map(p => (
+                    <button
+                      key={p.code}
+                      type="button"
+                      onClick={() => handleApplyPreset(p)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                        grossAmount === p.price.toString()
+                          ? 'bg-amber-500/10 border-amber-500 text-amber-600 font-bold ring-1 ring-amber-500/20'
+                          : isDarkMode 
+                            ? 'bg-slate-900/40 border-slate-700 text-slate-200 hover:border-amber-500/50' 
+                            : 'bg-slate-100 border-slate-300 text-slate-800 hover:bg-amber-50 hover:border-amber-400'
+                      }`}
+                    >
+                      {p.label} (฿{p.price.toLocaleString()})
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {sourceType === 'MUSCLE_CUSTOM' && (
+                <div>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase">🏋️ เพิ่มกล้ามเนื้อ (Muscle):</span>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {MUSCLE_PRESETS.map(p => (
+                      <button
+                        key={p.label}
+                        type="button"
+                        onClick={() => handleApplyPreset(p)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
+                          grossAmount === p.price.toString()
+                            ? 'bg-purple-500/10 border-purple-500 text-purple-600 font-bold ring-1 ring-purple-500/20'
+                            : isDarkMode 
+                              ? 'bg-slate-900/40 border-slate-700 text-slate-200 hover:border-purple-500/50' 
+                              : 'bg-slate-100 border-slate-300 text-slate-800 hover:bg-purple-50 hover:border-purple-400'
+                        }`}
+                      >
+                        {p.label} (฿{p.price.toLocaleString()})
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

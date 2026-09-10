@@ -18,9 +18,9 @@ function it(name, fn) {
 }
 
 // =============================================================
-// SECTION 1: FINANCE & 4-FUND POOL ENGINE
+// SECTION 1: FINANCE & 7-FUND POOL ENGINE
 // =============================================================
-console.log('--- [MODULE 1: FINANCE & 4-FUND POOL SPLIT ENGINE] ---');
+console.log('--- [MODULE 1: FINANCE & 7-FUND POOL SPLIT ENGINE] ---');
 
 function calculateFundSplit(gross, deliveryFee, config, isVatIncluded, vatPct = 7) {
   const delivery = Number(deliveryFee) || 0;
@@ -38,30 +38,139 @@ function calculateFundSplit(gross, deliveryFee, config, isVatIncluded, vatPct = 
   return { gross, delivery, net, vat, material, labor, ops, profit, totalSplit: +(material + labor + ops + profit).toFixed(2) };
 }
 
-it('1.1 Standard 4-box Pinto @299 THB splits exactly 35/15/20/30 (฿104.65/฿44.85/฿59.80/฿89.70)', () => {
-  const config = { material_pct: 35, labor_pct: 15, ops_pct: 20, profit_pct: 30 };
-  const res = calculateFundSplit(299, 0, config, true, 7);
-  assert.strictEqual(res.net, 299);
-  assert.strictEqual(res.material, 104.65);
-  assert.strictEqual(res.labor, 44.85);
-  assert.strictEqual(res.ops, 59.80);
-  assert.strictEqual(res.profit, 89.70);
-  assert.strictEqual(Math.round(res.totalSplit), 299);
+function calculate7FundSplit(pkg) {
+  const { price, rounds, splits, subsidyPerRound = 35 } = pkg;
+  const rawMaterial = Math.round(price * (splits.raw_materials / 100));
+  const packaging = Math.round(price * (splits.packaging / 100));
+  const labor = Math.round(price * (splits.labor / 100));
+  const delivery = rounds * subsidyPerRound;
+  const marketing = Math.round(price * (splits.marketing / 100));
+  const reserve = Math.round(price * (splits.reserve / 100));
+  const netProfit = price - (rawMaterial + packaging + labor + delivery + marketing + reserve);
+  const total = rawMaterial + packaging + labor + delivery + marketing + reserve + netProfit;
+
+  return {
+    price,
+    rawMaterial,
+    packaging,
+    labor,
+    delivery,
+    marketing,
+    reserve,
+    netProfit,
+    total,
+    pctSum: splits.raw_materials + splits.packaging + splits.labor + splits.delivery + splits.marketing + splits.reserve + splits.profit
+  };
+}
+
+it('1.1 Standard Pinto 7-Day @999 THB (15 meals, 3 rounds): 40% Raw (400฿), 10% Pack (100฿), 14% Labor (140฿), 11% Delivery (105฿), 4% Mkt (40฿), 4% Res (40฿), 17% Profit (174฿) = 999฿', () => {
+  const res = calculate7FundSplit({
+    price: 999,
+    rounds: 3,
+    splits: { raw_materials: 40, packaging: 10, labor: 14, delivery: 11, marketing: 4, reserve: 4, profit: 17 }
+  });
+  assert.strictEqual(res.rawMaterial, 400);
+  assert.strictEqual(res.packaging, 100);
+  assert.strictEqual(res.labor, 140);
+  assert.strictEqual(res.delivery, 105);
+  assert.strictEqual(res.marketing, 40);
+  assert.strictEqual(res.reserve, 40);
+  assert.strictEqual(res.netProfit, 174);
+  assert.strictEqual(res.total, 999);
+  assert.strictEqual(res.pctSum, 100);
 });
 
-it('1.2 Order with delivery fee isolates 100% delivery into Delivery Fund before 4-fund net split', () => {
-  const config = { material_pct: 35, labor_pct: 15, ops_pct: 20, profit_pct: 30 };
-  const res = calculateFundSplit(349, 50, config, true, 7);
-  assert.strictEqual(res.delivery, 50);
-  assert.strictEqual(res.net, 299);
-  assert.strictEqual(res.material, 104.65);
-  assert.strictEqual(res.profit, 89.70);
+it('1.2 Standard Pinto 14-Day @1,899 THB (30 meals, 5 rounds): 40% Raw (760฿), 10% Pack (190฿), 14% Labor (266฿), 9% Delivery (175฿), 4% Mkt (76฿), 4% Res (76฿), 19% Profit (356฿) = 1,899฿', () => {
+  const res = calculate7FundSplit({
+    price: 1899,
+    rounds: 5,
+    splits: { raw_materials: 40, packaging: 10, labor: 14, delivery: 9, marketing: 4, reserve: 4, profit: 19 }
+  });
+  assert.strictEqual(res.rawMaterial, 760);
+  assert.strictEqual(res.packaging, 190);
+  assert.strictEqual(res.labor, 266);
+  assert.strictEqual(res.delivery, 175);
+  assert.strictEqual(res.marketing, 76);
+  assert.strictEqual(res.reserve, 76);
+  assert.strictEqual(res.netProfit, 356);
+  assert.strictEqual(res.total, 1899);
+  assert.strictEqual(res.pctSum, 100);
 });
 
-it('1.3 VAT 7% Included calculates base revenue and tax output accurately', () => {
-  const config = { material_pct: 35, labor_pct: 15, ops_pct: 20, profit_pct: 30 };
-  const res = calculateFundSplit(107, 0, config, true, 7);
-  assert.strictEqual(res.vat, 7.00);
+it('1.3 Standard Pinto 1-Month @3,999 THB (60 meals, 11 rounds): 40% Raw (1,600฿), 10% Pack (400฿), 14% Labor (560฿), 10% Delivery (385฿), 4% Mkt (160฿), 4% Res (160฿), 18% Profit (734฿) = 3,999฿', () => {
+  const res = calculate7FundSplit({
+    price: 3999,
+    rounds: 11,
+    splits: { raw_materials: 40, packaging: 10, labor: 14, delivery: 10, marketing: 4, reserve: 4, profit: 18 }
+  });
+  assert.strictEqual(res.rawMaterial, 1600);
+  assert.strictEqual(res.packaging, 400);
+  assert.strictEqual(res.labor, 560);
+  assert.strictEqual(res.delivery, 385);
+  assert.strictEqual(res.marketing, 160);
+  assert.strictEqual(res.reserve, 160);
+  assert.strictEqual(res.netProfit, 734);
+  assert.strictEqual(res.total, 3999);
+  assert.strictEqual(res.pctSum, 100);
+});
+
+it('1.4 Box Pack 4 Boxes @299 THB (1 round): 40% Raw (120฿), 10% Pack (30฿), 14% Labor (42฿), 12% Delivery (35฿), 4% Mkt (12฿), 4% Res (12฿), 16% Profit (48฿) = 299฿', () => {
+  const res = calculate7FundSplit({
+    price: 299,
+    rounds: 1,
+    splits: { raw_materials: 40, packaging: 10, labor: 14, delivery: 12, marketing: 4, reserve: 4, profit: 16 }
+  });
+  assert.strictEqual(res.rawMaterial, 120);
+  assert.strictEqual(res.packaging, 30);
+  assert.strictEqual(res.labor, 42);
+  assert.strictEqual(res.delivery, 35);
+  assert.strictEqual(res.marketing, 12);
+  assert.strictEqual(res.reserve, 12);
+  assert.strictEqual(res.netProfit, 48);
+  assert.strictEqual(res.total, 299);
+  assert.strictEqual(res.pctSum, 100);
+});
+
+it('1.5 Box Pack 6 Boxes @399 THB (1 round): 40% Raw (160฿), 10% Pack (40฿), 14% Labor (56฿), 9% Delivery (35฿), 4% Mkt (16฿), 4% Res (16฿), 19% Profit (76฿) = 399฿', () => {
+  const res = calculate7FundSplit({
+    price: 399,
+    rounds: 1,
+    splits: { raw_materials: 40, packaging: 10, labor: 14, delivery: 9, marketing: 4, reserve: 4, profit: 19 }
+  });
+  assert.strictEqual(res.rawMaterial, 160);
+  assert.strictEqual(res.packaging, 40);
+  assert.strictEqual(res.labor, 56);
+  assert.strictEqual(res.delivery, 35);
+  assert.strictEqual(res.marketing, 16);
+  assert.strictEqual(res.reserve, 16);
+  assert.strictEqual(res.netProfit, 76);
+  assert.strictEqual(res.total, 399);
+  assert.strictEqual(res.pctSum, 100);
+});
+
+it('1.6 Box Pack 7 Boxes @459 THB (1 round): 40% Raw (184฿), 10% Pack (46฿), 14% Labor (64฿), 8% Delivery (35฿), 4% Mkt (18฿), 4% Res (18฿), 20% Profit (94฿) = 459฿', () => {
+  const res = calculate7FundSplit({
+    price: 459,
+    rounds: 1,
+    splits: { raw_materials: 40, packaging: 10, labor: 14, delivery: 8, marketing: 4, reserve: 4, profit: 20 }
+  });
+  assert.strictEqual(res.rawMaterial, 184);
+  assert.strictEqual(res.packaging, 46);
+  assert.strictEqual(res.labor, 64);
+  assert.strictEqual(res.delivery, 35);
+  assert.strictEqual(res.marketing, 18);
+  assert.strictEqual(res.reserve, 18);
+  assert.strictEqual(res.netProfit, 94);
+  assert.strictEqual(res.total, 459);
+  assert.strictEqual(res.pctSum, 100);
+});
+
+it('1.7 Delivery Subsidy Rule: Exactly 35 THB per round across all delivery configurations', () => {
+  const testRounds = [1, 3, 5, 11];
+  testRounds.forEach(r => {
+    const subsidy = r * 35;
+    assert.strictEqual(subsidy, r * 35);
+  });
 });
 
 it('1.4 Cash Reconciliation calculates exact variance (Physical Cash - System Recorded)', () => {

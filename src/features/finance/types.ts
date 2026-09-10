@@ -220,3 +220,225 @@ export const getPoolConfig = (poolType: string | undefined): PoolConfigItem => {
     description: 'กองทุนการเงิน'
   };
 };
+
+export interface StandardPackageSplit {
+  id: string;
+  name: string;
+  code: string;
+  price: number;
+  meals: number;
+  rounds: number;
+  days: number;
+  type: 'PINTO' | 'RETAIL';
+  subsidyPerRound: number;
+  tag: string;
+  desc: string;
+  splitPct: {
+    material: number;
+    packaging: number;
+    labor: number;
+    deliverySub: number;
+    marketing: number;
+    maintenance: number;
+    profit: number;
+  };
+  splitAmount: {
+    material: number;
+    packaging: number;
+    labor: number;
+    deliverySub: number;
+    marketing: number;
+    maintenance: number;
+    profit: number;
+  };
+}
+
+export const STANDARD_7FUND_PACKAGES: StandardPackageSplit[] = [
+  {
+    id: 'pinto_7d',
+    name: 'ผูกปิ่นโต 7 วัน (15 มื้อ)',
+    code: 'PINTO999',
+    price: 999,
+    meals: 15,
+    rounds: 3,
+    days: 7,
+    type: 'PINTO',
+    subsidyPerRound: 35,
+    tag: 'ทดลองทาน 7 วัน',
+    desc: 'จัดส่ง 3 รอบ (35฿ x 3 = 105฿) | วัตถุดิบ 40% (400฿) | กำไรสุทธิ 17% (174฿)',
+    splitPct: {
+      material: 40,
+      packaging: 10,
+      labor: 14,
+      deliverySub: 11,
+      marketing: 4,
+      maintenance: 4,
+      profit: 17
+    },
+    splitAmount: {
+      material: 400,
+      packaging: 100,
+      labor: 140,
+      deliverySub: 105,
+      marketing: 40,
+      maintenance: 40,
+      profit: 174
+    }
+  },
+  {
+    id: 'pinto_14d',
+    name: 'ผูกปิ่นโต 14 วัน (30 มื้อ)',
+    code: 'PINTO1899',
+    price: 1899,
+    meals: 30,
+    rounds: 5,
+    days: 14,
+    type: 'PINTO',
+    subsidyPerRound: 35,
+    tag: 'ยอดนิยม 🔥',
+    desc: 'จัดส่ง 5 รอบ (35฿ x 5 = 175฿) | วัตถุดิบ 40% (760฿) | กำไรสุทธิ 19% (356฿)',
+    splitPct: {
+      material: 40,
+      packaging: 10,
+      labor: 14,
+      deliverySub: 9,
+      marketing: 4,
+      maintenance: 4,
+      profit: 19
+    },
+    splitAmount: {
+      material: 760,
+      packaging: 190,
+      labor: 266,
+      deliverySub: 175,
+      marketing: 76,
+      maintenance: 76,
+      profit: 356
+    }
+  },
+  {
+    id: 'pinto_30d',
+    name: 'ผูกปิ่นโต 1 เดือน (63 มื้อ)',
+    code: 'PINTO3999',
+    price: 3999,
+    meals: 63,
+    rounds: 11,
+    days: 30,
+    type: 'PINTO',
+    subsidyPerRound: 35,
+    tag: 'สุดคุ้ม ⭐️',
+    desc: 'จัดส่ง 11 รอบ (35฿ x 11 = 385฿) | วัตถุดิบ 40% (1,600฿) | กำไรสุทธิ 18% (734฿)',
+    splitPct: {
+      material: 40,
+      packaging: 10,
+      labor: 14,
+      deliverySub: 10,
+      marketing: 4,
+      maintenance: 4,
+      profit: 18
+    },
+    splitAmount: {
+      material: 1600,
+      packaging: 400,
+      labor: 560,
+      deliverySub: 385,
+      marketing: 160,
+      maintenance: 160,
+      profit: 734
+    }
+  },
+  {
+    id: 'pack_4box',
+    name: 'แพ็ค 4 กล่อง (299.-)',
+    code: 'PACK299',
+    price: 299,
+    meals: 4,
+    rounds: 1,
+    days: 1,
+    type: 'RETAIL',
+    subsidyPerRound: 35,
+    tag: 'โปร 4 กล่อง',
+    desc: 'ส่งรอบเดียว ช่วยค่าส่ง Grab 35฿ (12%) | วัตถุดิบ 40% (120฿) | กำไรสุทธิ 16% (48฿)',
+    splitPct: {
+      material: 40,
+      packaging: 10,
+      labor: 14,
+      deliverySub: 12,
+      marketing: 4,
+      maintenance: 4,
+      profit: 16
+    },
+    splitAmount: {
+      material: 120,
+      packaging: 30,
+      labor: 42,
+      deliverySub: 35,
+      marketing: 12,
+      maintenance: 12,
+      profit: 48
+    }
+  },
+  {
+    id: 'pack_6box',
+    name: 'แพ็ค 6 กล่อง (399.-)',
+    code: 'PACK399',
+    price: 399,
+    meals: 6,
+    rounds: 1,
+    days: 1,
+    type: 'RETAIL',
+    subsidyPerRound: 35,
+    tag: 'โปร 6 กล่อง',
+    desc: 'ส่งรอบเดียว ช่วยค่าส่ง Grab 35฿ (9%) | วัตถุดิบ 40% (160฿) | กำไรสุทธิ 19% (76฿)',
+    splitPct: {
+      material: 40,
+      packaging: 10,
+      labor: 14,
+      deliverySub: 9,
+      marketing: 4,
+      maintenance: 4,
+      profit: 19
+    },
+    splitAmount: {
+      material: 160,
+      packaging: 40,
+      labor: 56,
+      deliverySub: 35,
+      marketing: 16,
+      maintenance: 16,
+      profit: 76
+    }
+  },
+  {
+    id: 'pack_7box',
+    name: 'แพ็ค 7 กล่อง (459.-)',
+    code: 'PACK459',
+    price: 459,
+    meals: 7,
+    rounds: 1,
+    days: 1,
+    type: 'RETAIL',
+    subsidyPerRound: 35,
+    tag: 'โปร 7 กล่อง',
+    desc: 'ส่งรอบเดียว ช่วยค่าส่ง Grab 35฿ (8%) | วัตถุดิบ 40% (184฿) | กำไรสุทธิ 20% (94฿)',
+    splitPct: {
+      material: 40,
+      packaging: 10,
+      labor: 14,
+      deliverySub: 8,
+      marketing: 4,
+      maintenance: 4,
+      profit: 20
+    },
+    splitAmount: {
+      material: 184,
+      packaging: 46,
+      labor: 64,
+      deliverySub: 35,
+      marketing: 18,
+      maintenance: 18,
+      profit: 94
+    }
+  }
+];
+
